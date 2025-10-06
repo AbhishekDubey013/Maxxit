@@ -200,13 +200,17 @@ export default function CreateAgent() {
         agentData.profitReceiverAddress = agentData.creatorWallet;
       }
       
+      console.log('🚀 CREATING AGENT - Step 1: Posting agent data to DB...');
       const result = await db.post('agents', agentData);
+      console.log('✅ AGENT CREATED:', result);
       
       if (result && result[0]?.id) {
         const agentId = result[0].id;
+        console.log('📝 Agent ID:', agentId);
+        console.log('📊 Selected CT Accounts:', selectedCtAccounts.size, 'accounts');
         
         // Link selected CT accounts to the agent
-        console.log('Linking CT accounts:', Array.from(selectedCtAccounts));
+        console.log('🔗 LINKING CT ACCOUNTS - Starting...', Array.from(selectedCtAccounts));
         
         const linkPromises = Array.from(selectedCtAccounts).map(async (ctAccountId) => {
           console.log('  Linking CT account:', ctAccountId);
