@@ -62,6 +62,7 @@ model AgentDeployment {
   agentId       String         @map("agent_id") @db.Uuid
   userWallet    String         @map("user_wallet")
   safeWallet    String         @map("safe_wallet")
+  moduleEnabled Boolean        @default(false) @map("module_enabled")
   status        AgentStatus    @default(ACTIVE)
   subActive     Boolean        @default(true) @map("sub_active")
   subStartedAt  DateTime       @default(now()) @map("sub_started_at") @db.Timestamptz(6)
