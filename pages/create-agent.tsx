@@ -206,11 +206,35 @@ export default function CreateAgent() {
         const agentId = result[0].id;
         
         // Link selected CT accounts to the agent
-        const linkPromises = Array.from(selectedCtAccounts).map(ctAccountId =>
-          db.post(`agents/${agentId}/accounts`, { ctAccountId })
-        );
+        console.log('Linking CT accounts:', Array.from(selectedCtAccounts));
         
-        await Promise.all(linkPromises);
+        const linkPromises = Array.from(selectedCtAccounts).map(async (ctAccountId) => {
+          console.log('  Linking CT account:', ctAccountId);
+          const response = await fetch(`/api/agents/${agentId}/accounts`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ctAccountId }),
+          });
+          
+          if (!response.ok) {
+            const error = await response.json().catch(() => ({ error: 'Failed to link account' }));
+            console.error('  Failed to link account:', ctAccountId, error);
+            throw new Error(error.error || `Failed to link account ${ctAccountId}`);
+          }
+          
+          const result = await response.json();
+          console.log('  Successfully linked:', result);
+          return result;
+        });
+        
+        try {
+          await Promise.all(linkPromises);
+          console.log('✅ All CT accounts linked successfully');
+        } catch (linkError: any) {
+          console.error('❌ Failed to link CT accounts:', linkError);
+          setError(`Agent created but some CT accounts failed to link: ${linkError.message}`);
+          // Don't return here - still show the deploy modal
+        }
         
         setCreatedAgentId(agentId);
         setShowDeployModal(true);
