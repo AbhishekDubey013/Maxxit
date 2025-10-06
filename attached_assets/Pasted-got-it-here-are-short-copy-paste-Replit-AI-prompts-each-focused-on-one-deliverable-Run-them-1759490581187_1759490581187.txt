@@ -1,0 +1,132 @@
+got it — here are **short, copy-paste Replit AI prompts**, each focused on one deliverable. Run them one-by-one in your repo. They include tight acceptance criteria so Replit knows when it’s done.
+
+---
+
+## Prompt 0 — Bootstrap & Infra
+
+**Paste:**
+“Upgrade the project to a production-ready Next.js (TypeScript) app with routes `/`, `/create-agent`, `/creator`, `/docs`. Add Tailwind. Add `.env.example` with `NEON_REST_URL`, `NEON_REST_TOKEN`. Create server API proxy at `/api/db/[...path].ts` that forwards to `${process.env.NEON_REST_URL}/:path` with headers: `Authorization: Bearer ${NEON_REST_TOKEN}`, `Content-Type: application/json`, `Prefer: return=representation`. Support GET/POST/PATCH/DELETE. Add `lib/db.ts` to call the proxy from client.
+**Accept:** pages exist; Tailwind works; proxy route uses server env; no token on client.”
+
+---
+
+## Prompt 1 — Homepage / Marketplace + narrative
+
+**Paste:**
+“Build `/` as a **DeFi Agent Marketplace**:
+
+* Hero: H1 ‘DeFi Agent Marketplace’; subhead ‘Agents differentiated by real-time, credible human reasoning from high-impact X accounts — with gasless execution.’ Buttons: Explore (scroll to list), Create (`/create-agent`).
+* Fetch active agents from `/api/db/agents?status=eq.ACTIVE&order=apr_30d.desc&limit=20&select=id,name,venue,apr_30d,apr_90d,apr_si,sharpe_30d`.
+* Card: name, venue, APR(30d) + badges ‘Gasless’, ‘Non-custodial’. Drawer on click shows 30-day sparkline from `/api/db/pnl_snapshots?agent_id=eq.<id>&order=day.asc&select=day,return_pct`.
+* Add strip bullets: Transparent PnL; Human reasoning baked-in; Gasless ($0.20/trade).
+  **Accept:** list renders from Neon via proxy; badges + tooltip for Gasless; no client secrets.”
+
+---
+
+## Prompt 2 — Agent Creation Wizard (`/create-agent`)
+
+**Paste:**
+“Create a 5-step wizard (Formik/React Hook Form + Zod) at `/create-agent`:
+
+1. Basics: name (required), venue (SPOT/GMX/HYPERLIQUID), status defaults DRAFT.
+2. Human layer: multi-select X accounts from `/api/db/ct_accounts?select=id,x_username,impact_factor&order=impact_factor.desc&limit=100`.
+3. Strategy: 8 sliders (0–100) → `weights[8]` (validate length & range).
+4. Risk & Sizing: choose Balance% (pct, maxUsd) or Fixed (usd); SL/TP/Trailing.
+5. Deploy: Safe wallet, accept fees ($20/mo first month free; $0.20/trade; 10% profit share).
+   On submit: POST `/api/db/agents` `{creator_wallet,name,venue,status:'DRAFT',weights}` → then POST `/api/db/agent_deployments` `{agent_id,user_wallet,safe_wallet,status:'ACTIVE',sub_active:true}` → redirect `/creator`.
+   **Accept:** client validation; errors toasts; success toast; all writes via proxy.”
+
+---
+
+## Prompt 3 — Creator Dashboard (`/creator`)
+
+**Paste:**
+“Build a Creator Dashboard with 5 widgets:
+
+1. My Agents: GET `/api/db/agents?creator_wallet=eq.<me>&order=apr_30d.desc&limit=10&select=id,name,venue,status,apr_30d,apr_90d,apr_si,sharpe_30d`. Inline edit weights (PATCH), Pause/Resume (PATCH status).
+2. Signals stream: GET `/api/db/signals?agent_id=in.(<myIds>)&order=created_at.desc&limit=100&select=created_at,token_symbol,side`.
+3. Positions: GET `/api/db/positions?deployment_id=in.(<myDepIds>)&order=opened_at.desc&limit=20&select=token_symbol,side,entry_price,opened_at,closed_at,exit_price,pnl`.
+4. Earnings: GET `/api/db/billing_events?kind=eq.PROFIT_SHARE&deployment_id=in.(<myDepIds>)&select=amount,occurred_at,deployment_id`.
+5. Settings: default Safe + payout wallet (persist via `/api/db/audit_logs`).
+   **Accept:** pagination; PATCH persists; loading/error states; no client secrets.”
+
+---
+
+## Prompt 4 — Robust Neon REST proxy
+
+**Paste:**
+“Implement `/api/db/[...path].ts` as a robust proxy:
+
+* Build target URL = `${NEON_REST_URL}/${path.join('/')}${search}`.
+* Methods: GET/POST/PATCH/DELETE; set headers `Authorization: Bearer ${NEON_REST_TOKEN}`, `Content-Type: application/json`; add `Prefer: return=representation` for POST/PATCH/DELETE.
+* Pass through status & JSON; 5s timeout; friendly error.
+* Validate env present; never expose token.
+  **Accept:** unit test mocks fetch; GET & POST work with sample table; token never logged.”
+
+---
+
+## Prompt 5 — Seed script (so UI has data)
+
+**Paste:**
+“Create `scripts/seed.ts` that calls our proxy to upsert demo data if missing:
+
+* 4 `ct_accounts` with `x_username`, `impact_factor`.
+* 3 `agents` (ACTIVE) with weights[8] and sample `apr_30d/90d`.
+* 3 `agent_deployments` linked to agents.
+* 15 `pnl_snapshots` (last 15 days) per agent with small `return_pct`.
+* 8 `venues_status` rows for SPOT/GMX/HYPERLIQUID majors.
+  Add npm scripts: `seed`.
+  **Accept:** homepage shows seeded agents; agent drawer sparkline renders.”
+
+---
+
+## Prompt 6 — Docs page (`/docs`)
+
+**Paste:**
+“Create `/docs` with sections + anchors:
+
+* What is Maxxit?
+* Why it’s different (Human reasoning, Gasless $0.20/trade, Non-custodial Safe)
+* How it works (Tweets → Candidates → Signals → Trade → Exit → PnL → Billing)
+* Create an Agent (steps)
+* For Traders (subscribe)
+* Fees (Subscription $20/mo per deployment; $0.20/trade; 10% profit share on profitable exits)
+* Safety & Custody
+* Data & Transparency
+* API via `/api/db/*` proxy (Neon REST)
+* Roadmap, FAQ
+  **Accept:** left TOC with anchor links; responsive; uses same site layout.”
+
+---
+
+## Prompt 7 — Styling & badges
+
+**Paste:**
+“Add UI polish: reusable `Badge` (variants success/warn/info), `Tooltip`.
+Use badges on agent cards: ‘Gasless’, ‘Non-custodial’, ‘Live’. Tooltip on Gasless: ‘We relay transactions and charge a flat $0.20 per trade.’ Improve card hover, spacing, mobile grid.
+**Accept:** Lighthouse ≥90 on `/` for perf and a11y.”
+
+---
+
+## Prompt 8 — Smoke tests
+
+**Paste:**
+“Add basic tests (Vitest + RTL or Playwright):
+
+* Home renders ≥1 agent card after `npm run seed`.
+* Create-agent validates weights length=8 and range 0..100.
+* Creator dashboard ‘Edit Weights’ → PATCH and UI updates.
+  **Accept:** `npm test` passes locally.”
+
+---
+
+### How to run them
+
+1. Run **Prompt 0** first.
+2. Add your Neon creds in Replit Secrets:
+
+   * `NEON_REST_URL = https://ep-snowy-river-ad5rkc23.apirest.c-2.us-east-1.aws.neon.tech/neondb/rest/v1`
+   * `NEON_REST_TOKEN = <your token>`
+3. Then run Prompts **1 → 8** in order.
+
+If Replit scaffolded **something other than Next.js**, tell me which (e.g., Vite+React or Express) and I’ll rewrite these prompts to match that framework’s routing and file layout.
