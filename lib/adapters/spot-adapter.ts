@@ -94,7 +94,9 @@ export class SpotAdapter {
     const quoter = new ethers.Contract(quoterAddress, quoterAbi, provider);
 
     try {
-      const fee = params.fee || 3000; // Default 0.3%
+      // Use 1% fee tier for Sepolia (best liquidity), 0.3% for others
+      const defaultFee = this.chainId === 11155111 ? 10000 : 3000;
+      const fee = params.fee || defaultFee;
       let amountOut: ethers.BigNumber;
 
       if (isSepoliaOrTestnet) {
@@ -158,10 +160,14 @@ export class SpotAdapter {
       'function exactInputSingle((address tokenIn, address tokenOut, uint24 fee, address recipient, uint256 deadline, uint256 amountIn, uint256 amountOutMinimum, uint160 sqrtPriceLimitX96)) external payable returns (uint256 amountOut)',
     ]);
 
+    // Use 1% fee tier for Sepolia (best liquidity: 11.6M USDC + 999 WETH)
+    // Use 0.3% fee tier for other networks (standard)
+    const feeToUse = this.chainId === 11155111 ? 10000 : 3000;
+    
     const swapParams = {
       tokenIn: params.tokenIn,
       tokenOut: params.tokenOut,
-      fee: 3000, // 0.3% fee tier
+      fee: feeToUse, // 1% for Sepolia, 0.3% for production
       recipient: params.recipient,
       deadline: params.deadline,
       amountIn: params.amountIn,
