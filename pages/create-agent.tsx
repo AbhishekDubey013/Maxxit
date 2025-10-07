@@ -135,9 +135,9 @@ export default function CreateAgent() {
         followersCount: newCtFollowers ? parseInt(newCtFollowers) : undefined,
       });
 
-      if (newAccount && newAccount[0]) {
-        setCtAccounts([newAccount[0], ...ctAccounts]);
-        setSelectedCtAccounts(new Set([...selectedCtAccounts, newAccount[0].id]));
+      if (newAccount && newAccount.id) {
+        setCtAccounts([newAccount, ...ctAccounts]);
+        setSelectedCtAccounts(new Set([...selectedCtAccounts, newAccount.id]));
         setShowAddCtAccount(false);
         setNewCtUsername('');
         setNewCtDisplayName('');
@@ -204,8 +204,8 @@ export default function CreateAgent() {
       const result = await db.post('agents', agentData);
       console.log('✅ AGENT CREATED:', result);
       
-      if (result && result[0]?.id) {
-        const agentId = result[0].id;
+      if (result && result.id) {
+        const agentId = result.id;
         console.log('📝 Agent ID:', agentId);
         console.log('📊 Selected CT Accounts:', selectedCtAccounts.size, 'accounts');
         
