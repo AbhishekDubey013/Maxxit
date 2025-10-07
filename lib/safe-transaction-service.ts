@@ -3,7 +3,8 @@
  * Handles Safe transaction proposal, signing, and execution
  */
 
-import Safe, { EthersAdapter } from '@safe-global/protocol-kit';
+import Safe from '@safe-global/protocol-kit';
+import { EthersAdapter } from '@safe-global/protocol-kit';
 import SafeApiKit from '@safe-global/api-kit';
 import { MetaTransactionData } from '@safe-global/safe-core-sdk-types';
 import { ethers } from 'ethers';

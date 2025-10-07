@@ -49,6 +49,13 @@ export class SpotAdapter {
   }
 
   /**
+   * Get router address for chain
+   */
+  static getRouterAddress(chainId: number): string | undefined {
+    return SpotAdapter.ROUTERS[chainId];
+  }
+
+  /**
    * Get quote for swap (how much output for given input)
    */
   async getQuote(params: {
@@ -62,27 +69,55 @@ export class SpotAdapter {
       throw new Error(`Quoter not configured for chain ${this.chainId}`);
     }
 
-    const quoterAbi = [
+    // QuoterV2 for Sepolia, QuoterV1 for others
+    const isSepoliaOrTestnet = this.chainId === 11155111;
+    
+    const quoterV2Abi = [
+      'function quoteExactInputSingle((address tokenIn, address tokenOut, uint256 amountIn, uint24 fee, uint160 sqrtPriceLimitX96)) external returns (uint256 amountOut, uint160 sqrtPriceX96After, uint32 initializedTicksCrossed, uint256 gasEstimate)',
+    ];
+    
+    const quoterV1Abi = [
       'function quoteExactInputSingle(address tokenIn, address tokenOut, uint24 fee, uint256 amountIn, uint160 sqrtPriceLimitX96) external returns (uint256 amountOut)',
     ];
 
-    const provider = new ethers.providers.JsonRpcProvider(
-      this.chainId === 42161 
-        ? process.env.ARBITRUM_RPC_URL || 'https://arb1.arbitrum.io/rpc'
-        : process.env.BASE_RPC_URL || 'https://mainnet.base.org'
-    );
+    let rpcUrl: string;
+    if (this.chainId === 11155111) {
+      rpcUrl = process.env.SEPOLIA_RPC_URL || 'https://ethereum-sepolia.publicnode.com';
+    } else if (this.chainId === 42161) {
+      rpcUrl = process.env.ARBITRUM_RPC_URL || 'https://arb1.arbitrum.io/rpc';
+    } else {
+      rpcUrl = process.env.BASE_RPC_URL || 'https://mainnet.base.org';
+    }
 
+    const provider = new ethers.providers.JsonRpcProvider(rpcUrl);
+    const quoterAbi = isSepoliaOrTestnet ? quoterV2Abi : quoterV1Abi;
     const quoter = new ethers.Contract(quoterAddress, quoterAbi, provider);
 
     try {
       const fee = params.fee || 3000; // Default 0.3%
-      const amountOut = await quoter.callStatic.quoteExactInputSingle(
-        params.tokenIn,
-        params.tokenOut,
-        fee,
-        params.amountIn,
-        0 // No price limit
-      );
+      let amountOut: ethers.BigNumber;
+
+      if (isSepoliaOrTestnet) {
+        // QuoterV2 uses struct parameter
+        const quoteParams = {
+          tokenIn: params.tokenIn,
+          tokenOut: params.tokenOut,
+          amountIn: params.amountIn,
+          fee,
+          sqrtPriceLimitX96: 0,
+        };
+        const result = await quoter.callStatic.quoteExactInputSingle(quoteParams);
+        amountOut = result.amountOut || result[0];
+      } else {
+        // QuoterV1 uses individual parameters
+        amountOut = await quoter.callStatic.quoteExactInputSingle(
+          params.tokenIn,
+          params.tokenOut,
+          fee,
+          params.amountIn,
+          0
+        );
+      }
 
       // Calculate price impact (simplified)
       const priceImpact = 0.5; // TODO: Calculate actual price impact

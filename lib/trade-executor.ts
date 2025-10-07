@@ -8,7 +8,7 @@ import { createSafeWallet, getChainIdForVenue, SafeWalletService } from './safe-
 import { createSpotAdapter, SpotAdapter } from './adapters/spot-adapter';
 import { createGMXAdapter, GMXAdapter } from './adapters/gmx-adapter';
 import { createHyperliquidAdapter, HyperliquidAdapter } from './adapters/hyperliquid-adapter';
-import { createSafeTransactionService, SafeTransactionService } from './safe-transaction-service';
+import { SafeModuleService } from './safe-module-service';
 import { ethers } from 'ethers';
 
 const prisma = new PrismaClient();
@@ -303,15 +303,42 @@ export class TradeExecutor {
         recipient: ctx.deployment.safeWallet,
       });
 
-      // Create Safe transaction service
-      const txService = createSafeTransactionService(
-        ctx.deployment.safeWallet,
+      // Use Safe Module Service for gasless execution
+      const moduleAddress = process.env.MODULE_ADDRESS || '0xa87f82433294cE8A3C8f08Ec5D2825e946C0c0FE';
+      const executorPrivateKey = process.env.EXECUTOR_PRIVATE_KEY;
+      
+      if (!executorPrivateKey) {
+        return {
+          success: false,
+          error: 'EXECUTOR_PRIVATE_KEY not configured',
+        };
+      }
+      
+      const moduleService = new SafeModuleService({
+        moduleAddress,
         chainId,
-        process.env.EXECUTOR_PRIVATE_KEY
-      );
-
-      // Submit batch transaction (approval + swap)
-      const result = await txService.batchTransactions([approvalTx, swapTx]);
+        executorPrivateKey,
+      });
+      
+      const routerAddress = SpotAdapter.getRouterAddress(chainId);
+      if (!routerAddress) {
+        return {
+          success: false,
+          error: `Router not configured for chain ${chainId}`,
+        };
+      }
+      
+      // Execute trade through module (gasless!)
+      const result = await moduleService.executeTrade({
+        safeAddress: ctx.deployment.safeWallet,
+        fromToken: usdcAddress,
+        toToken: tokenRegistry.tokenAddress,
+        amountIn: amountIn.toString(),
+        dexRouter: routerAddress,
+        swapData: swapTx.data as string,
+        minAmountOut,
+        profitReceiver: ctx.signal.agent.profitReceiverAddress,
+      });
 
       if (!result.success) {
         return {
