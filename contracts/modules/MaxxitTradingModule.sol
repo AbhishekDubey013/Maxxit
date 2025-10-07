@@ -201,8 +201,8 @@ contract MaxxitTradingModule {
             }
         }
         
-        // Step 2: Approve token for DEX
-        _approveToken(params.safe, params.fromToken, params.dexRouter, params.amountIn);
+        // Step 2: Token should already be approved via approveTokenForDex()
+        // No need to approve on every trade - more gas efficient!
         
         // Step 3: Execute swap
         uint256 balanceBefore = IERC20(params.toToken).balanceOf(params.safe);
@@ -383,6 +383,31 @@ contract MaxxitTradingModule {
     function setExecutorAuthorization(address executor, bool status) external onlyModuleOwner {
         authorizedExecutors[executor] = status;
         emit ExecutorAuthorized(executor, status);
+    }
+    
+    /**
+     * @notice Pre-approve token for DEX router (one-time setup)
+     * @dev Approves MAX_UINT256 to avoid approval on every trade
+     * @param safe Safe wallet address
+     * @param token Token to approve (e.g., USDC)
+     * @param dexRouter DEX router to approve (e.g., Uniswap)
+     */
+    function approveTokenForDex(
+        address safe,
+        address token,
+        address dexRouter
+    ) external onlyAuthorizedExecutor {
+        // Approve unlimited amount for gas efficiency
+        bytes memory data = abi.encodeWithSelector(
+            IERC20.approve.selector,
+            dexRouter,
+            type(uint256).max // MAX_UINT256
+        );
+        
+        bool success = _executeFromModule(safe, token, 0, data);
+        if (!success) revert TransactionFailed();
+        
+        emit TokenWhitelisted(token, true); // Reuse event for logging
     }
     
     // ============ View Functions ============
