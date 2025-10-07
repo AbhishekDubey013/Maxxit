@@ -97,40 +97,70 @@ export default function DeployAgent() {
     }
   };
 
-  // Check if module is enabled
+  // Check if module is enabled and sync with blockchain
   const checkModuleStatus = async () => {
     setModuleStatus({ checking: true, enabled: false, needsEnabling: false });
 
     try {
-      const response = await fetch('/api/safe/enable-module', {
+      // First sync with blockchain to ensure database is up to date
+      const syncResponse = await fetch('/api/safe/sync-module-status', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ safeAddress }),
       });
 
-      const data = await response.json();
+      const syncData = await syncResponse.json();
 
-      if (data.success && data.alreadyEnabled) {
-        setModuleStatus({
-          checking: false,
-          enabled: true,
-          needsEnabling: false,
-        });
-      } else if (data.success && data.needsEnabling) {
-        setModuleStatus({
-          checking: false,
-          enabled: false,
-          needsEnabling: true,
-        });
+      if (syncData.success) {
+        // Module status is now synced with blockchain
+        if (syncData.moduleEnabled) {
+          setModuleStatus({
+            checking: false,
+            enabled: true,
+            needsEnabling: false,
+          });
+          console.log('[CheckModule] Module is enabled and synced with blockchain');
+        } else {
+          setModuleStatus({
+            checking: false,
+            enabled: false,
+            needsEnabling: true,
+          });
+          console.log('[CheckModule] Module needs to be enabled');
+        }
       } else {
-        setModuleStatus({
-          checking: false,
-          enabled: false,
-          needsEnabling: false,
-          error: data.error || 'Failed to check module status',
+        // Sync failed, fall back to old check
+        const response = await fetch('/api/safe/enable-module', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ safeAddress }),
         });
+
+        const data = await response.json();
+
+        if (data.success && data.alreadyEnabled) {
+          setModuleStatus({
+            checking: false,
+            enabled: true,
+            needsEnabling: false,
+          });
+        } else if (data.success && data.needsEnabling) {
+          setModuleStatus({
+            checking: false,
+            enabled: false,
+            needsEnabling: true,
+          });
+        } else {
+          setModuleStatus({
+            checking: false,
+            enabled: false,
+            needsEnabling: false,
+            error: data.error || 'Failed to check module status',
+          });
+        }
       }
     } catch (error: any) {
+      console.error('[CheckModule] Error:', error);
       setModuleStatus({
         checking: false,
         enabled: false,

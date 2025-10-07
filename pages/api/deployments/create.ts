@@ -6,8 +6,16 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { PrismaClient } from '@prisma/client';
 import { createSafeWallet, getChainIdForVenue } from '../../../lib/safe-wallet';
+import { ethers } from 'ethers';
 
 const prisma = new PrismaClient();
+
+const SEPOLIA_RPC = process.env.SEPOLIA_RPC_URL || 'https://ethereum-sepolia.publicnode.com';
+const MODULE_ADDRESS = process.env.MODULE_ADDRESS || '0xa87f82433294cE8A3C8f08Ec5D2825e946C0c0FE';
+
+const SAFE_ABI = [
+  'function isModuleEnabled(address module) external view returns (bool)',
+];
 
 export default async function handler(
   req: NextApiRequest,
@@ -83,12 +91,25 @@ export default async function handler(
       });
     }
 
-    // Create deployment
+    // Check module status on-chain before creating deployment
+    let moduleEnabled = false;
+    try {
+      const provider = new ethers.providers.JsonRpcProvider(SEPOLIA_RPC);
+      const safe = new ethers.Contract(safeWallet, SAFE_ABI, provider);
+      moduleEnabled = await safe.isModuleEnabled(MODULE_ADDRESS);
+      console.log('[CreateDeployment] Module enabled on-chain:', moduleEnabled);
+    } catch (error) {
+      console.error('[CreateDeployment] Error checking module status:', error);
+      // Continue with deployment but moduleEnabled will be false
+    }
+
+    // Create deployment with correct module status
     const deployment = await prisma.agentDeployment.create({
       data: {
         agentId,
         userWallet,
         safeWallet,
+        moduleEnabled, // Set based on on-chain status
         status: 'ACTIVE',
         subActive: true,
         subStartedAt: new Date(),
