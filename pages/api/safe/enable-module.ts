@@ -28,7 +28,10 @@ export default async function handler(
   }
 
   try {
-    const { safeAddress } = req.body;
+    const { safeAddress, moduleAddress: customModuleAddress } = req.body;
+    
+    // Allow custom module address, or use default from env
+    const moduleToEnable = customModuleAddress || MODULE_ADDRESS;
 
     if (!safeAddress || !ethers.utils.isAddress(safeAddress)) {
       return res.status(400).json({
@@ -54,7 +57,7 @@ export default async function handler(
     // Check if module is already enabled
     let isEnabled = false;
     try {
-      isEnabled = await safe.isModuleEnabled(MODULE_ADDRESS);
+      isEnabled = await safe.isModuleEnabled(moduleToEnable);
     } catch (error) {
       console.error('[EnableModule] Error checking module status:', error);
     }
@@ -64,7 +67,7 @@ export default async function handler(
         success: true,
         alreadyEnabled: true,
         message: 'Module is already enabled',
-        moduleAddress: MODULE_ADDRESS,
+        moduleAddress: moduleToEnable,
       });
     }
 
@@ -72,7 +75,7 @@ export default async function handler(
     
     // Generate enableModule transaction data (module address is encoded inside)
     const iface = new ethers.utils.Interface(SAFE_ABI);
-    const txData = iface.encodeFunctionData('enableModule', [MODULE_ADDRESS]);
+    const txData = iface.encodeFunctionData('enableModule', [moduleToEnable]);
 
     // Get Safe nonce for frontend
     const nonce = await safe.nonce();
@@ -80,8 +83,8 @@ export default async function handler(
     console.log('[EnableModule] Transaction data prepared:', {
       to: safeAddress,
       data: txData,
-      moduleAddress: MODULE_ADDRESS,
-      dataDecoded: `enableModule(${MODULE_ADDRESS})`,
+      moduleAddress: moduleToEnable,
+      dataDecoded: `enableModule(${moduleToEnable})`,
     });
 
     return res.status(200).json({
@@ -95,13 +98,13 @@ export default async function handler(
       },
       nonce: nonce.toString(),
       safeAddress,
-      moduleAddress: MODULE_ADDRESS, // For display purposes
+      moduleAddress: moduleToEnable, // For display purposes
       chainId: 11155111, // Sepolia
       message: 'Complete transaction data ready - just paste in Safe',
       // Helpful for debugging
       decoded: {
         function: 'enableModule',
-        parameter: MODULE_ADDRESS,
+        parameter: moduleToEnable,
       },
     });
   } catch (error: any) {
