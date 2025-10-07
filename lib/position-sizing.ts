@@ -50,7 +50,7 @@ export const DEFAULT_CONFIG: PositionSizingConfig = {
   mediumConfidencePercent: 5,
   highConfidencePercent: 8,
   
-  minTradeUsd: 10,
+  minTradeUsd: 0, // No minimum - allows micro trades
   maxTradeUsd: 1000,
   
   reservePercent: 20,
@@ -67,7 +67,7 @@ export const AGGRESSIVE_CONFIG: PositionSizingConfig = {
   mediumConfidencePercent: 10,
   highConfidencePercent: 15,
   
-  minTradeUsd: 10,
+  minTradeUsd: 0, // No minimum - allows micro trades
   maxTradeUsd: 5000,
   
   reservePercent: 10,
@@ -168,7 +168,8 @@ export function calculatePositionSize(
     reasoning.push(`Capped by max trade size: ${config.maxTradeUsd} USDC`);
   }
   
-  if (usdcAmount < config.minTradeUsd) {
+  // Only apply minimum if configured (0 = no minimum)
+  if (config.minTradeUsd > 0 && usdcAmount < config.minTradeUsd) {
     if (availableBalance < config.minTradeUsd) {
       reasoning.push(`❌ Insufficient balance for minimum trade (${config.minTradeUsd} USDC)`);
       usdcAmount = 0;
@@ -176,6 +177,11 @@ export function calculatePositionSize(
       usdcAmount = config.minTradeUsd;
       reasoning.push(`Raised to minimum trade size: ${config.minTradeUsd} USDC`);
     }
+  }
+  
+  // Check if amount is too small to be meaningful (below $0.01)
+  if (usdcAmount > 0 && usdcAmount < 0.01) {
+    reasoning.push(`⚠️ Trade size very small: ${usdcAmount.toFixed(6)} USDC`);
   }
   
   // Step 5: Round to 2 decimals (cent precision)
@@ -207,6 +213,7 @@ export function getConfigForRiskProfile(riskProfile: 'CONSERVATIVE' | 'MODERATE'
         lowConfidencePercent: 1,
         mediumConfidencePercent: 2,
         highConfidencePercent: 4,
+        minTradeUsd: 0,
         reservePercent: 30,
       };
     
