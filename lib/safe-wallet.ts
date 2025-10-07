@@ -268,14 +268,17 @@ export const CHAIN_IDS = {
  * Get chain ID for venue
  */
 export function getChainIdForVenue(venue: 'SPOT' | 'GMX' | 'HYPERLIQUID'): number {
+  // Check if we're in testnet mode (Sepolia)
+  const isTestnet = process.env.SEPOLIA_RPC_URL || process.env.NODE_ENV === 'development';
+  
   switch (venue) {
     case 'SPOT':
-      return CHAIN_IDS.ARBITRUM; // Default to Arbitrum for SPOT
+      return isTestnet ? CHAIN_IDS.SEPOLIA : CHAIN_IDS.ARBITRUM;
     case 'GMX':
-      return CHAIN_IDS.ARBITRUM; // GMX on Arbitrum
+      return CHAIN_IDS.ARBITRUM; // GMX on Arbitrum (no testnet)
     case 'HYPERLIQUID':
       return CHAIN_IDS.ARBITRUM; // Bridge from Arbitrum
     default:
-      return CHAIN_IDS.ARBITRUM;
+      return isTestnet ? CHAIN_IDS.SEPOLIA : CHAIN_IDS.ARBITRUM;
   }
 }

@@ -169,7 +169,7 @@ export class TradeExecutor {
       // 4. For SPOT, check token registry
       if (signal.venue === 'SPOT') {
         const chainId = getChainIdForVenue(signal.venue);
-        const chain = chainId === 42161 ? 'arbitrum' : 'base';
+        const chain = chainId === 42161 ? 'arbitrum' : chainId === 8453 ? 'base' : 'sepolia';
         
         const tokenRegistry = await prisma.tokenRegistry.findUnique({
           where: {
@@ -246,7 +246,7 @@ export class TradeExecutor {
       }
 
       // Get token addresses
-      const chain = chainId === 42161 ? 'arbitrum' : 'base';
+      const chain = chainId === 42161 ? 'arbitrum' : chainId === 8453 ? 'base' : 'sepolia';
       const tokenRegistry = await prisma.tokenRegistry.findUnique({
         where: {
           chain_tokenSymbol: {
@@ -266,13 +266,15 @@ export class TradeExecutor {
       // Calculate amounts
       const usdcBalance = summary.usdcBalance || 0;
       const sizeModel = ctx.signal.sizeModel as any;
-      const positionSize = (usdcBalance * sizeModel.value) / 100;
+      // Use baseSize from dynamic position sizing, or fallback to percentage calculation
+      const positionSize = sizeModel.baseSize || (usdcBalance * (sizeModel.value || 0)) / 100;
       const amountIn = ethers.utils.parseUnits(positionSize.toFixed(6), 6); // USDC has 6 decimals
 
       // Get USDC address
       const USDC_ADDRESSES: Record<number, string> = {
-        42161: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831',
-        8453: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
+        11155111: '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238', // Sepolia testnet
+        42161: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831', // Arbitrum
+        8453: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913', // Base
       };
       const usdcAddress = USDC_ADDRESSES[chainId];
 
@@ -636,8 +638,9 @@ export class TradeExecutor {
 
       // Get USDC address
       const USDC_ADDRESSES: Record<number, string> = {
-        42161: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831',
-        8453: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
+        11155111: '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238', // Sepolia testnet
+        42161: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831', // Arbitrum
+        8453: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913', // Base
       };
       const usdcAddress = USDC_ADDRESSES[chainId];
 

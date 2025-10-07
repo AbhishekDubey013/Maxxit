@@ -31,14 +31,16 @@ export class SpotAdapter {
 
   // Uniswap V3 Router addresses
   private static readonly ROUTERS: Record<number, string> = {
-    42161: '0xE592427A0AEce92De3Edee1F18E0157C05861564', // Arbitrum
-    8453: '0x2626664c2603336E57B271c5C0b26F421741e481',  // Base
+    11155111: '0x3bFA4769FB09eefC5a80d6E87c3B9C650f7Ae48E', // Sepolia testnet (SwapRouter02)
+    42161: '0xE592427A0AEce92De3Edee1F18E0157C05861564',   // Arbitrum
+    8453: '0x2626664c2603336E57B271c5C0b26F421741e481',    // Base
   };
 
   // Uniswap V3 Quoter addresses
   private static readonly QUOTERS: Record<number, string> = {
-    42161: '0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6', // Arbitrum
-    8453: '0x3d4e44Eb1374240CE5F1B871ab261CD16335B76a',  // Base
+    11155111: '0xEd1f6473345F45b75F8179591dd5bA1888cf2FB3', // Sepolia testnet
+    42161: '0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6',   // Arbitrum
+    8453: '0x3d4e44Eb1374240CE5F1B871ab261CD16335B76a',    // Base
   };
 
   constructor(safeWallet: SafeWalletService, chainId: number) {
