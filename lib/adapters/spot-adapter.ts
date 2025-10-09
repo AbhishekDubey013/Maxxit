@@ -82,9 +82,9 @@ export class SpotAdapter {
 
     let rpcUrl: string;
     if (this.chainId === 11155111) {
-      rpcUrl = process.env.SEPOLIA_RPC_URL || 'https://ethereum-sepolia.publicnode.com';
+      rpcUrl = process.env.SEPOLIA_RPC || 'https://ethereum-sepolia.publicnode.com';
     } else if (this.chainId === 42161) {
-      rpcUrl = process.env.ARBITRUM_RPC_URL || 'https://arb1.arbitrum.io/rpc';
+      rpcUrl = process.env.ARBITRUM_RPC || process.env.ARBITRUM_RPC_URL || 'https://arb1.arbitrum.io/rpc';
     } else {
       rpcUrl = process.env.BASE_RPC_URL || 'https://mainnet.base.org';
     }
@@ -94,7 +94,7 @@ export class SpotAdapter {
     const quoter = new ethers.Contract(quoterAddress, quoterAbi, provider);
 
     try {
-      // Use 1% fee tier for Sepolia (best liquidity), 0.3% for others
+      // Use 0.3% fee tier for Arbitrum/Base (standard), 1% for Sepolia testnet
       const defaultFee = this.chainId === 11155111 ? 10000 : 3000;
       const fee = params.fee || defaultFee;
       let amountOut: ethers.BigNumber;
@@ -160,8 +160,8 @@ export class SpotAdapter {
       'function exactInputSingle((address tokenIn, address tokenOut, uint24 fee, address recipient, uint256 deadline, uint256 amountIn, uint256 amountOutMinimum, uint160 sqrtPriceLimitX96)) external payable returns (uint256 amountOut)',
     ]);
 
-    // Use 1% fee tier for Sepolia (best liquidity: 11.6M USDC + 999 WETH)
-    // Use 0.3% fee tier for other networks (standard)
+    // Use 0.3% fee tier for Arbitrum/Base (standard)
+    // Use 1% fee tier for Sepolia testnet (best liquidity on testnet)
     const feeToUse = this.chainId === 11155111 ? 10000 : 3000;
     
     const swapParams = {

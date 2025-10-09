@@ -10,7 +10,7 @@ import { ethers } from 'ethers';
 
 export interface SafeWalletConfig {
   safeAddress: string;
-  chainId: number; // 11155111 for Sepolia, 42161 for Arbitrum, 8453 for Base
+  chainId: number; // 42161 for Arbitrum (default), 11155111 for Sepolia (testnet), 8453 for Base
   rpcUrl: string;
 }
 
@@ -239,7 +239,7 @@ export class SafeWalletService {
 export function createSafeWallet(safeAddress: string, chainId: number): SafeWalletService {
   const RPC_URLS: Record<number, string> = {
     11155111: process.env.SEPOLIA_RPC || 'https://ethereum-sepolia.publicnode.com',
-    42161: process.env.ARBITRUM_RPC_URL || 'https://arb1.arbitrum.io/rpc',
+    42161: process.env.ARBITRUM_RPC || process.env.ARBITRUM_RPC_URL || 'https://arb1.arbitrum.io/rpc',
     8453: process.env.BASE_RPC_URL || 'https://mainnet.base.org',
   };
 
@@ -268,17 +268,18 @@ export const CHAIN_IDS = {
  * Get chain ID for venue
  */
 export function getChainIdForVenue(venue: 'SPOT' | 'GMX' | 'HYPERLIQUID'): number {
-  // Check if we're in testnet mode (Sepolia)
-  const isTestnet = process.env.SEPOLIA_RPC_URL || process.env.NODE_ENV === 'development';
+  // Default to Arbitrum (production)
+  // Set USE_SEPOLIA=true env var to use Sepolia testnet
+  const useTestnet = process.env.USE_SEPOLIA === 'true';
   
   switch (venue) {
     case 'SPOT':
-      return isTestnet ? CHAIN_IDS.SEPOLIA : CHAIN_IDS.ARBITRUM;
+      return useTestnet ? CHAIN_IDS.SEPOLIA : CHAIN_IDS.ARBITRUM;
     case 'GMX':
-      return CHAIN_IDS.ARBITRUM; // GMX on Arbitrum (no testnet)
+      return CHAIN_IDS.ARBITRUM; // GMX on Arbitrum only
     case 'HYPERLIQUID':
       return CHAIN_IDS.ARBITRUM; // Bridge from Arbitrum
     default:
-      return isTestnet ? CHAIN_IDS.SEPOLIA : CHAIN_IDS.ARBITRUM;
+      return useTestnet ? CHAIN_IDS.SEPOLIA : CHAIN_IDS.ARBITRUM;
   }
 }

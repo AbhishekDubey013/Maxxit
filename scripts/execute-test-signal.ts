@@ -3,10 +3,11 @@ import { ethers } from 'ethers';
 
 const prisma = new PrismaClient();
 
-const SIGNAL_ID = 'ca7eddd6-fbf0-4e72-9c60-7b380424a126';
-const MODULE_ADDRESS = process.env.MODULE_ADDRESS || '0xa87f82433294cE8A3C8f08Ec5D2825e946C0c0FE';
+const SIGNAL_ID = process.argv[2] || 'ca7eddd6-fbf0-4e72-9c60-7b380424a126';
+const MODULE_ADDRESS = process.env.TRADING_MODULE_ADDRESS || process.env.MODULE_ADDRESS || '0x74437d894C8E8A5ACf371E10919c688ae79E89FA';
 const EXECUTOR_PRIVATE_KEY = process.env.EXECUTOR_PRIVATE_KEY;
-const SEPOLIA_RPC = process.env.SEPOLIA_RPC || 'https://ethereum-sepolia.publicnode.com';
+const ARBITRUM_RPC = process.env.ARBITRUM_RPC || 'https://arb1.arbitrum.io/rpc';
+const USDC_ADDRESS = '0xaf88d065e77c8cC2239327C5EDb3A432268e5831'; // Arbitrum USDC
 
 async function executeTestSignal() {
   console.log('⚡ EXECUTING TEST SIGNAL\n');
@@ -56,8 +57,7 @@ async function executeTestSignal() {
     }
     
     // Check Safe wallet USDC balance
-    const provider = new ethers.providers.JsonRpcProvider(SEPOLIA_RPC);
-    const USDC_ADDRESS = '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238'; // Sepolia USDC
+    const provider = new ethers.providers.JsonRpcProvider(ARBITRUM_RPC);
     const USDC_ABI = ['function balanceOf(address) view returns (uint256)'];
     const usdc = new ethers.Contract(USDC_ADDRESS, USDC_ABI, provider);
     

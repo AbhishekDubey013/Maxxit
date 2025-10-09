@@ -65,8 +65,8 @@ export default function DeployAgent() {
     setValidationStatus({ checking: true, valid: false });
 
     try {
-      // Use Sepolia for testing (module is deployed on Sepolia)
-      const chainId = 11155111; // Ethereum Sepolia
+      // Use Arbitrum mainnet (module is deployed on Arbitrum)
+      const chainId = 42161; // Arbitrum One
       const response = await fetch(
         `/api/safe/status?safeAddress=${safeAddress}&chainId=${chainId}`
       );
@@ -103,10 +103,11 @@ export default function DeployAgent() {
 
     try {
       // First sync with blockchain to ensure database is up to date
+      const chainId = 42161; // Arbitrum One
       const syncResponse = await fetch('/api/safe/sync-module-status', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ safeAddress }),
+        body: JSON.stringify({ safeAddress, chainId }),
       });
 
       const syncData = await syncResponse.json();
@@ -177,10 +178,11 @@ export default function DeployAgent() {
 
     try {
       // First check if already enabled
+      const chainId = 42161; // Arbitrum One
       const checkResponse = await fetch('/api/safe/enable-module', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ safeAddress }),
+        body: JSON.stringify({ safeAddress, chainId }),
       });
 
       const checkData = await checkResponse.json();
@@ -193,20 +195,28 @@ export default function DeployAgent() {
       }
 
       // Store module address and complete transaction data
-      const moduleAddr = checkData.moduleAddress || '0xa87f82433294cE8A3C8f08Ec5D2825e946C0c0FE';
+      const moduleAddr = checkData.moduleAddress || '0x74437d894C8E8A5ACf371E10919c688ae79E89FA';
       const txData = checkData.transaction?.data || '';
       setModuleAddress(moduleAddr);
       setTransactionData(txData);
       
-      // Copy transaction data to clipboard
+      // Create CSV format for Safe Transaction Builder
+      // Format: to,value,data,operation
+      const csvData = `${safeAddress},0,${txData},0`;
+      
+      // Copy CSV to clipboard
       try {
-        await navigator.clipboard.writeText(txData);
+        await navigator.clipboard.writeText(csvData);
+        console.log('[EnableModule] CSV copied to clipboard:', csvData);
       } catch (e) {
         console.log('Clipboard copy failed, but continuing...');
       }
 
+      // Open Safe with instructions
+      alert(`Transaction data copied to clipboard!\n\nSteps:\n1. Safe will open in Transaction Builder\n2. Click "Use CSV"\n3. Paste from clipboard (Cmd+V)\n4. Click "Create Batch"\n5. Sign and execute\n\nCSV format:\n${csvData}`);
+
       // Open Safe Transaction Builder
-      const chainPrefix = 'sep'; // Sepolia
+      const chainPrefix = 'arb1'; // Arbitrum One
       const txBuilderAppUrl = 'https://apps-portal.safe.global/tx-builder';
       const safeUrl = `https://app.safe.global/apps/open?safe=${chainPrefix}:${safeAddress}&appUrl=${encodeURIComponent(txBuilderAppUrl)}`;
       
@@ -330,7 +340,7 @@ export default function DeployAgent() {
               </button>
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              Your Safe multisig wallet on Ethereum Sepolia (testnet) that will hold your USDC
+              Your Safe multisig wallet on Arbitrum One that will hold your USDC
             </p>
             <div className="mt-2 p-2 bg-primary/10 border border-primary/20 rounded-md">
               <p className="text-xs text-primary font-medium">

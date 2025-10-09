@@ -304,7 +304,7 @@ export class TradeExecutor {
       });
 
       // Use Safe Module Service for gasless execution
-      const moduleAddress = process.env.MODULE_ADDRESS || '0xa87f82433294cE8A3C8f08Ec5D2825e946C0c0FE';
+      const moduleAddress = process.env.TRADING_MODULE_ADDRESS || process.env.MODULE_ADDRESS || '0x74437d894C8E8A5ACf371E10919c688ae79E89FA';
       const executorPrivateKey = process.env.EXECUTOR_PRIVATE_KEY;
       
       if (!executorPrivateKey) {
@@ -355,12 +355,8 @@ export class TradeExecutor {
           venue: ctx.signal.venue,
           tokenSymbol: ctx.signal.tokenSymbol,
           side: ctx.signal.side,
-          status: result.txHash ? 'OPEN' : 'PENDING',
           entryPrice: 0, // Will be updated when we get actual execution price
-          size: positionSize,
-          collateral: positionSize,
-          safeTxHash: result.safeTxHash,
-          txHash: result.txHash,
+          qty: 0, // Will be updated when we get actual execution amount
         },
       });
 

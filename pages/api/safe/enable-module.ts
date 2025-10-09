@@ -6,10 +6,21 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { ethers } from 'ethers';
 
-const MODULE_ADDRESS = process.env.MODULE_ADDRESS || '0xa87f82433294cE8A3C8f08Ec5D2825e946C0c0FE';
-const SEPOLIA_RPC = process.env.SEPOLIA_RPC || 'https://ethereum-sepolia.publicnode.com';
+// RPC URLs for different chains
+const RPC_URLS: { [chainId: number]: string } = {
+  11155111: process.env.SEPOLIA_RPC || 'https://ethereum-sepolia.publicnode.com',
+  42161: process.env.ARBITRUM_RPC || 'https://arb1.arbitrum.io/rpc',
+  8453: process.env.BASE_RPC_URL || 'https://mainnet.base.org',
+};
+
+const SAFE_TX_SERVICE_URLS: { [chainId: number]: string } = {
+  11155111: 'https://safe-transaction-sepolia.safe.global',
+  42161: 'https://safe-transaction-arbitrum.safe.global',
+  8453: 'https://safe-transaction-base.safe.global',
+};
+
+const MODULE_ADDRESS = process.env.TRADING_MODULE_ADDRESS || '0x74437d894C8E8A5ACf371E10919c688ae79E89FA';
 const EXECUTOR_PRIVATE_KEY = process.env.EXECUTOR_PRIVATE_KEY;
-const SAFE_TX_SERVICE_URL = 'https://safe-transaction-sepolia.safe.global';
 
 // Safe contract ABI (minimal - just what we need)
 const SAFE_ABI = [
@@ -28,7 +39,17 @@ export default async function handler(
   }
 
   try {
-    const { safeAddress, moduleAddress: customModuleAddress } = req.body;
+    const { safeAddress, moduleAddress: customModuleAddress, chainId } = req.body;
+    
+    // Default to Arbitrum if no chainId provided
+    const chain = chainId || 42161;
+    const rpcUrl = RPC_URLS[chain];
+    
+    if (!rpcUrl) {
+      return res.status(400).json({
+        error: `Unsupported chainId: ${chain}`,
+      });
+    }
     
     // Allow custom module address, or use default from env
     const moduleToEnable = customModuleAddress || MODULE_ADDRESS;
@@ -39,15 +60,17 @@ export default async function handler(
       });
     }
 
-    // Connect to Sepolia
-    const provider = new ethers.providers.JsonRpcProvider(SEPOLIA_RPC);
+    // Connect to the specified chain
+    const provider = new ethers.providers.JsonRpcProvider(rpcUrl);
     
     // Check if Safe exists
     const code = await provider.getCode(safeAddress);
     if (code === '0x') {
+      const chainName = chain === 11155111 ? 'Sepolia' : chain === 42161 ? 'Arbitrum' : 'Base';
       return res.status(400).json({
-        error: 'Safe wallet not found on Sepolia',
+        error: `Safe wallet not found on ${chainName}`,
         safeAddress,
+        chainId: chain,
       });
     }
 
@@ -99,7 +122,7 @@ export default async function handler(
       nonce: nonce.toString(),
       safeAddress,
       moduleAddress: moduleToEnable, // For display purposes
-      chainId: 11155111, // Sepolia
+      chainId: chain,
       message: 'Complete transaction data ready - just paste in Safe',
       // Helpful for debugging
       decoded: {

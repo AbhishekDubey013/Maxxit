@@ -29,7 +29,7 @@ export default async function handler(
       });
     }
 
-    const chain = parseInt(chainId as string) || 11155111; // Default to Sepolia
+    const chain = parseInt(chainId as string) || 42161; // Default to Arbitrum
 
     if (![11155111, 42161, 8453].includes(chain)) {
       return res.status(400).json({

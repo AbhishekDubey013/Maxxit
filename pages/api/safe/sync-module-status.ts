@@ -4,8 +4,14 @@ import { ethers } from 'ethers';
 
 const prisma = new PrismaClient();
 
-const SEPOLIA_RPC = process.env.SEPOLIA_RPC_URL || 'https://ethereum-sepolia.publicnode.com';
-const MODULE_ADDRESS = process.env.MODULE_ADDRESS || '0xa87f82433294cE8A3C8f08Ec5D2825e946C0c0FE';
+// RPC URLs for different chains
+const RPC_URLS: { [chainId: number]: string } = {
+  11155111: process.env.SEPOLIA_RPC || 'https://ethereum-sepolia.publicnode.com',
+  42161: process.env.ARBITRUM_RPC || 'https://arb1.arbitrum.io/rpc',
+  8453: process.env.BASE_RPC_URL || 'https://mainnet.base.org',
+};
+
+const MODULE_ADDRESS = process.env.TRADING_MODULE_ADDRESS || '0x74437d894C8E8A5ACf371E10919c688ae79E89FA';
 
 const SAFE_ABI = [
   'function isModuleEnabled(address module) external view returns (bool)',
@@ -21,7 +27,7 @@ export default async function handler(
   }
 
   try {
-    const { safeAddress } = req.body;
+    const { safeAddress, chainId } = req.body;
 
     if (!safeAddress || !ethers.utils.isAddress(safeAddress)) {
       return res.status(400).json({
@@ -29,17 +35,29 @@ export default async function handler(
       });
     }
 
-    console.log('[SyncModuleStatus] Checking module status for Safe:', safeAddress);
+    // Default to Arbitrum if no chainId provided
+    const chain = chainId || 42161;
+    const rpcUrl = RPC_URLS[chain];
 
-    // Connect to Sepolia
-    const provider = new ethers.providers.JsonRpcProvider(SEPOLIA_RPC);
+    if (!rpcUrl) {
+      return res.status(400).json({
+        error: `Unsupported chainId: ${chain}`,
+      });
+    }
+
+    console.log('[SyncModuleStatus] Checking module status for Safe:', safeAddress, 'on chain:', chain);
+
+    // Connect to the specified chain
+    const provider = new ethers.providers.JsonRpcProvider(rpcUrl);
     
     // Check if Safe exists
     const code = await provider.getCode(safeAddress);
     if (code === '0x') {
+      const chainName = chain === 11155111 ? 'Sepolia' : chain === 42161 ? 'Arbitrum' : 'Base';
       return res.status(400).json({
-        error: 'Safe wallet not found on Sepolia',
+        error: `Safe wallet not found on ${chainName}`,
         safeAddress,
+        chainId: chain,
       });
     }
 
