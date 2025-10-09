@@ -1,21 +1,12 @@
 #!/bin/bash
 
 # Railway Worker Starter
-# Starts Python proxy + all Node workers in parallel for 24/7 operation
+# Starts Node.js workers (connects to separate Python proxy service)
 
 set -e
 
-echo "🚂 Starting Maxxit Services on Railway..."
-
-# Start Python Twitter API Proxy (port 8001)
-echo "🐍 Starting Python Twitter API Proxy..."
-python3 -m uvicorn twitter_api_proxy:app --host 0.0.0.0 --port 8001 > /tmp/twitter_proxy.log 2>&1 &
-PROXY_PID=$!
-echo "✅ Python Proxy started (PID: $PROXY_PID, port 8001)"
-
-# Wait for proxy to be ready
-sleep 3
-curl -s http://localhost:8001/health > /dev/null && echo "✅ Proxy health check passed" || echo "⚠️ Proxy health check failed"
+echo "🚂 Starting Maxxit Workers on Railway..."
+echo "📦 Connecting to Python Proxy at: ${GAME_API_URL:-http://localhost:8001}"
 
 # Function to run worker in loop
 run_worker_loop() {
@@ -30,9 +21,6 @@ run_worker_loop() {
     sleep "$INTERVAL_SECONDS"
   done
 }
-
-echo ""
-echo "📦 Starting Node.js Workers..."
 
 # Start Tweet Ingestion Worker (every 5 minutes)
 run_worker_loop "tweet-ingestion" "workers/tweet-ingestion-worker.ts" 300 &
@@ -55,8 +43,8 @@ PID4=$!
 echo "✅ Position Monitor started (PID: $PID4, every 5 min)"
 
 echo ""
-echo "🎉 All services started successfully!"
-echo "Python Proxy: $PROXY_PID | Workers: $PID1, $PID2, $PID3, $PID4"
+echo "🎉 All workers started successfully!"
+echo "Workers: $PID1, $PID2, $PID3, $PID4"
 
 # Keep container alive - wait for all background processes
 wait

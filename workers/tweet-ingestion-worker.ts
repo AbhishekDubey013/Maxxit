@@ -37,7 +37,7 @@ async function ingestTweets() {
       
       let tweets: Array<{ tweetId: string; tweetText: string; tweetCreatedAt: Date }> = [];
       
-      // Try to fetch from X API (GAME API first, then bearer token)
+      // Try to fetch from X API (Python proxy with GAME API)
       if (xApiClient) {
         try {
           // Get the last tweet we've seen for this account
