@@ -118,18 +118,28 @@ export default async function handler(
     });
 
     // 4. Update impact_factor_history (link signal → CT accounts)
-    // For simplicity, just record the PnL contribution
-    const impactHistory = await prisma.impactFactorHistory.create({
-      data: {
-        ctAccountId: position.signal.sourceTweets[0] || 'unknown', // Simplified
-        signalId: position.signalId,
-        positionId: position.id,
-        agentId: position.deployment.agentId,
-        pnlContribution: pnlValue.toString(),
-        weight: 1.0,
-        modelVersion: 'v1',
-      },
-    });
+    // Get the CT account from the source tweet
+    let impactHistory = null;
+    if (position.signal.sourceTweets && position.signal.sourceTweets.length > 0) {
+      const sourcePost = await prisma.ctPost.findUnique({
+        where: { id: position.signal.sourceTweets[0] },
+        select: { ctAccountId: true },
+      });
+      
+      if (sourcePost) {
+        impactHistory = await prisma.impactFactorHistory.create({
+          data: {
+            ctAccountId: sourcePost.ctAccountId,
+            signalId: position.signalId,
+            positionId: position.id,
+            agentId: position.deployment.agentId,
+            pnlContribution: pnlValue.toString(),
+            weight: 1.0,
+            modelVersion: 'v1',
+          },
+        });
+      }
+    }
 
     return res.status(200).json({
       message: 'Position closed successfully',
