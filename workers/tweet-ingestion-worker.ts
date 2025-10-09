@@ -4,8 +4,10 @@
  * Runs every 6 hours
  */
 
+import 'dotenv/config';
 import { PrismaClient } from '@prisma/client';
 import { createMultiMethodXApiClient } from '../lib/x-api-multi';
+import { classifyTweet } from '../lib/llm-classifier';
 
 const prisma = new PrismaClient();
 
@@ -13,7 +15,8 @@ async function ingestTweets() {
   console.log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   console.log('  📥 TWEET INGESTION WORKER');
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  console.log(`Started at: ${new Date().toISOString()}\n`);
+  console.log(`Started at: ${new Date().toISOString()}`);
+  console.log(`[DEBUG] GAME_API_KEY: ${process.env.GAME_API_KEY ? process.env.GAME_API_KEY.substring(0,10)+'...' : 'NOT SET'}\n`);
 
   try {
     // Get all CT accounts
@@ -106,14 +109,21 @@ async function ingestTweets() {
 
       for (const tweet of tweets) {
         try {
+          // Classify tweet using LLM
+          console.log(`[${account.xUsername}] Classifying tweet: "${tweet.tweetText.substring(0, 50)}..."`);
+          const classification = await classifyTweet(tweet.tweetText);
+          
+          console.log(`[${account.xUsername}] → Signal: ${classification.isSignalCandidate}, Tokens: ${classification.extractedTokens.join(', ') || 'none'}, Sentiment: ${classification.sentiment}`);
+          
+          // Create post with classification
           await prisma.ctPost.create({
             data: {
               ctAccountId: account.id,
               tweetId: tweet.tweetId,
               tweetText: tweet.tweetText,
               tweetCreatedAt: tweet.tweetCreatedAt,
-              isSignalCandidate: false,
-              extractedTokens: [],
+              isSignalCandidate: classification.isSignalCandidate,
+              extractedTokens: classification.extractedTokens,
             },
           });
           createdCount++;

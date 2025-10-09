@@ -147,7 +147,7 @@ export class MultiMethodXApiClient {
       
       if (healthCheck.ok) {
         console.log('[X API] Using GAME API proxy');
-        const gameClient = new GameApiClient('', proxyUrl);
+        const gameClient = new GameApiClient(this.gameApiKey || '', proxyUrl);
         const tweets = await gameClient.getUserTweets(username, options);
         if (tweets.length > 0) {
           return tweets;
