@@ -117,8 +117,9 @@ export async function monitorPositions() {
           console.log(`[PositionMonitor] 🔴 Closing position ${position.id}: ${closeReason}`);
 
           // Call the close position API
+          const apiBaseUrl = process.env.API_BASE_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
           const response = await fetch(
-            `http://localhost:5000/api/admin/close-trade-simulated?positionId=${position.id}&pnl=${pnlUSDC.toFixed(2)}`,
+            `${apiBaseUrl}/api/admin/close-trade-simulated?positionId=${position.id}&pnl=${pnlUSDC.toFixed(2)}`,
             { method: 'POST' }
           );
 
