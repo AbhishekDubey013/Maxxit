@@ -50,7 +50,8 @@ export default async function handler(
 
     if (deployments.length === 0) {
       return res.status(200).json({
-        message: 'No active deployments found',
+        success: false,
+        error: 'No active deployments found',
         positionsCreated: 0,
       });
     }
@@ -117,12 +118,16 @@ export default async function handler(
     }
 
     return res.status(200).json({
+      success: true,
       message: 'Trade execution completed',
       positionsCreated: positionsCreated.length,
       positions: positionsCreated,
     });
   } catch (error: any) {
     console.error('[ADMIN] Trade execution error:', error.message);
-    return res.status(500).json({ error: error.message || 'Internal server error' });
+    return res.status(500).json({ 
+      success: false,
+      error: error.message || 'Internal server error' 
+    });
   }
 }

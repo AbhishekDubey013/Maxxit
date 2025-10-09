@@ -52,7 +52,7 @@ export async function executeTradesForSignals() {
     // Execute each signal
     for (const signal of pendingSignals) {
       try {
-        console.log(`[TradeWorker] Executing signal ${signal.id} (${signal.symbol} ${signal.side})...`);
+        console.log(`[TradeWorker] Executing signal ${signal.id} (${signal.tokenSymbol} ${signal.side})...`);
 
         // Call the trade execution API
         const apiBaseUrl = process.env.API_BASE_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
