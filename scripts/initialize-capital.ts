@@ -1,84 +1,130 @@
 #!/usr/bin/env tsx
+
 /**
- * Initialize capital tracking in the module
- * This is a simpler operation to test if execTransactionFromModule works
+ * Initialize Capital Tracking for a Safe
+ * 
+ * Must be called before first trade to set initial capital baseline
+ * 
+ * Usage:
+ *   npx tsx scripts/initialize-capital.ts --safe 0xYOUR_SAFE_ADDRESS
  */
 
+import { createSafeModuleService } from '../lib/safe-module-service';
 import { ethers } from 'ethers';
 import dotenv from 'dotenv';
 
 dotenv.config();
 
-const SEPOLIA_RPC = process.env.SEPOLIA_RPC_URL || 'https://ethereum-sepolia.publicnode.com';
-const MODULE_ADDRESS = process.env.MODULE_ADDRESS || '0xa87f82433294cE8A3C8f08Ec5D2825e946C0c0FE';
-const SAFE_ADDRESS = '0xC613Df8883852667066a8a08c65c18eDe285678D';
+async function main() {
+  // Parse arguments
+  const args = process.argv.slice(2);
+  const safeIndex = args.indexOf('--safe');
 
-const MODULE_ABI = [
-  'function initializeCapital(address safe) external',
-  'function isInitialized(address) view returns (bool)',
-  'function initialCapital(address) view returns (uint256)',
-];
-
-async function initializeCapital() {
-  console.log('🔧 Initializing capital tracking\n');
-  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
-
-  const executorKey = process.env.EXECUTOR_PRIVATE_KEY;
-  if (!executorKey) {
-    console.log('❌ EXECUTOR_PRIVATE_KEY not found');
-    return;
+  if (safeIndex === -1) {
+    console.error('Usage: npx tsx scripts/initialize-capital.ts --safe 0xSAFE_ADDRESS');
+    process.exit(1);
   }
 
-  const provider = new ethers.providers.JsonRpcProvider(SEPOLIA_RPC);
-  const executor = new ethers.Wallet(executorKey, provider);
-  const module = new ethers.Contract(MODULE_ADDRESS, MODULE_ABI, executor);
+  const safeAddress = args[safeIndex + 1];
 
-  console.log('Module:', MODULE_ADDRESS);
-  console.log('Safe:', SAFE_ADDRESS);
-  console.log('Executor:', executor.address);
-  console.log('');
-
-  // Check current status
-  const initialized = await module.isInitialized(SAFE_ADDRESS);
-  console.log('Currently Initialized:', initialized ? 'YES' : 'NO');
-
-  if (initialized) {
-    const capital = await module.initialCapital(SAFE_ADDRESS);
-    console.log('Initial Capital:', ethers.utils.formatUnits(capital, 6), 'USDC');
-    console.log('');
-    console.log('✅ Already initialized');
-    return;
+  if (!ethers.utils.isAddress(safeAddress)) {
+    console.error('❌ Invalid Safe address');
+    process.exit(1);
   }
 
+  console.log('💰 Initialize Capital Tracking');
+  console.log('==============================');
+  console.log('Safe:', safeAddress);
   console.log('');
-  console.log('📝 Initializing capital...');
-  
+
+  // Validate environment
+  if (!process.env.TRADING_MODULE_ADDRESS) {
+    throw new Error('TRADING_MODULE_ADDRESS not set in .env');
+  }
+
+  if (!process.env.EXECUTOR_PRIVATE_KEY) {
+    throw new Error('EXECUTOR_PRIVATE_KEY not set in .env');
+  }
+
+  const chainId = 42161; // Arbitrum mainnet
+
+  // Create module service
+  const moduleService = createSafeModuleService(
+    process.env.TRADING_MODULE_ADDRESS,
+    chainId,
+    process.env.EXECUTOR_PRIVATE_KEY
+  );
+
+  // Check if already initialized
+  console.log('1️⃣ Checking current status...');
   try {
-    const tx = await module.initializeCapital(SAFE_ADDRESS, {
-      gasLimit: 500000,
-    });
+    const stats = await moduleService.getSafeStats(safeAddress);
     
-    console.log('   Tx sent:', tx.hash);
-    console.log('   Waiting for confirmation...');
-    
-    const receipt = await tx.wait();
-    console.log('   ✅ Confirmed in block', receipt.blockNumber);
-    console.log('   Gas used:', receipt.gasUsed.toString());
-    console.log('');
-    
-    // Check new status
-    const newCapital = await module.initialCapital(SAFE_ADDRESS);
-    console.log('✅ Capital initialized:', ethers.utils.formatUnits(newCapital, 6), 'USDC');
-    
-  } catch (error: any) {
-    console.log('');
-    console.log('❌ Transaction failed:', error.message);
-    
-    if (error.transaction) {
-      console.log('   View on Etherscan:');
-      console.log(`   https://sepolia.etherscan.io/tx/${error.transaction.hash}`);
+    if (stats.initialized) {
+      console.log('⚠️  Capital already initialized!');
+      console.log('');
+      console.log('Current Stats:');
+      console.log('  Initial Capital:', stats.initialCapital, 'USDC');
+      console.log('  Current Balance:', stats.currentBalance, 'USDC');
+      console.log('  Profit/Loss:', stats.profitLoss, 'USDC');
+      console.log('');
+      console.log('To reset tracking (not recommended):');
+      console.log('  - Call resetCapitalTracking() from Safe itself');
+      process.exit(0);
     }
+
+    console.log('✅ Safe not yet initialized');
+    console.log('   Current Balance:', stats.currentBalance, 'USDC');
+    console.log('');
+  } catch (error: any) {
+    console.error('❌ Error checking status:', error.message);
+    console.log('   This might mean the module is not enabled on the Safe');
+    process.exit(1);
   }
+
+  // Initialize
+  console.log('2️⃣ Initializing capital tracking...');
+  
+  const result = await moduleService.initializeCapital(safeAddress);
+
+  if (!result.success) {
+    console.error('❌ Initialization failed:', result.error);
+    process.exit(1);
+  }
+
+  console.log('✅ Capital initialized successfully!');
+  console.log('   TX Hash:', result.txHash);
+  console.log('   Explorer:', `https://arbiscan.io/tx/${result.txHash}`);
+  console.log('');
+
+  // Get updated stats
+  console.log('3️⃣ Verifying initialization...');
+  
+  // Wait for blockchain to update
+  await new Promise(resolve => setTimeout(resolve, 3000));
+  
+  const statsAfter = await moduleService.getSafeStats(safeAddress);
+  
+  console.log('✅ Initialization verified!');
+  console.log('');
+  console.log('Capital Tracking:');
+  console.log('=================');
+  console.log('Initialized:', statsAfter.initialized ? 'Yes' : 'No');
+  console.log('Initial Capital:', statsAfter.initialCapital, 'USDC');
+  console.log('Current Balance:', statsAfter.currentBalance, 'USDC');
+  console.log('');
+
+  console.log('🎉 Safe is ready for trading!');
+  console.log('');
+  console.log('Next Steps:');
+  console.log('1. Execute test trade: npx tsx scripts/test-arbitrum-trade.ts --safe', safeAddress, '--amount 5');
+  console.log('2. Monitor Safe: https://app.safe.global/home?safe=arb1:' + safeAddress);
+  console.log('3. Check balance: https://arbiscan.io/address/' + safeAddress);
 }
 
-initializeCapital().catch(console.error);
+main()
+  .then(() => process.exit(0))
+  .catch((error) => {
+    console.error('❌ Initialization failed:', error);
+    process.exit(1);
+  });
