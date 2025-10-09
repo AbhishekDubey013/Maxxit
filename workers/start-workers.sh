@@ -32,6 +32,11 @@ run_worker_loop() {
   done
 }
 
+# Start Tweet Ingestion Worker (every 6 hours = 21600 seconds)
+run_worker_loop "tweet-ingestion" "$WORKERS_DIR/tweet-ingestion-worker.ts" 21600 &
+INGEST_PID=$!
+echo "✅ Tweet Ingestion started (PID: $INGEST_PID, runs every 6 hours)"
+
 # Start Signal Generation Worker (every 6 hours = 21600 seconds)
 run_worker_loop "signal-generator" "$WORKERS_DIR/signal-generator.ts" 21600 &
 SIGNAL_PID=$!
@@ -43,11 +48,12 @@ TRADE_PID=$!
 echo "✅ Trade Executor started (PID: $TRADE_PID, runs every 30 minutes)"
 
 # Start Position Monitor Worker (every 5 minutes = 300 seconds)
-run_worker_loop "position-monitor" "$WORKERS_DIR/position-monitor.ts" 300 &
+run_worker_loop "position-monitor" "$WORKERS_DIR/position-monitor-v2.ts" 300 &
 POSITION_PID=$!
 echo "✅ Position Monitor started (PID: $POSITION_PID, runs every 5 minutes)"
 
 # Save PIDs to file for stopping later
+echo "$INGEST_PID" > "$LOG_DIR/tweet-ingestion.pid"
 echo "$SIGNAL_PID" > "$LOG_DIR/signal-generator.pid"
 echo "$TRADE_PID" > "$LOG_DIR/trade-executor.pid"
 echo "$POSITION_PID" > "$LOG_DIR/position-monitor.pid"

@@ -39,6 +39,7 @@ check_worker() {
 }
 
 # Check all workers
+check_worker "tweet-ingestion"
 check_worker "signal-generator"
 check_worker "trade-executor"
 check_worker "position-monitor"

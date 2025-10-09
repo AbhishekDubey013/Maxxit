@@ -112,12 +112,17 @@ if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8001)
 EOF
 
-# Set the API key directly (or load from .env)
-export GAME_API_KEY="apx-090643fe359939fd167201c7183dc2dc"
+# Load GAME_API_KEY from .env file
+if [ -f .env ]; then
+    export $(grep -v '^#' .env | grep GAME_API_KEY | xargs)
+fi
 
-# Alternatively, you can set it in your shell before running this script:
-# export GAME_API_KEY=your-key-here
-# bash run-twitter-proxy.sh
+# Check if API key is set
+if [ -z "$GAME_API_KEY" ]; then
+    echo "❌ GAME_API_KEY not found in .env file"
+    echo "   Please add: GAME_API_KEY=your_key_here to .env"
+    exit 1
+fi
 
 # Run the proxy server
 echo ""

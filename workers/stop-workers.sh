@@ -41,6 +41,7 @@ stop_worker() {
 }
 
 # Stop all workers
+stop_worker "tweet-ingestion"
 stop_worker "signal-generator"
 stop_worker "trade-executor"
 stop_worker "position-monitor"
