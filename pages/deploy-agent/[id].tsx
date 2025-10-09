@@ -199,21 +199,14 @@ export default function DeployAgent() {
       const txData = checkData.transaction?.data || '';
       setModuleAddress(moduleAddr);
       setTransactionData(txData);
-      
-      // Create CSV format for Safe Transaction Builder
-      // Format: to,value,data,operation
-      const csvData = `${safeAddress},0,${txData},0`;
-      
-      // Copy CSV to clipboard
-      try {
-        await navigator.clipboard.writeText(csvData);
-        console.log('[EnableModule] CSV copied to clipboard:', csvData);
-      } catch (e) {
-        console.log('Clipboard copy failed, but continuing...');
-      }
 
-      // Open Safe with instructions
-      alert(`Transaction data copied to clipboard!\n\nSteps:\n1. Safe will open in Transaction Builder\n2. Click "Use CSV"\n3. Paste from clipboard (Cmd+V)\n4. Click "Create Batch"\n5. Sign and execute\n\nCSV format:\n${csvData}`);
+      // Copy transaction data to clipboard
+      try {
+        await navigator.clipboard.writeText(txData);
+        console.log('[EnableModule] Transaction data copied to clipboard');
+      } catch (e) {
+        console.log('[EnableModule] Clipboard copy failed, but continuing...');
+      }
 
       // Open Safe Transaction Builder
       const chainPrefix = 'arb1'; // Arbitrum One

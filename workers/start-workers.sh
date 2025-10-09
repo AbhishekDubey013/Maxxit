@@ -18,6 +18,22 @@ echo "Logs: $LOG_DIR"
 
 cd "$PROJECT_ROOT"
 
+# Load environment variables from .env
+if [ -f "$PROJECT_ROOT/.env" ]; then
+  set -a
+  source "$PROJECT_ROOT/.env"
+  set +a
+  echo "✅ Loaded environment variables from .env"
+  if [ -n "$GAME_API_KEY" ]; then
+    echo "   GAME_API_KEY: ${GAME_API_KEY:0:10}..."
+  else
+    echo "   ⚠️ GAME_API_KEY not found!"
+  fi
+else
+  echo "⚠️  No .env file found"
+fi
+echo ""
+
 # Function to run worker in loop
 run_worker_loop() {
   WORKER_NAME=$1
@@ -32,15 +48,15 @@ run_worker_loop() {
   done
 }
 
-# Start Tweet Ingestion Worker (every 6 hours = 21600 seconds)
-run_worker_loop "tweet-ingestion" "$WORKERS_DIR/tweet-ingestion-worker.ts" 21600 &
+# Start Tweet Ingestion Worker (every 5 minutes = 300 seconds) - TESTING MODE
+run_worker_loop "tweet-ingestion" "$WORKERS_DIR/tweet-ingestion-worker.ts" 300 &
 INGEST_PID=$!
-echo "✅ Tweet Ingestion started (PID: $INGEST_PID, runs every 6 hours)"
+echo "✅ Tweet Ingestion started (PID: $INGEST_PID, runs every 5 minutes) ⚡ TESTING MODE"
 
-# Start Signal Generation Worker (every 6 hours = 21600 seconds)
-run_worker_loop "signal-generator" "$WORKERS_DIR/signal-generator.ts" 21600 &
+# Start Signal Generation Worker (every 5 minutes = 300 seconds) - TESTING MODE
+run_worker_loop "signal-generator" "$WORKERS_DIR/signal-generator.ts" 300 &
 SIGNAL_PID=$!
-echo "✅ Signal Generator started (PID: $SIGNAL_PID, runs every 6 hours)"
+echo "✅ Signal Generator started (PID: $SIGNAL_PID, runs every 5 minutes) ⚡ TESTING MODE"
 
 # Start Trade Execution Worker (every 30 minutes = 1800 seconds)
 run_worker_loop "trade-executor" "$WORKERS_DIR/trade-executor-worker.ts" 1800 &
