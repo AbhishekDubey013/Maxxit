@@ -1,0 +1,73 @@
+[
+  {
+    "key": "NODE_ENV",
+    "value": "production",
+    "description": "Environment mode"
+  },
+  {
+    "key": "DATABASE_URL",
+    "value": "postgresql://user:password@your-neon-host.neon.tech/neondb?sslmode=require",
+    "description": "PostgreSQL connection string from Neon.tech"
+  },
+  {
+    "key": "CHAIN_ID",
+    "value": "42161",
+    "description": "Arbitrum One chain ID"
+  },
+  {
+    "key": "ARBITRUM_RPC",
+    "value": "https://arb1.arbitrum.io/rpc",
+    "description": "Arbitrum One RPC URL (public endpoint)"
+  },
+  {
+    "key": "TRADING_MODULE_ADDRESS",
+    "value": "0x74437d894C8E8A5ACf371E10919c688ae79E89FA",
+    "description": "MaxxitTradingModule contract address on Arbitrum"
+  },
+  {
+    "key": "USDC_ADDRESS",
+    "value": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+    "description": "USDC token address on Arbitrum One"
+  },
+  {
+    "key": "EXECUTOR_PRIVATE_KEY",
+    "value": "your_executor_wallet_private_key_here",
+    "description": "Private key for executor wallet (pays gas for trades)"
+  },
+  {
+    "key": "EXECUTOR_ADDRESS",
+    "value": "0x3828dFCBff64fD07B963Ef11BafE632260413Ab3",
+    "description": "Executor wallet address"
+  },
+  {
+    "key": "DEPLOYER_PRIVATE_KEY",
+    "value": "your_deployer_wallet_private_key_here",
+    "description": "Private key for module owner/deployer wallet"
+  },
+  {
+    "key": "PLATFORM_FEE_RECEIVER",
+    "value": "0x3828dFCBff64fD07B963Ef11BafE632260413Ab3",
+    "description": "Address that receives 0.2 USDC platform fee per trade"
+  },
+  {
+    "key": "GAME_API_KEY",
+    "value": "apx-090643fe359939fd167201c7183dc2dc",
+    "description": "GAME API key for X/Twitter tweet fetching"
+  },
+  {
+    "key": "API_BASE_URL",
+    "value": "https://your-vercel-domain.vercel.app",
+    "description": "Base URL for API calls from workers (your Vercel deployment URL)"
+  },
+  {
+    "key": "PERPLEXITY_API_KEY",
+    "value": "",
+    "description": "Optional: Perplexity API key for LLM tweet classification"
+  },
+  {
+    "key": "X_API_BEARER_TOKEN",
+    "value": "",
+    "description": "Optional: X/Twitter official API bearer token (alternative to GAME_API_KEY)"
+  }
+]
+

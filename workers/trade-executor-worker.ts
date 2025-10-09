@@ -55,7 +55,8 @@ export async function executeTradesForSignals() {
         console.log(`[TradeWorker] Executing signal ${signal.id} (${signal.symbol} ${signal.side})...`);
 
         // Call the trade execution API
-        const response = await fetch(`http://localhost:5000/api/admin/execute-trade-once?signalId=${signal.id}`, {
+        const apiBaseUrl = process.env.API_BASE_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+        const response = await fetch(`${apiBaseUrl}/api/admin/execute-trade-once?signalId=${signal.id}`, {
           method: 'POST',
         });
 
