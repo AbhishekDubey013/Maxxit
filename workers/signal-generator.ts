@@ -5,11 +5,19 @@
  */
 
 import { PrismaClient } from '@prisma/client';
+import { syncAllDeployments } from '../lib/sync-deployments';
 
 const prisma = new PrismaClient();
 
 export async function generateSignals() {
   console.log('[SignalWorker] Starting signal generation...');
+  
+  // Sync deployments with on-chain status first
+  try {
+    await syncAllDeployments();
+  } catch (error) {
+    console.warn('[SignalWorker] Warning: Failed to sync deployments:', error);
+  }
 
   try {
     // Fetch all active agents with their subscribed CT accounts
