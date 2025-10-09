@@ -10,17 +10,12 @@ RUN apt-get update && apt-get install -y \
 # Set working directory
 WORKDIR /app
 
-# Copy dependency files
+# Copy dependency files AND Prisma schema (needed for postinstall)
 COPY package*.json ./
-
-# Install Node.js dependencies
-RUN npm install --legacy-peer-deps
-
-# Copy Prisma schema
 COPY prisma ./prisma
 
-# Generate Prisma Client
-RUN npx prisma generate
+# Install Node.js dependencies (postinstall will run prisma generate)
+RUN npm install --legacy-peer-deps
 
 # Copy application code
 COPY . .
