@@ -474,13 +474,9 @@ export class TradeExecutor {
           venue: ctx.signal.venue,
           tokenSymbol: ctx.signal.tokenSymbol,
           side: ctx.signal.side,
-          status: result.txHash ? 'OPEN' : 'PENDING',
           entryPrice: 0, // Will be updated when we get actual execution price
-          size: summary.positionSize || 0,
-          collateral: collateralAmount,
-          leverage: leverage.toString(),
-          safeTxHash: result.safeTxHash,
-          txHash: result.txHash,
+          qty: summary.positionSize || 0,
+          entryTxHash: result.txHash,
         },
       });
 
@@ -616,10 +612,10 @@ export class TradeExecutor {
         };
       }
 
-      if (position.status !== 'OPEN') {
+      if (position.closedAt) {
         return {
           success: false,
-          error: `Position is ${position.status}, cannot close`,
+          error: `Position already closed at ${position.closedAt.toISOString()}`,
         };
       }
 
@@ -728,13 +724,13 @@ export class TradeExecutor {
         };
       }
 
-      // Update position
+      // Update position as closed
       await prisma.position.update({
         where: { id: position.id },
         data: {
-          status: 'CLOSED',
           closedAt: new Date(),
           exitPrice: 0, // TODO: Calculate from swap
+          exitTxHash: result.txHash,
         },
       });
 
@@ -788,12 +784,12 @@ export class TradeExecutor {
         };
       }
 
-      // Update position
+      // Update position as closed
       await prisma.position.update({
         where: { id: position.id },
         data: {
-          status: 'CLOSED',
           closedAt: new Date(),
+          exitTxHash: result.txHash,
         },
       });
 
