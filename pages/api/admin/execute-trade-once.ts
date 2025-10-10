@@ -1,5 +1,6 @@
 import type { NextApiRequest, NextApiResponse} from 'next';
 import { PrismaClient } from '@prisma/client';
+import { TradeExecutor } from '../../../lib/trade-executor';
 
 const prisma = new PrismaClient();
 
@@ -77,6 +78,7 @@ export default async function handler(
     }
 
     const positionsCreated = [];
+    const executor = new TradeExecutor();
 
     for (const deployment of deployments) {
       // Check for duplicate position (same deployment + signal)
@@ -94,27 +96,24 @@ export default async function handler(
         continue;
       }
 
-      // Stub: Call venue adapter (GMX/Hyperliquid/Spot)
-      const entryPrice = 100.0; // Mock entry price
-      const riskModel: any = signal.riskModel;
+      // Execute REAL on-chain trade via TradeExecutor
+      console.log(`[TRADE] Executing real trade for deployment ${deployment.id}`);
+      const result = await executor.executeSignal(signal.id);
 
-      // Create position
-      const position = await prisma.position.create({
-        data: {
-          deploymentId: deployment.id,
-          signalId: signal.id,
-          venue: signal.venue,
-          tokenSymbol: signal.tokenSymbol,
-          side: signal.side,
-          qty: qty.toString(),
-          entryPrice: entryPrice.toString(),
-          stopLoss: riskModel.stopLoss ? (entryPrice * (1 - riskModel.stopLoss)).toString() : undefined,
-          takeProfit: riskModel.takeProfit ? (entryPrice * (1 + riskModel.takeProfit)).toString() : undefined,
-        },
-      });
-
-      positionsCreated.push(position);
-      console.log(`[TRADE] Created position for deployment ${deployment.id}`);
+      if (result.success && result.positionId) {
+        console.log(`[TRADE] ✅ Trade executed on-chain! Position: ${result.positionId}, TX: ${result.txHash}`);
+        
+        // Get the created position
+        const position = await prisma.position.findUnique({
+          where: { id: result.positionId }
+        });
+        
+        if (position) {
+          positionsCreated.push(position);
+        }
+      } else {
+        console.error(`[TRADE] ❌ Trade execution failed:`, result.error);
+      }
     }
 
     return res.status(200).json({
