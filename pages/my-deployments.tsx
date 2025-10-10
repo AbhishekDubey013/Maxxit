@@ -1,8 +1,5 @@
 import { useEffect, useState } from 'react';
 import { Header } from '@components/Header';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { 
   Wallet, 
   Activity, 
@@ -10,15 +7,10 @@ import {
   CheckCircle,
   TrendingUp,
   Settings,
-  Loader2
+  Loader2,
+  X,
+  Copy
 } from 'lucide-react';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 
 interface Deployment {
   id: string;
@@ -42,6 +34,7 @@ export default function MyDeployments() {
   const [linkCode, setLinkCode] = useState<string>('');
   const [botUsername, setBotUsername] = useState<string>('');
   const [generating, setGenerating] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     fetchDeployments();
@@ -59,11 +52,12 @@ export default function MyDeployments() {
     }
   };
 
-  const handleConnectTelegram = async (deploymentId: string) => {
+  const handleConnectTelegram = (deploymentId: string) => {
     setSelectedDeploymentId(deploymentId);
     setTelegramModalOpen(true);
     setLinkCode('');
     setBotUsername('');
+    setGenerating(false);
   };
 
   const generateLinkCode = async () => {
@@ -76,14 +70,15 @@ export default function MyDeployments() {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to generate link code');
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to generate link code');
       }
 
       const data = await response.json();
       setLinkCode(data.linkCode);
       setBotUsername(data.botUsername);
     } catch (error: any) {
-      alert(error.message);
+      alert('Error: ' + error.message);
     } finally {
       setGenerating(false);
     }
@@ -91,7 +86,8 @@ export default function MyDeployments() {
 
   const copyCode = () => {
     navigator.clipboard.writeText(linkCode);
-    alert('Code copied!');
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   if (loading) {
@@ -99,7 +95,7 @@ export default function MyDeployments() {
       <div className="min-h-screen bg-background">
         <Header />
         <div className="flex items-center justify-center h-96">
-          <Loader2 className="w-8 h-8 animate-spin" />
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
         </div>
       </div>
     );
@@ -118,35 +114,44 @@ export default function MyDeployments() {
         </div>
 
         {deployments.length === 0 ? (
-          <Card>
-            <CardContent className="flex flex-col items-center justify-center py-12">
+          <div className="border border-border rounded-lg bg-card">
+            <div className="flex flex-col items-center justify-center py-12 px-4">
               <Activity className="w-12 h-12 text-muted-foreground mb-4" />
               <h3 className="text-lg font-medium mb-2">No deployments yet</h3>
-              <p className="text-muted-foreground mb-4">
+              <p className="text-muted-foreground mb-4 text-center">
                 Deploy an agent to start automated trading
               </p>
-              <Button asChild>
-                <a href="/">Browse Agents</a>
-              </Button>
-            </CardContent>
-          </Card>
+              <a 
+                href="/"
+                className="inline-flex items-center justify-center px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:bg-primary/90"
+              >
+                Browse Agents
+              </a>
+            </div>
+          </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {deployments.map((deployment) => (
-              <Card key={deployment.id}>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-xl">{deployment.agent.name}</CardTitle>
-                    <Badge variant={deployment.status === 'ACTIVE' ? 'default' : 'secondary'}>
+              <div key={deployment.id} className="border border-border rounded-lg bg-card overflow-hidden">
+                {/* Header */}
+                <div className="border-b border-border p-6">
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-xl font-semibold">{deployment.agent.name}</h3>
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                      deployment.status === 'ACTIVE' 
+                        ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' 
+                        : 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200'
+                    }`}>
                       {deployment.status}
-                    </Badge>
+                    </span>
                   </div>
                   <p className="text-sm text-muted-foreground">
                     {deployment.agent.venue}
                   </p>
-                </CardHeader>
+                </div>
                 
-                <CardContent className="space-y-4">
+                {/* Content */}
+                <div className="p-6 space-y-4">
                   {/* Safe Wallet */}
                   <div>
                     <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
@@ -171,150 +176,174 @@ export default function MyDeployments() {
                           <span className="text-sm">Enabled</span>
                         </>
                       ) : (
-                        <>
-                          <span className="text-sm text-muted-foreground">Not enabled</span>
-                        </>
+                        <span className="text-sm text-muted-foreground">Not enabled</span>
                       )}
                     </div>
                   </div>
 
                   {/* Telegram Connection */}
-                  <div className="pt-4 border-t">
+                  <div className="pt-4 border-t border-border">
                     <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
                       <MessageCircle className="w-4 h-4" />
                       Manual Trading
                     </div>
                     {deployment.telegramLinked ? (
-                      <div className="flex items-center gap-2 text-green-600">
+                      <div className="flex items-center gap-2 text-green-600 dark:text-green-400">
                         <CheckCircle className="w-4 h-4" />
-                        <span className="text-sm">Telegram Connected</span>
+                        <span className="text-sm font-medium">Telegram Connected</span>
                       </div>
                     ) : (
-                      <Button
+                      <button
                         onClick={() => handleConnectTelegram(deployment.id)}
-                        variant="outline"
-                        size="sm"
-                        className="w-full"
+                        className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 border border-input bg-background rounded-md text-sm font-medium hover:bg-accent hover:text-accent-foreground"
                       >
-                        <MessageCircle className="w-4 h-4 mr-2" />
+                        <MessageCircle className="w-4 h-4" />
                         Connect Telegram
-                      </Button>
+                      </button>
                     )}
                   </div>
 
                   {/* Actions */}
                   <div className="flex gap-2 pt-2">
-                    <Button variant="outline" size="sm" className="flex-1" asChild>
-                      <a href={`/agent/${deployment.agentId}`}>
-                        <TrendingUp className="w-4 h-4 mr-2" />
-                        View Agent
-                      </a>
-                    </Button>
-                    <Button variant="ghost" size="sm">
+                    <a
+                      href={`/agent/${deployment.agentId}`}
+                      className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 border border-input bg-background rounded-md text-sm font-medium hover:bg-accent hover:text-accent-foreground"
+                    >
+                      <TrendingUp className="w-4 h-4" />
+                      View Agent
+                    </a>
+                    <button className="inline-flex items-center justify-center px-4 py-2 border border-input bg-background rounded-md text-sm font-medium hover:bg-accent hover:text-accent-foreground">
                       <Settings className="w-4 h-4" />
-                    </Button>
+                    </button>
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             ))}
           </div>
         )}
       </div>
 
       {/* Telegram Connect Modal */}
-      <Dialog open={telegramModalOpen} onOpenChange={setTelegramModalOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <MessageCircle className="w-5 h-5 text-blue-500" />
-              Connect Telegram
-            </DialogTitle>
-            <DialogDescription>
-              Link your Safe wallet to Telegram for manual trading
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4">
-            {!linkCode && (
-              <Button 
-                onClick={generateLinkCode} 
-                className="w-full" 
-                size="lg"
-                disabled={generating}
-              >
-                {generating ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Generating...
-                  </>
-                ) : (
-                  <>
-                    <MessageCircle className="w-4 h-4 mr-2" />
-                    Generate Link Code
-                  </>
-                )}
-              </Button>
-            )}
-
-            {linkCode && (
-              <div className="space-y-4">
-                {/* Step 1 */}
-                <div className="border rounded-lg p-4 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">Step 1: Copy Code</span>
-                    <Badge>1 of 3</Badge>
+      {telegramModalOpen && (
+        <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm">
+          <div className="fixed left-[50%] top-[50%] z-50 w-full max-w-md translate-x-[-50%] translate-y-[-50%] p-4">
+            <div className="bg-card border border-border rounded-lg shadow-lg">
+              {/* Modal Header */}
+              <div className="border-b border-border p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-lg font-semibold flex items-center gap-2">
+                      <MessageCircle className="w-5 h-5 text-blue-500" />
+                      Connect Telegram
+                    </h2>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Link your Safe wallet to Telegram for manual trading
+                    </p>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <code className="flex-1 bg-muted px-4 py-3 rounded text-2xl font-mono text-center">
-                      {linkCode}
-                    </code>
-                    <Button onClick={copyCode} variant="outline" size="icon">
-                      📋
-                    </Button>
-                  </div>
-                </div>
-
-                {/* Step 2 */}
-                <div className="border rounded-lg p-4 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">Step 2: Open Bot</span>
-                    <Badge>2 of 3</Badge>
-                  </div>
-                  <Button
-                    onClick={() => window.open(`https://t.me/${botUsername}`, '_blank')}
-                    className="w-full"
-                    variant="outline"
+                  <button
+                    onClick={() => setTelegramModalOpen(false)}
+                    className="rounded-sm opacity-70 hover:opacity-100"
                   >
-                    <MessageCircle className="w-4 h-4 mr-2" />
-                    Open @{botUsername}
-                  </Button>
-                </div>
-
-                {/* Step 3 */}
-                <div className="border rounded-lg p-4 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">Step 3: Link</span>
-                    <Badge>3 of 3</Badge>
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    Send this message to the bot:
-                  </p>
-                  <code className="block bg-muted px-4 py-2 rounded text-sm font-mono">
-                    /link {linkCode}
-                  </code>
-                </div>
-
-                <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
-                  <p className="text-xs text-blue-700 dark:text-blue-300">
-                    💡 After linking, trade naturally: "Buy 10 USDC of WETH"
-                  </p>
+                    <X className="h-4 w-4" />
+                  </button>
                 </div>
               </div>
-            )}
+
+              {/* Modal Content */}
+              <div className="p-6 space-y-4">
+                {!linkCode && (
+                  <button
+                    onClick={generateLinkCode}
+                    disabled={generating}
+                    className="w-full inline-flex items-center justify-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:bg-primary/90 disabled:opacity-50"
+                  >
+                    {generating ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Generating...
+                      </>
+                    ) : (
+                      <>
+                        <MessageCircle className="w-4 h-4" />
+                        Generate Link Code
+                      </>
+                    )}
+                  </button>
+                )}
+
+                {linkCode && (
+                  <div className="space-y-4">
+                    {/* Step 1 */}
+                    <div className="border border-border rounded-lg p-4 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium">Step 1: Copy Code</span>
+                        <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-primary/10 text-primary">
+                          1 of 3
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <code className="flex-1 bg-muted px-4 py-3 rounded text-2xl font-mono text-center tracking-wider">
+                          {linkCode}
+                        </code>
+                        <button
+                          onClick={copyCode}
+                          className="shrink-0 inline-flex items-center justify-center w-10 h-10 border border-input bg-background rounded-md hover:bg-accent"
+                        >
+                          {copied ? (
+                            <CheckCircle className="w-4 h-4 text-green-500" />
+                          ) : (
+                            <Copy className="w-4 h-4" />
+                          )}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Step 2 */}
+                    <div className="border border-border rounded-lg p-4 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium">Step 2: Open Bot</span>
+                        <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-primary/10 text-primary">
+                          2 of 3
+                        </span>
+                      </div>
+                      <button
+                        onClick={() => window.open(`https://t.me/${botUsername}`, '_blank')}
+                        className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 border border-input bg-background rounded-md text-sm font-medium hover:bg-accent"
+                      >
+                        <MessageCircle className="w-4 h-4" />
+                        Open @{botUsername}
+                      </button>
+                    </div>
+
+                    {/* Step 3 */}
+                    <div className="border border-border rounded-lg p-4 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium">Step 3: Link</span>
+                        <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-primary/10 text-primary">
+                          3 of 3
+                        </span>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        Send this message to the bot:
+                      </p>
+                      <code className="block bg-muted px-4 py-2 rounded text-sm font-mono">
+                        /link {linkCode}
+                      </code>
+                    </div>
+
+                    {/* Tip */}
+                    <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
+                      <p className="text-xs text-blue-700 dark:text-blue-300">
+                        💡 After linking, you can trade naturally: "Buy 10 USDC of WETH"
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
-        </DialogContent>
-      </Dialog>
+        </div>
+      )}
     </div>
   );
 }
-
