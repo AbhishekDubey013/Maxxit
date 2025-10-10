@@ -23,10 +23,10 @@ run_worker_loop() {
   done
 }
 
-# Start Tweet Ingestion Worker (every 5 minutes)
-run_worker_loop "tweet-ingestion" "workers/tweet-ingestion-worker.ts" 300 &
+# Start Tweet Ingestion Worker (every 2 minutes for faster detection)
+run_worker_loop "tweet-ingestion" "workers/tweet-ingestion-worker.ts" 120 &
 PID1=$!
-echo "✅ Tweet Ingestion started (PID: $PID1, every 5 min)"
+echo "✅ Tweet Ingestion started (PID: $PID1, every 2 min)"
 
 # Start Signal Generation Worker (every 5 minutes)
 run_worker_loop "signal-generator" "workers/signal-generator.ts" 300 &

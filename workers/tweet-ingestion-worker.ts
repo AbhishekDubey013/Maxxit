@@ -52,7 +52,7 @@ async function ingestTweets() {
           }
 
           const xTweets = await xApiClient.getUserTweets(account.xUsername, {
-            maxResults: 50,
+            maxResults: 15, // Optimized: reduced from 50 (most users don't tweet that much)
             sinceId: lastTweet?.tweetId,
           });
 
