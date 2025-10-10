@@ -1,0 +1,20 @@
+# Python Twitter API Proxy Dockerfile
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Copy requirements
+COPY requirements.txt .
+
+# Install dependencies
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy proxy application
+COPY twitter_api_proxy.py .
+
+# Expose port (Railway will override with $PORT)
+EXPOSE 8000
+
+# Start uvicorn
+CMD ["python", "-m", "uvicorn", "twitter_api_proxy:app", "--host", "0.0.0.0", "--port", "8000"]
+
