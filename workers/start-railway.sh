@@ -33,10 +33,10 @@ run_worker_loop "signal-generator" "workers/signal-generator.ts" 300 &
 PID2=$!
 echo "✅ Signal Generator started (PID: $PID2, every 5 min)"
 
-# Start Trade Execution Worker (every 30 minutes)
-run_worker_loop "trade-executor" "workers/trade-executor-worker.ts" 1800 &
+# Start Trade Execution Worker (every 5 minutes - sync with signal generation)
+run_worker_loop "trade-executor" "workers/trade-executor-worker.ts" 300 &
 PID3=$!
-echo "✅ Trade Executor started (PID: $PID3, every 30 min)"
+echo "✅ Trade Executor started (PID: $PID3, every 5 min)"
 
 # Start Position Monitor Worker (every 5 minutes)
 run_worker_loop "position-monitor" "workers/position-monitor-v2.ts" 300 &

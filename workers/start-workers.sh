@@ -58,10 +58,10 @@ run_worker_loop "signal-generator" "$WORKERS_DIR/signal-generator.ts" 300 &
 SIGNAL_PID=$!
 echo "✅ Signal Generator started (PID: $SIGNAL_PID, runs every 5 minutes) ⚡ TESTING MODE"
 
-# Start Trade Execution Worker (every 30 minutes = 1800 seconds)
-run_worker_loop "trade-executor" "$WORKERS_DIR/trade-executor-worker.ts" 1800 &
+# Start Trade Execution Worker (every 5 minutes = 300 seconds - sync with signal generation)
+run_worker_loop "trade-executor" "$WORKERS_DIR/trade-executor-worker.ts" 300 &
 TRADE_PID=$!
-echo "✅ Trade Executor started (PID: $TRADE_PID, runs every 30 minutes)"
+echo "✅ Trade Executor started (PID: $TRADE_PID, runs every 5 minutes) ⚡ REAL-TIME MODE"
 
 # Start Position Monitor Worker (every 5 minutes = 300 seconds)
 run_worker_loop "position-monitor" "$WORKERS_DIR/position-monitor-v2.ts" 300 &
