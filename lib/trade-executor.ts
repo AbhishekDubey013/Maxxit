@@ -9,6 +9,7 @@ import { createSpotAdapter, SpotAdapter } from './adapters/spot-adapter';
 import { createGMXAdapter, GMXAdapter } from './adapters/gmx-adapter';
 import { createHyperliquidAdapter, HyperliquidAdapter } from './adapters/hyperliquid-adapter';
 import { SafeModuleService } from './safe-module-service';
+import { createSafeTransactionService } from './safe-transaction-service';
 import { ethers } from 'ethers';
 
 const prisma = new PrismaClient();
@@ -347,7 +348,11 @@ export class TradeExecutor {
         };
       }
 
-      // Create position record
+      // Parse actual amounts from result
+      const actualAmountOut = result.amountOut ? parseFloat(ethers.utils.formatUnits(result.amountOut, 18)) : 0;
+      const actualEntryPrice = actualAmountOut > 0 ? parseFloat(positionSize.toString()) / actualAmountOut : 0;
+
+      // Create position record with REAL transaction hash
       const position = await prisma.position.create({
         data: {
           deploymentId: ctx.deployment.id,
@@ -355,16 +360,19 @@ export class TradeExecutor {
           venue: ctx.signal.venue,
           tokenSymbol: ctx.signal.tokenSymbol,
           side: ctx.signal.side,
-          entryPrice: 0, // Will be updated when we get actual execution price
-          qty: 0, // Will be updated when we get actual execution amount
+          entryPrice: actualEntryPrice,
+          qty: actualAmountOut,
+          entryTxHash: result.txHash, // ⚡ REAL ON-CHAIN TX HASH
         },
       });
 
-      console.log('[TradeExecutor] SPOT trade submitted:', {
+      console.log('[TradeExecutor] ✅ SPOT trade executed on-chain!', {
         positionId: position.id,
-        safeTxHash: result.safeTxHash,
         txHash: result.txHash,
-        requiresSignatures: result.requiresMoreSignatures,
+        token: ctx.signal.tokenSymbol,
+        qty: actualAmountOut,
+        entryPrice: actualEntryPrice,
+        explorerLink: `https://arbiscan.io/tx/${result.txHash}`,
       });
 
       return {
