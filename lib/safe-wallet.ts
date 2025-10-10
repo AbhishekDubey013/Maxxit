@@ -3,8 +3,7 @@
  * Handles Safe multisig wallet operations for agent trading
  */
 
-import Safe from '@safe-global/protocol-kit';
-import { EthersAdapter } from '@safe-global/protocol-kit';
+import Safe, { EthersAdapter } from '@safe-global/protocol-kit';
 import { MetaTransactionData } from '@safe-global/safe-core-sdk-types';
 import { ethers } from 'ethers';
 
