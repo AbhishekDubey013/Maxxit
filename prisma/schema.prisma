@@ -134,12 +134,14 @@ model Position {
   side                String
   qty                 Decimal               @db.Decimal(20, 8)
   entryPrice          Decimal               @map("entry_price") @db.Decimal(20, 8)
+  entryTxHash         String?               @map("entry_tx_hash")
   stopLoss            Decimal?              @map("stop_loss") @db.Decimal(20, 8)
   takeProfit          Decimal?              @map("take_profit") @db.Decimal(20, 8)
   trailingParams      Json?                 @map("trailing_params")
   openedAt            DateTime              @default(now()) @map("opened_at") @db.Timestamptz(6)
   closedAt            DateTime?             @map("closed_at") @db.Timestamptz(6)
   exitPrice           Decimal?              @map("exit_price") @db.Decimal(20, 8)
+  exitTxHash          String?               @map("exit_tx_hash")
   pnl                 Decimal?              @db.Decimal(20, 8)
   billingEvents       BillingEvent[]
   impactFactorHistory ImpactFactorHistory[]
