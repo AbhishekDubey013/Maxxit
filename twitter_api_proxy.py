@@ -35,6 +35,17 @@ def get_client():
         raise HTTPException(status_code=500, detail="GAME_API_KEY not found")
     return Client(game_twitter_access_token=token)
 
+@app.get("/")
+def root():
+    return {
+        "service": "Maxxit Twitter API Proxy",
+        "status": "running",
+        "endpoints": {
+            "/health": "Health check",
+            "/tweets/{username}": "Get user tweets"
+        }
+    }
+
 @app.get("/health")
 def health():
     return {"status": "healthy"}
