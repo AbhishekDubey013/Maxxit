@@ -36,13 +36,22 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse) {
     where,
     include: {
       agent: true,
+      telegramUsers: {
+        where: { isActive: true }
+      }
     },
     orderBy: {
       subStartedAt: 'desc',
     },
   });
 
-  return res.status(200).json(deployments);
+  // Add telegramLinked flag to response
+  const deploymentsWithTelegram = deployments.map(d => ({
+    ...d,
+    telegramLinked: d.telegramUsers.length > 0
+  }));
+
+  return res.status(200).json(deploymentsWithTelegram);
 }
 
 async function handlePost(req: NextApiRequest, res: NextApiResponse) {
