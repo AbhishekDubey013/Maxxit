@@ -182,39 +182,22 @@ export async function monitorPositions() {
 
         // Close position if triggered
         if (shouldClose) {
-          console.log(`\n   ⚡ Closing position via module...\n`);
+          console.log(`\n   ⚡ Closing position via TradeExecutor...\n`);
 
-          // Create close signal (reverse of entry)
-          const closeSignal = await prisma.signal.create({
-            data: {
-              agentId: position.deployment.agent.id,
-              tokenSymbol: symbol,
-              venue: position.venue,
-              side: side === 'BUY' ? 'SELL' : 'BUY', // Reverse
-              sizeModel: { baseSize: positionValue, tier: 'CLOSE' },
-              riskModel: { reason: closeReason },
-              sourceTweets: [`auto_close_${closeReason}`],
-            },
-          });
-
-          // Execute close trade
-          const result = await executor.executeSignal(closeSignal.id);
+          // Directly close position without creating a signal
+          // (signals have 6h deduplication constraint that prevents closes)
+          const result = await executor.closePosition(position.id);
 
           if (result.success) {
-            // Update position as closed
-            await prisma.position.update({
-              where: { id: position.id },
-              data: {
-                closedAt: new Date(),
-                exitPrice: currentPrice,
-                pnl: pnlUSD,
-              },
-            });
-
             closedCount++;
-            console.log(`   ✅ Position closed! P&L: $${pnlUSD.toFixed(2)} (${closeReason})\n`);
+            console.log(`   ✅ Position closed! P&L: $${pnlUSD.toFixed(2)} (${closeReason})`);
+            console.log(`   🔗 TX: ${result.txHash}`);
+            if (result.txHash) {
+              console.log(`   🔍 https://arbiscan.io/tx/${result.txHash}\n`);
+            }
           } else {
-            console.error(`   ❌ Failed to close position:`, result.error, '\n');
+            console.error(`   ❌ Failed to close position:`, result.error);
+            console.error(`      Reason: ${result.reason}\n`);
           }
         } else {
           console.log(`   ✅ Position healthy\n`);
