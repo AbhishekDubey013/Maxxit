@@ -62,16 +62,30 @@ export async function executeTradesForSignals() {
 
         if (response.ok) {
           const result = await response.json();
-          if (result.success) {
+          if (result.success && result.positionsCreated > 0) {
             successCount++;
             console.log(`[TradeWorker] ✅ Signal ${signal.id} executed successfully`);
+            console.log(`[TradeWorker]    Positions created: ${result.positionsCreated}`);
+            if (result.positions && result.positions[0]) {
+              console.log(`[TradeWorker]    TX Hash: ${result.positions[0].entryTxHash}`);
+              console.log(`[TradeWorker]    Arbiscan: https://arbiscan.io/tx/${result.positions[0].entryTxHash}`);
+            }
           } else {
             failureCount++;
-            console.error(`[TradeWorker] ❌ Signal ${signal.id} execution failed:`, result.error);
+            console.error(`[TradeWorker] ❌ Signal ${signal.id} execution failed`);
+            console.error(`[TradeWorker]    Error: ${result.message || result.error}`);
+            if (result.errors && result.errors.length > 0) {
+              result.errors.forEach((err: any) => {
+                console.error(`[TradeWorker]    - Deployment ${err.deploymentId}: ${err.error}`);
+                if (err.reason) console.error(`[TradeWorker]      Reason: ${err.reason}`);
+              });
+            }
           }
         } else {
           failureCount++;
-          console.error(`[TradeWorker] ❌ Signal ${signal.id} API call failed:`, await response.text());
+          const errorText = await response.text();
+          console.error(`[TradeWorker] ❌ Signal ${signal.id} API call failed (${response.status})`);
+          console.error(`[TradeWorker]    Response: ${errorText}`);
         }
 
         // Small delay between executions to avoid rate limits
