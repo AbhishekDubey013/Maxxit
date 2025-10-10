@@ -58,21 +58,23 @@ model Agent {
 }
 
 model AgentDeployment {
-  id            String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  agentId       String         @map("agent_id") @db.Uuid
-  userWallet    String         @map("user_wallet")
-  safeWallet    String         @map("safe_wallet")
-  moduleAddress String?        @map("module_address")
-  moduleEnabled Boolean        @default(false) @map("module_enabled")
-  status        AgentStatus    @default(ACTIVE)
-  subActive     Boolean        @default(true) @map("sub_active")
-  subStartedAt  DateTime       @default(now()) @map("sub_started_at") @db.Timestamptz(6)
-  trialEndsAt   DateTime?      @map("trial_ends_at") @db.Timestamptz(6)
-  nextBillingAt DateTime?      @map("next_billing_at") @db.Timestamptz(6)
-  agent         Agent          @relation(fields: [agentId], references: [id], onDelete: Cascade)
-  billingEvents BillingEvent[]
-  pnlSnapshots  PnlSnapshot[]
-  positions     Position[]
+  id              String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  agentId         String          @map("agent_id") @db.Uuid
+  userWallet      String          @map("user_wallet")
+  safeWallet      String          @map("safe_wallet")
+  moduleAddress   String?         @map("module_address")
+  moduleEnabled   Boolean         @default(false) @map("module_enabled")
+  status          AgentStatus     @default(ACTIVE)
+  subActive       Boolean         @default(true) @map("sub_active")
+  subStartedAt    DateTime        @default(now()) @map("sub_started_at") @db.Timestamptz(6)
+  trialEndsAt     DateTime?       @map("trial_ends_at") @db.Timestamptz(6)
+  nextBillingAt   DateTime?       @map("next_billing_at") @db.Timestamptz(6)
+  agent           Agent           @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  billingEvents   BillingEvent[]
+  pnlSnapshots    PnlSnapshot[]
+  positions       Position[]
+  telegramUsers   TelegramUser[]
+  telegramTrades  TelegramTrade[]
 
   @@unique([userWallet, agentId])
   @@index([agentId])
@@ -143,15 +145,63 @@ model Position {
   exitPrice           Decimal?              @map("exit_price") @db.Decimal(20, 8)
   exitTxHash          String?               @map("exit_tx_hash")
   pnl                 Decimal?              @db.Decimal(20, 8)
+  source              String                @default("auto") // 'auto' or 'telegram'
+  manualTradeId       String?               @map("manual_trade_id") @db.Uuid
   billingEvents       BillingEvent[]
   impactFactorHistory ImpactFactorHistory[]
   deployment          AgentDeployment       @relation(fields: [deploymentId], references: [id], onDelete: Cascade)
   signal              Signal                @relation(fields: [signalId], references: [id], onDelete: Cascade)
+  manualTrade         TelegramTrade?        @relation(fields: [manualTradeId], references: [id])
 
   @@unique([deploymentId, signalId])
   @@index([deploymentId, openedAt])
   @@index([signalId])
+  @@index([source])
   @@map("positions")
+}
+
+// New table: Telegram user linking
+model TelegramUser {
+  id              String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  telegramUserId  String            @unique @map("telegram_user_id") // Telegram's user ID
+  telegramUsername String?          @map("telegram_username")
+  firstName       String?           @map("first_name")
+  deploymentId    String            @map("deployment_id") @db.Uuid
+  linkCode        String?           @unique @map("link_code") // One-time code for linking
+  linkedAt        DateTime          @default(now()) @map("linked_at") @db.Timestamptz(6)
+  lastActiveAt    DateTime          @default(now()) @map("last_active_at") @db.Timestamptz(6)
+  isActive        Boolean           @default(true) @map("is_active")
+  deployment      AgentDeployment   @relation(fields: [deploymentId], references: [id], onDelete: Cascade)
+  trades          TelegramTrade[]
+
+  @@index([deploymentId])
+  @@map("telegram_users")
+}
+
+// New table: Manual trades via Telegram
+model TelegramTrade {
+  id              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  telegramUserId  String        @map("telegram_user_id") @db.Uuid
+  deploymentId    String        @map("deployment_id") @db.Uuid
+  messageId       String        @map("message_id") // Telegram message ID
+  command         String        // Original user command
+  parsedIntent    Json          @map("parsed_intent") // { action, token, amount, etc }
+  confirmed       Boolean       @default(false)
+  confirmedAt     DateTime?     @map("confirmed_at") @db.Timestamptz(6)
+  executed        Boolean       @default(false)
+  executedAt      DateTime?     @map("executed_at") @db.Timestamptz(6)
+  signalId        String?       @map("signal_id") @db.Uuid
+  status          String        @default("pending") // pending, confirmed, executing, executed, failed, cancelled
+  errorMessage    String?       @map("error_message")
+  createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  telegramUser    TelegramUser  @relation(fields: [telegramUserId], references: [id], onDelete: Cascade)
+  deployment      AgentDeployment @relation(fields: [deploymentId], references: [id], onDelete: Cascade)
+  positions       Position[]
+
+  @@index([telegramUserId])
+  @@index([deploymentId])
+  @@index([status])
+  @@map("telegram_trades")
 }
 
 model BillingEvent {

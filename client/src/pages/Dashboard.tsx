@@ -6,11 +6,20 @@ import ThemeToggle from "@/components/ThemeToggle";
 import MetricCard from "@/components/MetricCard";
 import PositionRow from "@/components/PositionRow";
 import StatusBadge from "@/components/StatusBadge";
+import TelegramConnectModal from "@/components/TelegramConnectModal";
+import TelegramStatus from "@/components/TelegramStatus";
 import { TrendingUp, DollarSign, Activity, BarChart3, Wallet, CreditCard, Settings } from "lucide-react";
 
 export default function Dashboard() {
   const [location] = useLocation();
   const [activeTab, setActiveTab] = useState<"positions" | "deployments" | "billing">("positions");
+  const [telegramModalOpen, setTelegramModalOpen] = useState(false);
+  const [selectedDeploymentId, setSelectedDeploymentId] = useState<string>("");
+
+  const handleConnectTelegram = (deploymentId: string) => {
+    setSelectedDeploymentId(deploymentId);
+    setTelegramModalOpen(true);
+  };
 
   const deployments = [
     {
@@ -20,6 +29,7 @@ export default function Dashboard() {
       status: "ACTIVE" as const,
       subActive: true,
       trialEndsAt: "2025-10-15",
+      telegramLinked: false,
     },
     {
       id: "2",
@@ -28,6 +38,7 @@ export default function Dashboard() {
       status: "ACTIVE" as const,
       subActive: true,
       trialEndsAt: null,
+      telegramLinked: true,
     },
   ];
 
@@ -291,6 +302,13 @@ export default function Dashboard() {
                         </div>
                       )}
                     </div>
+                    <div className="pt-4 border-t border-border">
+                      <p className="text-sm text-muted-foreground mb-2">Manual Trading</p>
+                      <TelegramStatus
+                        isLinked={deployment.telegramLinked}
+                        onConnect={() => handleConnectTelegram(deployment.id)}
+                      />
+                    </div>
                     <div className="flex gap-2">
                       <Button variant="outline" size="sm" className="flex-1" data-testid="button-pause">
                         Pause
@@ -347,6 +365,12 @@ export default function Dashboard() {
           )}
         </div>
       </main>
+
+      <TelegramConnectModal
+        open={telegramModalOpen}
+        onClose={() => setTelegramModalOpen(false)}
+        deploymentId={selectedDeploymentId}
+      />
     </div>
   );
 }
