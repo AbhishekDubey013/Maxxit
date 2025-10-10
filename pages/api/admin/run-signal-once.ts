@@ -41,10 +41,18 @@ export default async function handler(
     }
 
     const signalsCreated = [];
+    
+    // Stablecoins that should NOT be traded (they are the base currency)
+    const EXCLUDED_TOKENS = ['USDC', 'USDT', 'DAI', 'USDC.E', 'BUSD', 'FRAX'];
 
     for (const post of candidatePosts) {
       // Extract tokens from the post
       for (const tokenSymbol of post.extractedTokens) {
+        // Skip stablecoins - they are base currency, not trading assets
+        if (EXCLUDED_TOKENS.includes(tokenSymbol.toUpperCase())) {
+          console.log(`[SIGNAL] Skipping stablecoin ${tokenSymbol} - base currency only`);
+          continue;
+        }
         // 2. Get latest market indicators for this token
         const indicators = await prisma.marketIndicators6h.findFirst({
           where: { tokenSymbol },
@@ -95,7 +103,7 @@ export default async function handler(
             continue;
           }
 
-          // Create signal (simplified)
+          // Create signal with percentage-based sizing
           const signal = await prisma.signal.create({
             data: {
               agentId: agent.id,
@@ -103,7 +111,8 @@ export default async function handler(
               venue: agent.venue,
               side: 'LONG', // Simplified - would use sentiment analysis
               sizeModel: {
-                baseSize: 100,
+                type: 'balance-percentage',
+                value: 5, // Use 5% of wallet balance per trade
                 impactFactor: post.ctAccount.impactFactor,
               },
               riskModel: {
