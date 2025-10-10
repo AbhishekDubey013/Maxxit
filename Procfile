@@ -1,2 +1,2 @@
-worker: bash workers/start-workers.sh
+worker: bash workers/start-railway.sh
 
