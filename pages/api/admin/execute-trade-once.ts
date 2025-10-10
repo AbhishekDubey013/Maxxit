@@ -78,6 +78,7 @@ export default async function handler(
     }
 
     const positionsCreated = [];
+    const errors = [];
     const executor = new TradeExecutor();
 
     for (const deployment of deployments) {
@@ -112,15 +113,28 @@ export default async function handler(
           positionsCreated.push(position);
         }
       } else {
-        console.error(`[TRADE] ❌ Trade execution failed:`, result.error);
+        const errorMsg = result.error || result.reason || 'Unknown error';
+        console.error(`[TRADE] ❌ Trade execution failed for deployment ${deployment.id}:`, errorMsg);
+        console.error(`[TRADE] Full result:`, JSON.stringify(result, null, 2));
+        errors.push({
+          deploymentId: deployment.id,
+          error: errorMsg,
+          reason: result.reason,
+          summary: result.executionSummary,
+        });
       }
     }
 
-    return res.status(200).json({
-      success: true,
-      message: 'Trade execution completed',
+    // Return detailed response with errors
+    const success = positionsCreated.length > 0;
+    return res.status(success ? 200 : 400).json({
+      success,
+      message: success 
+        ? `Trade execution completed. ${positionsCreated.length} positions created.`
+        : `Trade execution failed. ${errors.length} errors occurred.`,
       positionsCreated: positionsCreated.length,
       positions: positionsCreated,
+      errors: errors.length > 0 ? errors : undefined,
     });
   } catch (error: any) {
     console.error('[ADMIN] Trade execution error:', error.message);
