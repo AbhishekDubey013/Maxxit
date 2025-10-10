@@ -3,7 +3,8 @@
 # Railway Worker Starter
 # Starts Node.js workers (connects to separate Python proxy service)
 
-set -e
+# Don't exit on error - keep container alive even if workers fail
+set +e
 
 echo "🚂 Starting Maxxit Workers on Railway..."
 echo "📦 Connecting to Python Proxy at: ${GAME_API_URL:-http://localhost:8001}"
@@ -47,5 +48,13 @@ echo "🎉 All workers started successfully!"
 echo "Workers: $PID1, $PID2, $PID3, $PID4"
 
 # Keep container alive - wait for all background processes
-wait
+# Also add trap to handle signals
+trap "echo 'Received signal, keeping container alive...'; wait" SIGTERM SIGINT
+
+echo "⏳ Container staying alive - workers running in background..."
+
+# Infinite wait to keep container running
+while true; do
+  sleep 3600  # Sleep 1 hour at a time
+done
 
