@@ -12,9 +12,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy proxy application
 COPY twitter_api_proxy.py .
 
-# Expose port (Railway will override with $PORT)
-EXPOSE 8000
+# Expose port (Render will use $PORT)
+EXPOSE 10000
 
-# Start uvicorn
-CMD ["python", "-m", "uvicorn", "twitter_api_proxy:app", "--host", "0.0.0.0", "--port", "8000"]
+# Start uvicorn with dynamic port from environment
+CMD python -m uvicorn twitter_api_proxy:app --host 0.0.0.0 --port ${PORT:-10000}
 
