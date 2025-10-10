@@ -1,7 +1,7 @@
 /**
  * Trade Execution Worker
  * Runs automatically to execute pending signals
- * Schedule: Every 15-30 minutes
+ * Schedule: Every 5 minutes (synced with signal generation)
  */
 
 import { PrismaClient } from '@prisma/client';
