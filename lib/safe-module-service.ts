@@ -66,6 +66,7 @@ export class SafeModuleService {
   private executor: ethers.Wallet;
   private module: ethers.Contract;
   private chainId: number;
+  private static noncePromises: Map<string, Promise<number>> = new Map();
 
   constructor(config: ModuleConfig) {
     this.chainId = config.chainId;
@@ -88,6 +89,38 @@ export class SafeModuleService {
       MODULE_ABI,
       this.executor
     );
+  }
+
+  /**
+   * Get next nonce for executor wallet (with mutex to prevent race conditions)
+   */
+  private async getNextNonce(): Promise<number> {
+    const address = this.executor.address;
+    
+    // Wait for any pending nonce request for this address
+    const pendingNonce = SafeModuleService.noncePromises.get(address);
+    if (pendingNonce) {
+      await pendingNonce;
+    }
+    
+    // Create new promise for this nonce request
+    const noncePromise = (async () => {
+      const nonce = await this.provider.getTransactionCount(address, 'pending');
+      console.log(`[SafeModule] Got nonce ${nonce} for ${address}`);
+      return nonce;
+    })();
+    
+    SafeModuleService.noncePromises.set(address, noncePromise);
+    const nonce = await noncePromise;
+    
+    // Clean up after a short delay
+    setTimeout(() => {
+      if (SafeModuleService.noncePromises.get(address) === noncePromise) {
+        SafeModuleService.noncePromises.delete(address);
+      }
+    }, 100);
+    
+    return nonce;
   }
 
   /**
@@ -136,14 +169,18 @@ export class SafeModuleService {
         profitReceiver: params.profitReceiver,
       };
 
+      // Get next nonce to prevent race conditions
+      const nonce = await this.getNextNonce();
+      
       const tx = await this.module.executeTrade(
         tradeParams,
         {
           gasLimit: 1000000, // Adjust as needed
+          nonce, // Explicit nonce to prevent conflicts
         }
       );
 
-      console.log('[SafeModule] Transaction sent:', tx.hash);
+      console.log('[SafeModule] Transaction sent:', tx.hash, 'with nonce:', nonce);
 
       // Wait for confirmation
       const receipt = await tx.wait();
@@ -242,12 +279,16 @@ export class SafeModuleService {
         dexRouter,
       });
 
+      // Get next nonce to prevent race conditions
+      const nonce = await this.getNextNonce();
+
       const tx = await this.module.approveTokenForDex(
         safeAddress,
         tokenAddress,
         dexRouter,
         {
           gasLimit: 300000,
+          nonce, // Explicit nonce to prevent conflicts
         }
       );
 
