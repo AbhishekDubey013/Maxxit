@@ -213,7 +213,8 @@ async function executeTrade(chatId: number, tradeId: string) {
 
     const intent = trade.parsedIntent as any;
 
-    // Create signal
+    // Create a unique signal for each manual Telegram trade
+    // Add timestamp to sourceTweets to make it unique and bypass 6h bucket constraint
     const signal = await prisma.signal.create({
       data: {
         agentId: trade.deployment.agentId,
@@ -228,7 +229,8 @@ async function executeTrade(chatId: number, tradeId: string) {
           stopLoss: 0.05,
           takeProfit: 0.15,
         },
-        sourceTweets: [`telegram_${trade.telegramUserId}`],
+        // Make each manual trade unique with timestamp
+        sourceTweets: [`telegram_manual_${trade.id}_${Date.now()}`],
       }
     });
 
