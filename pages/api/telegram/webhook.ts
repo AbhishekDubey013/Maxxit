@@ -218,16 +218,20 @@ async function executeTrade(chatId: number, tradeId: string) {
     // The trade executor will strip this suffix when looking up token
     const uniqueTokenSymbol = `${intent.token}_MANUAL_${Date.now()}`;
 
+    // Manual trades: Use actual USDC amounts directly (not percentage)
+    // Auto trades: Use percentage of balance
+    const sizeModel = {
+      type: intent.amountType === 'USDC' ? 'fixed-usdc' : 'balance-percentage',
+      value: intent.amount || 5, // Default to 5% if no amount specified
+    };
+
     const signal = await prisma.signal.create({
       data: {
         agentId: trade.deployment.agentId,
         tokenSymbol: uniqueTokenSymbol, // Unique token symbol bypasses constraint
         venue: trade.deployment.agent.venue,
         side: intent.action === 'BUY' ? 'LONG' : 'SHORT',
-        sizeModel: {
-          type: intent.amountType === 'PERCENTAGE' ? 'balance-percentage' : 'fixed',
-          value: intent.amount,
-        },
+        sizeModel,
         riskModel: {
           stopLoss: 0.05,
           takeProfit: 0.15,
