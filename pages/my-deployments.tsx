@@ -12,6 +12,16 @@ import {
   Copy
 } from 'lucide-react';
 
+// Extend Window interface for MetaMask
+declare global {
+  interface Window {
+    ethereum?: {
+      request: (args: { method: string; params?: any[] }) => Promise<any>;
+      on?: (event: string, callback: (...args: any[]) => void) => void;
+    };
+  }
+}
+
 interface Deployment {
   id: string;
   agentId: string;
@@ -35,14 +45,47 @@ export default function MyDeployments() {
   const [botUsername, setBotUsername] = useState<string>('');
   const [generating, setGenerating] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [connectedWallet, setConnectedWallet] = useState<string>('');
 
   useEffect(() => {
-    fetchDeployments();
+    // Get connected wallet address from MetaMask/wallet provider
+    const getWallet = async () => {
+      if (typeof window.ethereum !== 'undefined') {
+        try {
+          const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+          if (accounts.length > 0) {
+            setConnectedWallet(accounts[0]);
+          } else {
+            // Request wallet connection
+            const requestedAccounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+            setConnectedWallet(requestedAccounts[0]);
+          }
+        } catch (error) {
+          console.error('Failed to connect wallet:', error);
+          alert('Please connect your wallet to view your deployments');
+        }
+      } else {
+        alert('Please install MetaMask or another Web3 wallet');
+      }
+    };
+
+    getWallet();
   }, []);
 
+  useEffect(() => {
+    if (connectedWallet) {
+      fetchDeployments();
+    }
+  }, [connectedWallet]);
+
   const fetchDeployments = async () => {
+    if (!connectedWallet) {
+      return;
+    }
+
     try {
-      const response = await fetch('/api/deployments');
+      // CRITICAL FIX: Only fetch deployments for connected wallet
+      const response = await fetch(`/api/deployments?userWallet=${connectedWallet}`);
       const data = await response.json();
       setDeployments(data);
     } catch (error) {
@@ -66,7 +109,10 @@ export default function MyDeployments() {
       const response = await fetch('/api/telegram/generate-link', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ deploymentId: selectedDeploymentId }),
+        body: JSON.stringify({ 
+          deploymentId: selectedDeploymentId,
+          userWallet: connectedWallet // SECURITY: Verify ownership
+        }),
       });
 
       if (!response.ok) {
