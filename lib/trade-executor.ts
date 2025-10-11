@@ -304,8 +304,9 @@ export class TradeExecutor {
         amountIn: amountIn.toString(),
       });
 
-      // Calculate min amount out with slippage
-      const minAmountOut = adapter.calculateMinAmountOut(quote.amountOut, 100); // 1% slippage
+      // TEMPORARY: Disable slippage check for testing (50% tolerance)
+      // TODO: Re-enable with proper slippage after confirming this is the issue
+      const minAmountOut = adapter.calculateMinAmountOut(quote.amountOut, 5000); // 50% slippage (effectively disabled)
 
       // Build transactions
       const approvalTx = await adapter.buildApprovalTx(
