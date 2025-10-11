@@ -265,6 +265,36 @@ export class SafeModuleService {
   }
 
   /**
+   * Check if token is already approved for DEX
+   */
+  async checkTokenApproval(
+    safeAddress: string,
+    tokenAddress: string,
+    spender: string
+  ): Promise<boolean> {
+    try {
+      const erc20Abi = ['function allowance(address owner, address spender) view returns (uint256)'];
+      const tokenContract = new ethers.Contract(tokenAddress, erc20Abi, this.provider);
+      const allowance = await tokenContract.allowance(safeAddress, spender);
+      
+      // Check if allowance is greater than a reasonable threshold
+      const isApproved = allowance.gt(ethers.utils.parseEther('100000')); // 100k tokens
+      console.log('[SafeModule] Token approval check:', {
+        token: tokenAddress,
+        safe: safeAddress,
+        spender,
+        allowance: allowance.toString(),
+        isApproved,
+      });
+      
+      return isApproved;
+    } catch (error: any) {
+      console.error('[SafeModule] Check approval error:', error);
+      return false;
+    }
+  }
+
+  /**
    * Approve token for DEX router (one-time setup)
    */
   async approveTokenForDex(
