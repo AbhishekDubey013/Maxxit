@@ -61,7 +61,7 @@ export default async function handler(
 
     // Get bot info for instructions
     const botInfo = await bot.getMe();
-    const botUsername = botInfo?.username || 'MaxxitBot';
+    const botUsername = botInfo?.username || process.env.TELEGRAM_BOT_USERNAME || 'Maxxinn_bot';
 
     return res.status(200).json({
       success: true,
