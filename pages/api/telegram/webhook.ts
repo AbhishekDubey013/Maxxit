@@ -213,11 +213,36 @@ async function executeTrade(chatId: number, tradeId: string) {
 
     const intent = trade.parsedIntent as any;
 
-    // Create a unique signal for each manual Telegram trade
-    // Add timestamp to sourceTweets to make it unique and bypass 6h bucket constraint
+    // Create or get a virtual "Manual Trading Agent" for this deployment
+    // This keeps manual signals completely separate from auto agent signals
+    const manualAgentName = `Manual Trading - ${trade.deployment.agent.name}`;
+    
+    let manualAgent = await prisma.agent.findFirst({
+      where: {
+        name: manualAgentName,
+        creatorWallet: trade.deployment.userWallet,
+        venue: trade.deployment.agent.venue,
+      },
+    });
+
+    if (!manualAgent) {
+      // Create virtual manual agent (one per user + real agent combo)
+      manualAgent = await prisma.agent.create({
+        data: {
+          name: manualAgentName,
+          creatorWallet: trade.deployment.userWallet,
+          profitReceiverAddress: trade.deployment.agent.profitReceiverAddress,
+          venue: trade.deployment.agent.venue,
+          status: 'ACTIVE',
+          weights: [],
+        },
+      });
+    }
+
+    // Create signal under the manual agent (bypasses 6h constraint with real agent)
     const signal = await prisma.signal.create({
       data: {
-        agentId: trade.deployment.agentId,
+        agentId: manualAgent.id, // Use manual agent ID, not real agent ID
         tokenSymbol: intent.token,
         venue: trade.deployment.agent.venue,
         side: intent.action === 'BUY' ? 'LONG' : 'SHORT',
@@ -229,7 +254,6 @@ async function executeTrade(chatId: number, tradeId: string) {
           stopLoss: 0.05,
           takeProfit: 0.15,
         },
-        // Make each manual trade unique with timestamp
         sourceTweets: [`telegram_manual_${trade.id}_${Date.now()}`],
       }
     });
