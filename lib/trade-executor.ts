@@ -751,6 +751,21 @@ export class TradeExecutor {
         };
       }
 
+      // Approve ARB (or whatever token) to the Uniswap Router before swapping
+      console.log('[TradeExecutor] Approving token to router for closing...');
+      const approvalResult = await moduleService.approveTokenForDex(
+        position.deployment.safeWallet,
+        tokenRegistry.tokenAddress,
+        routerAddress
+      );
+
+      if (!approvalResult.success) {
+        console.warn('[TradeExecutor] Token approval failed:', approvalResult.error);
+        // Continue anyway - might already be approved
+      } else {
+        console.log('[TradeExecutor] Token approved to router:', approvalResult.txHash);
+      }
+
       // Execute trade through module to close position
       const result = await moduleService.executeTrade({
         safeAddress: position.deployment.safeWallet,
