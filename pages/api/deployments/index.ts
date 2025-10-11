@@ -28,9 +28,17 @@ export default async function handler(
 async function handleGet(req: NextApiRequest, res: NextApiResponse) {
   const { agentId, userWallet } = req.query;
 
+  // Build where clause with case-insensitive wallet matching
   const where: any = {};
   if (agentId) where.agentId = agentId;
-  if (userWallet) where.userWallet = userWallet;
+  
+  // Case-insensitive wallet matching (Ethereum addresses can be checksummed)
+  if (userWallet) {
+    where.userWallet = {
+      equals: userWallet as string,
+      mode: 'insensitive'
+    };
+  }
 
   const deployments = await prisma.agentDeployment.findMany({
     where,

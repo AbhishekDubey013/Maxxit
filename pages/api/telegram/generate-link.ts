@@ -43,6 +43,7 @@ export default async function handler(
     }
 
     // CRITICAL SECURITY: Verify deployment belongs to requesting wallet
+    // Case-insensitive comparison (Ethereum addresses can be checksummed)
     if (deployment.userWallet.toLowerCase() !== userWallet.toLowerCase()) {
       return res.status(403).json({ 
         error: 'Unauthorized: You can only link Telegram to your own deployments' 
