@@ -9,6 +9,12 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 export async function executeTradesForSignals() {
+  console.log('[TradeWorker] ⚠️ TRADE EXECUTION DISABLED - Skipping all trades');
+  
+  // ⚠️ EMERGENCY STOP - DISABLE ALL TRADE EXECUTION
+  // Remove this return statement to re-enable trade execution
+  return;
+
   console.log('[TradeWorker] Starting trade execution...');
 
   try {
