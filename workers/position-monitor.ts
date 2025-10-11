@@ -32,6 +32,12 @@ async function getCurrentPrice(symbol: string): Promise<number | null> {
 }
 
 export async function monitorPositions() {
+  console.log('[PositionMonitor] ⚠️ AUTOMATIC EXITS DISABLED - Skipping monitoring');
+  
+  // ⚠️ EMERGENCY STOP - DISABLE ALL AUTOMATIC POSITION CLOSING
+  // Remove this return statement to re-enable automatic exits
+  return;
+
   console.log('[PositionMonitor] Starting position monitoring...');
 
   try {
