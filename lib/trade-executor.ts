@@ -8,7 +8,7 @@ import { createSafeWallet, getChainIdForVenue, SafeWalletService } from './safe-
 import { createSpotAdapter, SpotAdapter } from './adapters/spot-adapter';
 import { createGMXAdapter, GMXAdapter } from './adapters/gmx-adapter';
 import { createHyperliquidAdapter, HyperliquidAdapter } from './adapters/hyperliquid-adapter';
-import { SafeModuleService } from './safe-module-service';
+import { SafeModuleService, createSafeModuleService } from './safe-module-service';
 import { createSafeTransactionService } from './safe-transaction-service';
 import { ethers } from 'ethers';
 
@@ -348,6 +348,21 @@ export class TradeExecutor {
         };
       }
       
+      // Ensure USDC is approved to router (one-time setup)
+      console.log('[TradeExecutor] Ensuring USDC approval...');
+      const approvalResult = await moduleService.approveTokenForDex(
+        ctx.deployment.safeWallet,
+        usdcAddress,
+        routerAddress
+      );
+      
+      if (!approvalResult.success) {
+        console.warn('[TradeExecutor] Approval failed, but continuing (might already be approved)');
+        // Don't fail here - approval might already exist
+      } else {
+        console.log('[TradeExecutor] USDC approved:', approvalResult.txHash);
+      }
+      
       // Execute trade through module (gasless!)
       const result = await moduleService.executeTrade({
         safeAddress: ctx.deployment.safeWallet,
@@ -602,7 +617,11 @@ export class TradeExecutor {
       const position = await prisma.position.findUnique({
         where: { id: positionId },
         include: {
-          deployment: true,
+          deployment: {
+            include: {
+              agent: true,
+            },
+          },
         },
       });
 
@@ -709,19 +728,44 @@ export class TradeExecutor {
         deadline: Math.floor(Date.now() / 1000) + 1200,
       });
 
-      // Submit transactions
-      const txService = createSafeTransactionService(
-        position.deployment.safeWallet,
-        chainId,
-        process.env.EXECUTOR_PRIVATE_KEY
-      );
+      // Execute through module (same as opening positions)
+      const executorPrivateKey = process.env.EXECUTOR_PRIVATE_KEY;
+      if (!executorPrivateKey) {
+        return {
+          success: false,
+          error: 'EXECUTOR_PRIVATE_KEY not configured',
+        };
+      }
 
-      const result = await txService.batchTransactions([approvalTx, swapTx]);
+      const moduleService = createSafeModuleService(
+        position.deployment.moduleAddress!,
+        chainId,
+        executorPrivateKey
+      );
+      const routerAddress = SpotAdapter.getRouterAddress(chainId);
+      if (!routerAddress) {
+        return {
+          success: false,
+          error: `Router not configured for chain ${chainId}`,
+        };
+      }
+
+      // Execute trade through module to close position
+      const result = await moduleService.executeTrade({
+        safeAddress: position.deployment.safeWallet,
+        fromToken: tokenRegistry.tokenAddress,
+        toToken: usdcAddress,
+        amountIn: tokenAmountWei.toString(),
+        dexRouter: routerAddress,
+        swapData: swapTx.data as string,
+        minAmountOut: '0',
+        profitReceiver: position.deployment.agent.profitReceiverAddress,
+      });
 
       if (!result.success) {
         return {
           success: false,
-          error: result.error,
+          error: result.error || 'Close transaction failed',
         };
       }
 
