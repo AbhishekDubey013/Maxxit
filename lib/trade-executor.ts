@@ -598,14 +598,6 @@ export class TradeExecutor {
    * Close a position
    */
   async closePosition(positionId: string): Promise<ExecutionResult> {
-    // ⚠️ EMERGENCY STOP - DISABLE ALL POSITION CLOSING
-    // Remove this block to re-enable position closing
-    console.log('[TradeExecutor] ⚠️ POSITION CLOSING DISABLED - Rejecting close request');
-    return {
-      success: false,
-      error: 'Position closing is temporarily disabled to prevent failed transactions',
-    };
-
     try {
       const position = await prisma.position.findUnique({
         where: { id: positionId },
