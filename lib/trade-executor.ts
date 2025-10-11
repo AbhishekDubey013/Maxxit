@@ -348,8 +348,30 @@ export class TradeExecutor {
         };
       }
       
-      // Ensure USDC is approved to router (one-time setup)
-      console.log('[TradeExecutor] Ensuring USDC approval...');
+      // AUTO-SETUP: Ensure Safe is fully configured (one-time operations)
+      console.log('[TradeExecutor] 🔧 Running auto-setup checks...');
+      
+      // Step 1: Initialize capital tracking (if not already done)
+      try {
+        const stats = await moduleService.getSafeStats(ctx.deployment.safeWallet);
+        if (!stats.initialized) {
+          console.log('[TradeExecutor] 📋 Capital not initialized - initializing now...');
+          const initResult = await moduleService.initializeCapital(ctx.deployment.safeWallet);
+          if (initResult.success) {
+            console.log('[TradeExecutor] ✅ Capital initialized:', initResult.txHash);
+          } else {
+            console.warn('[TradeExecutor] ⚠️  Capital init failed (might be racing):', initResult.error);
+          }
+        } else {
+          console.log('[TradeExecutor] ✅ Capital already initialized');
+        }
+      } catch (error: any) {
+        console.warn('[TradeExecutor] ⚠️  Could not check/init capital:', error.message);
+        // Continue anyway - might be a transient issue
+      }
+      
+      // Step 2: Ensure USDC is approved to router
+      console.log('[TradeExecutor] 📋 Ensuring USDC approval...');
       const approvalResult = await moduleService.approveTokenForDex(
         ctx.deployment.safeWallet,
         usdcAddress,
@@ -357,11 +379,13 @@ export class TradeExecutor {
       );
       
       if (!approvalResult.success) {
-        console.warn('[TradeExecutor] Approval failed, but continuing (might already be approved)');
+        console.warn('[TradeExecutor] ⚠️  Approval failed, but continuing (might already be approved)');
         // Don't fail here - approval might already exist
       } else {
-        console.log('[TradeExecutor] USDC approved:', approvalResult.txHash);
+        console.log('[TradeExecutor] ✅ USDC approved:', approvalResult.txHash);
       }
+      
+      console.log('[TradeExecutor] 🎉 Auto-setup complete!');
       
       // Execute trade through module (gasless!)
       const result = await moduleService.executeTrade({
