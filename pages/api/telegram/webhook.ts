@@ -186,30 +186,35 @@ async function executeTrade(chatId: number, tradeId: string) {
   try {
     await bot.sendMessage(chatId, '⏳ Executing trade...');
 
-    const trade = await prisma.telegramTrade.findUnique({
-      where: { id: tradeId },
-      include: {
-        deployment: {
-          include: {
-            agent: true
+    // CRITICAL FIX: Use atomic update to prevent race condition
+    // This ensures only ONE execution even if webhook is called multiple times
+    let trade;
+    try {
+      trade = await prisma.telegramTrade.update({
+        where: { 
+          id: tradeId,
+          status: 'pending' // Only update if still pending (atomic check-and-set)
+        },
+        data: {
+          status: 'executing',
+          confirmedAt: new Date(),
+        },
+        include: {
+          deployment: {
+            include: {
+              agent: true
+            }
           }
         }
+      });
+    } catch (error: any) {
+      // If update fails, trade was already processed or doesn't exist
+      if (error.code === 'P2025') { // Prisma: Record not found
+        await bot.sendMessage(chatId, '❌ Trade already processed or not found');
+        return;
       }
-    });
-
-    if (!trade || trade.status !== 'pending') {
-      await bot.sendMessage(chatId, '❌ Trade not found or already processed');
-      return;
+      throw error;
     }
-
-    // Update trade status
-    await prisma.telegramTrade.update({
-      where: { id: tradeId },
-      data: {
-        status: 'executing',
-        confirmedAt: new Date(),
-      }
-    });
 
     const intent = trade.parsedIntent as any;
 
