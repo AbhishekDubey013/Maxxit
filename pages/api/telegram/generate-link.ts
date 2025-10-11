@@ -17,10 +17,14 @@ export default async function handler(
   }
 
   try {
-    const { deploymentId } = req.body;
+    const { deploymentId, userWallet } = req.body;
 
     if (!deploymentId) {
       return res.status(400).json({ error: 'deploymentId required' });
+    }
+
+    if (!userWallet) {
+      return res.status(400).json({ error: 'userWallet required' });
     }
 
     // Verify deployment exists
@@ -36,6 +40,13 @@ export default async function handler(
 
     if (!deployment) {
       return res.status(404).json({ error: 'Deployment not found' });
+    }
+
+    // CRITICAL SECURITY: Verify deployment belongs to requesting wallet
+    if (deployment.userWallet.toLowerCase() !== userWallet.toLowerCase()) {
+      return res.status(403).json({ 
+        error: 'Unauthorized: You can only link Telegram to your own deployments' 
+      });
     }
 
     // Check if already linked
