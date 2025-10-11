@@ -124,12 +124,15 @@ export class TradeExecutor {
     tokenAvailable?: boolean;
   }> {
     try {
+      // Strip _MANUAL_timestamp suffix if present (from Telegram manual trades)
+      const actualTokenSymbol = signal.tokenSymbol.split('_MANUAL_')[0];
+      
       // 1. Check venue availability
       const venueStatus = await prisma.venueStatus.findUnique({
         where: {
           venue_tokenSymbol: {
             venue: signal.venue,
-            tokenSymbol: signal.tokenSymbol,
+            tokenSymbol: actualTokenSymbol,
           },
         },
       });
@@ -137,7 +140,7 @@ export class TradeExecutor {
       if (!venueStatus) {
         return {
           canExecute: false,
-          reason: `${signal.tokenSymbol} not available on ${signal.venue}`,
+          reason: `${actualTokenSymbol} not available on ${signal.venue}`,
           tokenAvailable: false,
         };
       }
@@ -176,7 +179,7 @@ export class TradeExecutor {
           where: {
             chain_tokenSymbol: {
               chain,
-              tokenSymbol: signal.tokenSymbol,
+              tokenSymbol: actualTokenSymbol,
             },
           },
         });
@@ -184,7 +187,7 @@ export class TradeExecutor {
         if (!tokenRegistry) {
           return {
             canExecute: false,
-            reason: `Token ${signal.tokenSymbol} not found in registry for ${chain}`,
+            reason: `Token ${actualTokenSymbol} not found in registry for ${chain}`,
             usdcBalance,
             tokenAvailable: false,
           };
