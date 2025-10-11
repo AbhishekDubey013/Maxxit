@@ -136,6 +136,18 @@ export default function MyDeployments() {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const copyCommand = () => {
+    navigator.clipboard.writeText(`/link ${linkCode}`);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const copyBotLink = () => {
+    navigator.clipboard.writeText(`https://t.me/${botUsername}`);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background">
@@ -319,21 +331,26 @@ export default function MyDeployments() {
 
                 {linkCode && (
                   <div className="space-y-4">
-                    {/* Step 1 */}
+                    {/* Step 1: Open Bot */}
                     <div className="border border-border rounded-lg p-4 space-y-3">
                       <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium">Step 1: Copy Code</span>
+                        <span className="text-sm font-medium">Step 1: Open Telegram Bot</span>
                         <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-primary/10 text-primary">
-                          1 of 3
+                          1 of 2
                         </span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <code className="flex-1 bg-muted px-4 py-3 rounded text-2xl font-mono text-center tracking-wider">
-                          {linkCode}
-                        </code>
                         <button
-                          onClick={copyCode}
+                          onClick={() => window.open(`https://t.me/${botUsername}`, '_blank')}
+                          className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:bg-primary/90"
+                        >
+                          <MessageCircle className="w-4 h-4" />
+                          Open @{botUsername}
+                        </button>
+                        <button
+                          onClick={copyBotLink}
                           className="shrink-0 inline-flex items-center justify-center w-10 h-10 border border-input bg-background rounded-md hover:bg-accent"
+                          title="Copy bot link"
                         >
                           {copied ? (
                             <CheckCircle className="w-4 h-4 text-green-500" />
@@ -344,43 +361,36 @@ export default function MyDeployments() {
                       </div>
                     </div>
 
-                    {/* Step 2 */}
+                    {/* Step 2: Send Command */}
                     <div className="border border-border rounded-lg p-4 space-y-3">
                       <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium">Step 2: Open Bot</span>
+                        <span className="text-sm font-medium">Step 2: Send This Command</span>
                         <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-primary/10 text-primary">
-                          2 of 3
+                          2 of 2
                         </span>
                       </div>
-                      <button
-                        onClick={() => window.open(`https://t.me/${botUsername}`, '_blank')}
-                        className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 border border-input bg-background rounded-md text-sm font-medium hover:bg-accent"
-                      >
-                        <MessageCircle className="w-4 h-4" />
-                        Open @{botUsername}
-                      </button>
-                    </div>
-
-                    {/* Step 3 */}
-                    <div className="border border-border rounded-lg p-4 space-y-3">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium">Step 3: Link</span>
-                        <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-primary/10 text-primary">
-                          3 of 3
-                        </span>
+                      <div className="flex items-center gap-2">
+                        <code className="flex-1 bg-muted px-4 py-3 rounded font-mono text-center">
+                          /link {linkCode}
+                        </code>
+                        <button
+                          onClick={copyCommand}
+                          className="shrink-0 inline-flex items-center justify-center w-10 h-10 border border-input bg-background rounded-md hover:bg-accent"
+                          title="Copy command"
+                        >
+                          {copied ? (
+                            <CheckCircle className="w-4 h-4 text-green-500" />
+                          ) : (
+                            <Copy className="w-4 h-4" />
+                          )}
+                        </button>
                       </div>
-                      <p className="text-sm text-muted-foreground">
-                        Send this message to the bot:
-                      </p>
-                      <code className="block bg-muted px-4 py-2 rounded text-sm font-mono">
-                        /link {linkCode}
-                      </code>
                     </div>
 
                     {/* Tip */}
                     <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
                       <p className="text-xs text-blue-700 dark:text-blue-300">
-                        💡 After linking, you can trade naturally: "Buy 10 USDC of WETH"
+                        💡 After linking, trade with natural language: "Buy 10 USDC of WETH"
                       </p>
                     </div>
                   </div>
