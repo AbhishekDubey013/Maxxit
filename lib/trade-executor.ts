@@ -247,12 +247,15 @@ export class TradeExecutor {
       }
 
       // Get token addresses
+      // Strip _MANUAL_timestamp suffix if present (from Telegram manual trades)
+      const actualTokenSymbol = ctx.signal.tokenSymbol.split('_MANUAL_')[0];
+      
       const chain = chainId === 42161 ? 'arbitrum' : chainId === 8453 ? 'base' : 'sepolia';
       const tokenRegistry = await prisma.tokenRegistry.findUnique({
         where: {
           chain_tokenSymbol: {
             chain,
-            tokenSymbol: ctx.signal.tokenSymbol,
+            tokenSymbol: actualTokenSymbol,
           },
         },
       });
@@ -260,7 +263,7 @@ export class TradeExecutor {
       if (!tokenRegistry) {
         return {
           success: false,
-          error: `Token ${ctx.signal.tokenSymbol} not found in registry`,
+          error: `Token ${actualTokenSymbol} not found in registry`,
         };
       }
 
@@ -416,7 +419,7 @@ export class TradeExecutor {
           deploymentId: ctx.deployment.id,
           signalId: ctx.signal.id,
           venue: ctx.signal.venue,
-          tokenSymbol: ctx.signal.tokenSymbol,
+          tokenSymbol: actualTokenSymbol, // Use actual token symbol (stripped _MANUAL_ suffix)
           side: ctx.signal.side,
           entryPrice: actualEntryPrice,
           qty: actualAmountOut,
