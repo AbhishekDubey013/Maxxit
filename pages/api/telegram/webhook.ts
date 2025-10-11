@@ -240,9 +240,10 @@ async function executeTrade(chatId: number, tradeId: string) {
       }
     });
 
-    // Execute via TradeExecutor
+    // Execute via TradeExecutor with SPECIFIC deployment ID
+    // This ensures the trade executes on the correct user's Safe, not the first deployment
     const executor = new TradeExecutor();
-    const result = await executor.executeSignal(signal.id);
+    const result = await executor.executeSignalForDeployment(signal.id, trade.deployment.id);
 
     if (result.success) {
       await prisma.telegramTrade.update({
@@ -345,21 +346,28 @@ async function handleCloseCommand(chatId: number, telegramUser: any, token?: str
 
     const executor = new TradeExecutor();
     let successCount = 0;
+    const errors: string[] = [];
 
     for (const position of positions) {
       const result = await executor.closePosition(position.id);
       if (result.success) {
         successCount++;
+      } else {
+        errors.push(`${position.tokenSymbol}: ${result.error || 'Unknown error'}`);
       }
     }
 
-    await bot.sendMessage(
-      chatId,
-      `✅ Closed ${successCount}/${positions.length} positions successfully!`
-    );
+    let msg = `${successCount > 0 ? '✅' : '❌'} Closed ${successCount}/${positions.length} positions successfully!`;
+    
+    if (errors.length > 0) {
+      msg += '\n\n❌ Errors:\n' + errors.map(e => `• ${e}`).join('\n');
+    }
+
+    await bot.sendMessage(chatId, msg);
   } catch (error: any) {
     console.error('[Telegram] Close command error:', error);
     await bot.sendMessage(chatId, `❌ Error closing positions: ${error.message}`);
   }
 }
+
 

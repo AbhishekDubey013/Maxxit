@@ -34,7 +34,62 @@ export interface ExecutionContext {
  */
 export class TradeExecutor {
   /**
-   * Execute a signal
+   * Execute a signal for a SPECIFIC deployment
+   * Used for manual Telegram trades to ensure correct user's Safe is used
+   */
+  async executeSignalForDeployment(signalId: string, deploymentId: string): Promise<ExecutionResult> {
+    try {
+      // Fetch signal with specific deployment
+      const signal = await prisma.signal.findUnique({
+        where: { id: signalId },
+        include: {
+          agent: true,
+        },
+      });
+
+      if (!signal) {
+        return {
+          success: false,
+          error: 'Signal not found',
+        };
+      }
+
+      // Fetch specific deployment
+      const deployment = await prisma.agentDeployment.findUnique({
+        where: { id: deploymentId },
+        include: {
+          agent: true,
+        },
+      });
+
+      if (!deployment) {
+        return {
+          success: false,
+          error: 'Deployment not found',
+        };
+      }
+
+      // Merge signal.agent with deployment data for executeSignalInternal
+      const signalWithDeployment = {
+        ...signal,
+        agent: {
+          ...signal.agent,
+          deployments: [deployment],
+        },
+      };
+
+      return this.executeSignalInternal(signalWithDeployment as any);
+    } catch (error: any) {
+      console.error('[TradeExecutor] Execute signal for deployment error:', error);
+      return {
+        success: false,
+        error: error.message,
+      };
+    }
+  }
+
+  /**
+   * Execute a signal (auto trading - uses first active deployment)
    */
   async executeSignal(signalId: string): Promise<ExecutionResult> {
     try {
@@ -68,6 +123,21 @@ export class TradeExecutor {
         };
       }
 
+      return this.executeSignalInternal(signal as any);
+    } catch (error: any) {
+      console.error('[TradeExecutor] Execute signal error:', error);
+      return {
+        success: false,
+        error: error.message,
+      };
+    }
+  }
+
+  /**
+   * Internal method to execute signal with deployment
+   */
+  private async executeSignalInternal(signal: any): Promise<ExecutionResult> {
+    try {
       const deployment = signal.agent.deployments[0];
 
       // Validate Safe wallet
