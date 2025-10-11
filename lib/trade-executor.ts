@@ -881,10 +881,25 @@ export class TradeExecutor {
       );
 
       if (!approvalResult.success) {
-        console.warn('[TradeExecutor] Token approval failed:', approvalResult.error);
-        // Continue anyway - might already be approved
+        // If approval failed, check if it's already approved
+        console.log('[TradeExecutor] Approval transaction failed, checking if already approved...');
+        const isApproved = await moduleService.checkTokenApproval(
+          position.deployment.safeWallet,
+          tokenRegistry.tokenAddress,
+          routerAddress
+        );
+        
+        if (!isApproved) {
+          return {
+            success: false,
+            error: `Token approval failed: ${approvalResult.error}. Please approve ${position.tokenSymbol} manually.`,
+          };
+        }
+        console.log('[TradeExecutor] Token already approved, proceeding...');
       } else {
         console.log('[TradeExecutor] Token approved to router:', approvalResult.txHash);
+        // Wait a moment for approval to propagate
+        await new Promise(resolve => setTimeout(resolve, 2000));
       }
 
       // Execute trade through module to close position
