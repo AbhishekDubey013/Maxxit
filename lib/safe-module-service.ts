@@ -19,6 +19,7 @@ const MODULE_ABI = [
   'function setExecutorAuthorization(address executor, bool status) external',
   'function setDexWhitelist(address dex, bool status) external',
   'function setTokenWhitelist(address token, bool status) external',
+  'function approveTokenForDex(address safe, address token, address dexRouter) external',
   'event TradeExecuted(address indexed safe, address indexed fromToken, address indexed toToken, uint256 amountIn, uint256 amountOut, uint256 feeCharged, uint256 profitShare, uint256 timestamp)',
   'event CapitalInitialized(address indexed safe, uint256 initialCapital, uint256 timestamp)',
   'event ProfitShareTaken(address indexed safe, uint256 profitAmount, uint256 shareAmount, uint256 timestamp)',
@@ -223,6 +224,55 @@ export class SafeModuleService {
     } catch (error: any) {
       console.error('[SafeModule] Get profit/loss error:', error);
       return '0';
+    }
+  }
+
+  /**
+   * Approve token for DEX router (one-time setup)
+   */
+  async approveTokenForDex(
+    safeAddress: string,
+    tokenAddress: string,
+    dexRouter: string
+  ): Promise<{ success: boolean; txHash?: string; error?: string }> {
+    try {
+      console.log('[SafeModule] Approving token for DEX:', {
+        safe: safeAddress,
+        token: tokenAddress,
+        dexRouter,
+      });
+
+      const tx = await this.module.approveTokenForDex(
+        safeAddress,
+        tokenAddress,
+        dexRouter,
+        {
+          gasLimit: 300000,
+        }
+      );
+
+      console.log('[SafeModule] Approval transaction sent:', tx.hash);
+
+      const receipt = await tx.wait();
+
+      if (receipt.status === 1) {
+        console.log('[SafeModule] Approval confirmed');
+        return {
+          success: true,
+          txHash: receipt.transactionHash,
+        };
+      } else {
+        return {
+          success: false,
+          error: 'Approval transaction reverted',
+        };
+      }
+    } catch (error: any) {
+      console.error('[SafeModule] Approval error:', error);
+      return {
+        success: false,
+        error: error.message || 'Approval failed',
+      };
     }
   }
 

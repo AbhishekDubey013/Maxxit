@@ -3,9 +3,8 @@
  * Handles Safe transaction proposal, signing, and execution
  */
 
-import Safe, { EthersAdapter } from '@safe-global/protocol-kit';
+import Safe from '@safe-global/protocol-kit';
 import SafeApiKit from '@safe-global/api-kit';
-import { MetaTransactionData } from '@safe-global/safe-core-sdk-types';
 import { ethers } from 'ethers';
 import { TransactionRequest } from './safe-wallet';
 
@@ -33,7 +32,6 @@ export class SafeTransactionService {
   private chainId: number;
   private provider: ethers.providers.JsonRpcProvider;
   private signer?: ethers.Wallet;
-  private ethAdapter?: EthersAdapter;
 
   // Safe Transaction Service URLs
   private static readonly SAFE_SERVICE_URLS: Record<number, string> = {
@@ -56,10 +54,6 @@ export class SafeTransactionService {
     // Setup signer if private key provided
     if (config.signerPrivateKey) {
       this.signer = new ethers.Wallet(config.signerPrivateKey, this.provider);
-      this.ethAdapter = new EthersAdapter({
-        ethers,
-        signerOrProvider: this.signer,
-      });
     }
   }
 
@@ -72,27 +66,28 @@ export class SafeTransactionService {
     description?: string
   ): Promise<TransactionResult> {
     try {
-      if (!this.ethAdapter) {
+      if (!this.signer) {
         return {
           success: false,
           error: 'No signer configured - cannot propose transaction',
         };
       }
 
-      // Initialize Safe SDK
-      const safeSdk = await Safe.create({
-        ethAdapter: this.ethAdapter,
+      // Initialize Safe SDK with new v5 API
+      const safeSdk = await Safe.init({
+        provider: this.provider.connection.url,
+        signer: this.signer.privateKey,
         safeAddress: this.safeAddress,
       });
 
       // Create Safe transaction
       const safeTransaction = await safeSdk.createTransaction({
-        safeTransactionData: {
+        transactions: [{
           to: transaction.to,
           value: transaction.value,
           data: transaction.data,
           operation: transaction.operation || 0,
-        },
+        }],
       });
 
       // Sign the transaction
@@ -282,29 +277,28 @@ export class SafeTransactionService {
     transactions: TransactionRequest[]
   ): Promise<TransactionResult> {
     try {
-      if (!this.ethAdapter) {
+      if (!this.signer) {
         return {
           success: false,
           error: 'No signer configured',
         };
       }
 
-      const safeSdk = await Safe.create({
-        ethAdapter: this.ethAdapter,
+      // Initialize Safe SDK with new v5 API
+      const safeSdk = await Safe.init({
+        provider: this.provider.connection.url,
+        signer: this.signer.privateKey,
         safeAddress: this.safeAddress,
       });
 
-      // Convert to MetaTransactionData
-      const safeTransactions: MetaTransactionData[] = transactions.map(tx => ({
-        to: tx.to,
-        value: tx.value,
-        data: tx.data,
-        operation: tx.operation || 0,
-      }));
-
-      // Create batch transaction
+      // Create batch transaction with new v5 API
       const batchTransaction = await safeSdk.createTransaction({
-        safeTransactionData: safeTransactions,
+        transactions: transactions.map(tx => ({
+          to: tx.to,
+          value: tx.value,
+          data: tx.data,
+          operation: tx.operation || 0,
+        })),
       });
 
       // Sign
@@ -326,12 +320,11 @@ export class SafeTransactionService {
         };
       }
 
-      // Otherwise, propose
+      // Otherwise, propose (multisig with threshold > 1)
       const serviceUrl = SafeTransactionService.SAFE_SERVICE_URLS[this.chainId];
       if (serviceUrl) {
         const safeService = new SafeApiKit({
-          txServiceUrl: serviceUrl,
-          ethAdapter: this.ethAdapter,
+          chainId: BigInt(this.chainId),
         });
 
         await safeService.proposeTransaction({
