@@ -270,19 +270,31 @@ export class TradeExecutor {
         };
       }
 
-      // Calculate amounts based on ACTUAL wallet balance
+      // Calculate amounts based on size model type
       const usdcBalance = summary.usdcBalance || 0;
       const sizeModel = ctx.signal.sizeModel as any;
       
-      // ALWAYS use percentage of actual balance (default 5% if not specified)
-      const percentageToUse = sizeModel.value || 5;
-      const positionSize = (usdcBalance * percentageToUse) / 100;
+      let positionSize: number;
       
-      console.log('[TradeExecutor] Position sizing:', {
-        walletBalance: usdcBalance,
-        percentage: percentageToUse + '%',
-        positionSize: positionSize.toFixed(2) + ' USDC'
-      });
+      if (sizeModel.type === 'fixed-usdc') {
+        // Manual trades: Use exact USDC amount specified by user
+        positionSize = sizeModel.value || 0;
+        console.log('[TradeExecutor] Position sizing (MANUAL):', {
+          walletBalance: usdcBalance,
+          requestedAmount: positionSize + ' USDC',
+          type: 'fixed-usdc'
+        });
+      } else {
+        // Auto trades: Use percentage of actual balance (default 5% if not specified)
+        const percentageToUse = sizeModel.value || 5;
+        positionSize = (usdcBalance * percentageToUse) / 100;
+        console.log('[TradeExecutor] Position sizing (AUTO):', {
+          walletBalance: usdcBalance,
+          percentage: percentageToUse + '%',
+          positionSize: positionSize.toFixed(2) + ' USDC',
+          type: 'balance-percentage'
+        });
+      }
       
       // Minimum position size check (0.1 USDC minimum)
       if (positionSize < 0.1) {
@@ -290,6 +302,15 @@ export class TradeExecutor {
           success: false,
           error: `Position size too small: ${positionSize.toFixed(2)} USDC (min: 0.1 USDC)`,
           reason: 'Insufficient balance for minimum trade size',
+        };
+      }
+      
+      // Check if user has enough balance for manual trade
+      if (sizeModel.type === 'fixed-usdc' && positionSize > usdcBalance) {
+        return {
+          success: false,
+          error: `Insufficient balance: Need ${positionSize} USDC, have ${usdcBalance.toFixed(2)} USDC`,
+          reason: 'Requested amount exceeds wallet balance',
         };
       }
       
