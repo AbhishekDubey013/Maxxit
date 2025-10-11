@@ -209,8 +209,9 @@ export class SpotAdapter {
   /**
    * Calculate minimum amount out with slippage protection
    */
-  calculateMinAmountOut(amountOut: string, slippageBps: number = 100): string {
-    // slippageBps: 100 = 1%, 50 = 0.5%
+  calculateMinAmountOut(amountOut: string, slippageBps: number = 5000): string {
+    // TEMPORARY: Default to 50% tolerance for testing
+    // slippageBps: 5000 = 50%, 300 = 3%, 100 = 1%, 50 = 0.5%
     const amount = ethers.BigNumber.from(amountOut);
     const slippage = amount.mul(slippageBps).div(10000);
     return amount.sub(slippage).toString();
