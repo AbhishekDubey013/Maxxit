@@ -691,16 +691,6 @@ export class TradeExecutor {
         };
       }
 
-      // Get current token balance
-      const tokenBalance = await safeWallet.getTokenBalance(tokenRegistry.tokenAddress);
-      
-      if (tokenBalance === 0) {
-        return {
-          success: false,
-          error: 'No token balance to sell',
-        };
-      }
-
       // Get USDC address
       const USDC_ADDRESSES: Record<number, string> = {
         11155111: '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238', // Sepolia testnet
@@ -709,16 +699,27 @@ export class TradeExecutor {
       };
       const usdcAddress = USDC_ADDRESSES[chainId];
 
-      // Get token decimals (assume 18 for now, should be in registry)
-      const tokenAmountWei = ethers.utils.parseUnits(tokenBalance.toFixed(18), 18);
+      // Use the position's tracked quantity (not the entire Safe balance)
+      // This ensures we only close THIS position, not all positions at once
+      if (!position.qty || position.qty === 0) {
+        return {
+          success: false,
+          error: 'Position qty not recorded - cannot close',
+        };
+      }
 
-      // Build approval for token
-      const approvalTx = await adapter.buildApprovalTx(
-        tokenRegistry.tokenAddress,
-        tokenAmountWei.toString()
-      );
+      const tokenDecimals = tokenRegistry.decimals || 18;
+      const tokenAmountWei = ethers.utils.parseUnits(position.qty.toString(), tokenDecimals);
+      
+      console.log('[TradeExecutor] Closing position:', {
+        positionId: position.id,
+        token: position.tokenSymbol,
+        tokenAddress: tokenRegistry.tokenAddress,
+        qtyToClose: position.qty,
+        amountWei: tokenAmountWei.toString(),
+      });
 
-      // Build swap back to USDC
+      // Build swap back to USDC (module will handle token approval automatically)
       const swapTx = await adapter.buildCloseSwapTx({
         tokenIn: tokenRegistry.tokenAddress,
         tokenOut: usdcAddress,
