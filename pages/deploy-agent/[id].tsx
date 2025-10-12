@@ -405,7 +405,15 @@ export default function DeployAgent() {
             </div>
           )}
 
-          {validationStatus.valid && moduleStatus.needsEnabling && (
+          {/* Loading agent details */}
+          {validationStatus.valid && moduleStatus.needsEnabling && !agentVenue && (
+            <div className="p-4 bg-muted border border-border rounded-md flex items-center gap-3">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <p className="text-sm">Loading agent details...</p>
+            </div>
+          )}
+
+          {validationStatus.valid && moduleStatus.needsEnabling && agentVenue && (
             (() => {
               console.log('[Deploy Agent] Rendering setup. agentVenue:', agentVenue, 'isGMX:', agentVenue === 'GMX');
               return agentVenue === 'GMX' ? (
