@@ -67,7 +67,22 @@ async function handleTextMessage(update: TelegramUpdate) {
 
     const result = await bot.linkUser(telegramUserId, code);
     if (result.success) {
-      await bot.sendMessage(chatId, '✅ Successfully linked! You can now trade via Telegram.\n\nTry: "Buy 5 USDC of WETH"');
+      // Get the linked deployment to show agent details
+      const deployment = await prisma.agentDeployment.findUnique({
+        where: { id: result.deploymentId },
+        include: { agent: true }
+      });
+      
+      await bot.sendMessage(
+        chatId, 
+        `✅ Successfully linked to *${deployment?.agent.name}* (${deployment?.agent.venue})\n\n` +
+        `You can now trade via Telegram:\n` +
+        `• "Buy 5 USDC of ETH"\n` +
+        `• "Status" - View positions\n` +
+        `• "Close ETH" - Close position\n\n` +
+        `💡 To switch agents, just use /link with a new code.`,
+        { parse_mode: 'Markdown' }
+      );
     } else {
       await bot.sendMessage(chatId, `❌ ${result.error}`);
     }

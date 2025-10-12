@@ -149,20 +149,14 @@ export class TelegramBot {
 
   /**
    * Link Telegram user to deployment
+   * Automatically unlinks from previous deployment if any
    */
   async linkUser(telegramUserId: string, linkCode: string): Promise<{ success: boolean; deploymentId?: string; error?: string }> {
     try {
       // Find deployment by link code
       const deployment = await prisma.agentDeployment.findFirst({
         where: {
-          telegramUsers: {
-            some: {
-              linkCode,
-              telegramUserId: {
-                not: telegramUserId // Not already linked to this user
-              }
-            }
-          }
+          linkCode,
         },
         include: {
           agent: true
@@ -170,29 +164,47 @@ export class TelegramBot {
       });
 
       if (!deployment) {
-        return { success: false, error: 'Invalid link code or already used' };
+        return { success: false, error: 'Invalid link code' };
       }
 
-      // Check if user already linked to this deployment
-      const existing = await prisma.telegramUser.findFirst({
-        where: {
-          telegramUserId,
-          deploymentId: deployment.id
+      // Check if user is already linked to any deployment
+      const existingLink = await prisma.telegramUser.findUnique({
+        where: { telegramUserId },
+        include: {
+          deployment: {
+            include: {
+              agent: true,
+            }
+          }
         }
       });
 
-      if (existing) {
-        return { success: false, error: 'Telegram already linked to this agent' };
+      // If already linked to this SAME deployment
+      if (existingLink?.deploymentId === deployment.id) {
+        return { 
+          success: false, 
+          error: `Already linked to ${deployment.agent.name}` 
+        };
       }
 
-      // Create link
+      // If linked to a DIFFERENT deployment, unlink first (auto-switch)
+      if (existingLink) {
+        console.log(`[TelegramBot] Switching ${telegramUserId} from ${existingLink.deployment.agent.name} to ${deployment.agent.name}`);
+        await prisma.telegramUser.delete({
+          where: { telegramUserId }
+        });
+      }
+
+      // Create new link
       await prisma.telegramUser.create({
         data: {
           telegramUserId,
           deploymentId: deployment.id,
-          linkCode: null, // Clear code after use
+          linkCode: null,
         }
       });
+
+      console.log(`[TelegramBot] ✅ Linked ${telegramUserId} to ${deployment.agent.name} (${deployment.agent.venue})`);
 
       return {
         success: true,
