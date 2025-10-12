@@ -153,19 +153,26 @@ export class TelegramBot {
    */
   async linkUser(telegramUserId: string, linkCode: string): Promise<{ success: boolean; deploymentId?: string; error?: string }> {
     try {
-      // Find deployment by link code
-      const deployment = await prisma.agentDeployment.findFirst({
+      // Find pending telegram user by link code
+      const pendingUser = await prisma.telegramUser.findFirst({
         where: {
           linkCode,
+          isActive: false, // Only pending links
         },
         include: {
-          agent: true
+          deployment: {
+            include: {
+              agent: true,
+            }
+          }
         }
       });
 
-      if (!deployment) {
-        return { success: false, error: 'Invalid link code' };
+      if (!pendingUser) {
+        return { success: false, error: 'Invalid or expired link code' };
       }
+
+      const deployment = pendingUser.deployment;
 
       // Check if user is already linked to any deployment
       const existingLink = await prisma.telegramUser.findUnique({
@@ -195,12 +202,18 @@ export class TelegramBot {
         });
       }
 
-      // Create new link
+      // Delete the pending user record
+      await prisma.telegramUser.delete({
+        where: { id: pendingUser.id }
+      });
+
+      // Create new active link
       await prisma.telegramUser.create({
         data: {
           telegramUserId,
           deploymentId: deployment.id,
           linkCode: null,
+          isActive: true,
         }
       });
 
