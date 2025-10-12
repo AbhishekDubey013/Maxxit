@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
-import { Check, AlertCircle, Loader2, Rocket, Shield, Wallet } from "lucide-react";
+import { Check, AlertCircle, Loader2, Rocket, Shield, Wallet, Zap } from "lucide-react";
+import GMXSetupButton from "@components/GMXSetupButton";
 
 // Extend Window interface for MetaMask
 declare global {
@@ -403,19 +404,56 @@ export default function DeployAgent() {
           )}
 
           {validationStatus.valid && moduleStatus.needsEnabling && (
-            <div className="p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-md">
-              <div className="flex items-start gap-3 mb-3">
-                <AlertCircle className="h-4 w-4 text-yellow-600 mt-0.5" />
-                <div>
-                  <p className="font-medium text-yellow-700 dark:text-yellow-400">
-                    Trading Module Setup Required
-                  </p>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    One-time setup: Enable the trading module to allow your agent to execute trades on your behalf.
-                  </p>
+            agentVenue === 'GMX' ? (
+              // GMX: ONE-CLICK Setup
+              <div className="p-4 bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-800 rounded-md">
+                <div className="flex items-start gap-3 mb-3">
+                  <Zap className="h-4 w-4 text-orange-600 mt-0.5" />
+                  <div>
+                    <p className="font-medium text-orange-700 dark:text-orange-400">
+                      GMX Trading Setup Required
+                    </p>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      ⚡ ONE-CLICK setup: Sign one transaction to enable module + authorize GMX executor
+                    </p>
+                  </div>
                 </div>
+                <div className="bg-white dark:bg-gray-900 border border-orange-200 dark:border-orange-800 rounded-lg p-3 mb-3">
+                  <ul className="space-y-2 text-sm text-muted-foreground">
+                    <li className="flex items-start gap-2">
+                      <Check className="h-4 w-4 text-green-500 mt-0.5 shrink-0" />
+                      <span>Enables Maxxit Trading Module</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <Check className="h-4 w-4 text-green-500 mt-0.5 shrink-0" />
+                      <span>Authorizes GMX executor</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <Check className="h-4 w-4 text-green-500 mt-0.5 shrink-0" />
+                      <span>First trade auto-initializes USDC approvals</span>
+                    </li>
+                  </ul>
+                </div>
+                <GMXSetupButton 
+                  safeAddress={safeAddress}
+                  onSetupComplete={() => checkModuleStatus()}
+                />
               </div>
-              <div className="flex gap-2">
+            ) : (
+              // SPOT: Old Manual Setup
+              <div className="p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-md">
+                <div className="flex items-start gap-3 mb-3">
+                  <AlertCircle className="h-4 w-4 text-yellow-600 mt-0.5" />
+                  <div>
+                    <p className="font-medium text-yellow-700 dark:text-yellow-400">
+                      Trading Module Setup Required
+                    </p>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      One-time setup: Enable the trading module to allow your agent to execute trades on your behalf.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex gap-2">
                 <button
                   onClick={enableModule}
                   disabled={enablingModule}
@@ -540,7 +578,8 @@ export default function DeployAgent() {
                   </div>
                 </div>
               )}
-            </div>
+              </div>
+            )
           )}
 
           {moduleStatus.error && (
