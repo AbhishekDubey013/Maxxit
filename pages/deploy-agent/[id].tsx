@@ -43,9 +43,11 @@ export default function DeployAgent() {
       fetch(`/api/agents/${agentId}`)
         .then(res => res.json())
         .then(data => {
+          console.log('[Deploy Agent] Fetched agent data:', data);
           if (data && data[0]) {
             setAgentName(data[0].name);
             setAgentVenue(data[0].venue);
+            console.log('[Deploy Agent] Set agentVenue to:', data[0].venue);
           }
         })
         .catch(err => console.error("Failed to load agent:", err));
@@ -404,14 +406,16 @@ export default function DeployAgent() {
           )}
 
           {validationStatus.valid && moduleStatus.needsEnabling && (
-            agentVenue === 'GMX' ? (
-              // GMX: ONE-CLICK Setup
-              <div className="p-4 bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-800 rounded-md">
+            (() => {
+              console.log('[Deploy Agent] Rendering setup. agentVenue:', agentVenue, 'isGMX:', agentVenue === 'GMX');
+              return agentVenue === 'GMX' ? (
+                // GMX: ONE-CLICK Setup
+                <div className="p-4 bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-800 rounded-md">
                 <div className="flex items-start gap-3 mb-3">
                   <Zap className="h-4 w-4 text-orange-600 mt-0.5" />
                   <div>
                     <p className="font-medium text-orange-700 dark:text-orange-400">
-                      GMX Trading Setup Required
+                      GMX Trading Setup Required (Venue: {agentVenue})
                     </p>
                     <p className="text-sm text-muted-foreground mt-1">
                       ⚡ ONE-CLICK setup: Sign one transaction to enable module + authorize GMX executor
@@ -446,7 +450,7 @@ export default function DeployAgent() {
                   <AlertCircle className="h-4 w-4 text-yellow-600 mt-0.5" />
                   <div>
                     <p className="font-medium text-yellow-700 dark:text-yellow-400">
-                      Trading Module Setup Required
+                      Trading Module Setup Required (SPOT Mode - Venue: {agentVenue || 'empty'})
                     </p>
                     <p className="text-sm text-muted-foreground mt-1">
                       One-time setup: Enable the trading module to allow your agent to execute trades on your behalf.
@@ -579,7 +583,8 @@ export default function DeployAgent() {
                 </div>
               )}
               </div>
-            )
+            );
+            })()
           )}
 
           {moduleStatus.error && (
