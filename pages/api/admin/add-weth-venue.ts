@@ -1,5 +1,5 @@
 /**
- * API: Add WETH to venueStatus
+ * API: Add WETH to venueStatus (Fixed v2)
  */
 
 import { NextApiRequest, NextApiResponse } from 'next';
