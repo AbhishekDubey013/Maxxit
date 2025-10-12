@@ -5,45 +5,39 @@
 
 import { ethers } from 'ethers';
 
-// Module ABI (V2 - supports SPOT + GMX with auto-initialization)
+// Module ABI (V2 - actual deployed contract on Arbitrum)
 const MODULE_ABI = [
-  // V2 Generic Module Execution
-  'function executeFromModule(address safe, address to, uint256 value, bytes calldata data) external returns (bool success)',
+  // V2 Setup
   'function completeSetup() external',
   
-  // SPOT Trading
-  'function executeTrade(tuple(address safe, address fromToken, address toToken, uint256 amountIn, address dexRouter, bytes swapData, uint256 minAmountOut, address profitReceiver) params) external returns (uint256)',
+  // SPOT Trading (V2 simplified signatures)
+  'function executeTrade(address safe, address tokenIn, address tokenOut, uint256 amountIn, uint256 minAmountOut, uint24 poolFee, address profitReceiver) external returns (uint256)',
+  'function closePosition(address safe, address tokenIn, address tokenOut, uint256 amountIn, uint256 minAmountOut, uint24 poolFee, address agentOwner, uint256 entryValueUSDC) external returns (uint256)',
   
   // GMX Trading
-  'function setupGMXTrading(address safe) external',
-  'function executeGMXOrder(tuple(address safe, address market, uint256 collateralAmount, uint256 sizeDeltaUsd, bool isLong, uint256 acceptablePrice, uint256 executionFee, address profitReceiver) params) external payable returns (bytes32)',
-  'function closeGMXPosition(tuple(address safe, address market, uint256 sizeDeltaUsd, bool isLong, uint256 acceptablePrice, uint256 executionFee, address profitReceiver) params) external payable returns (int256)',
+  'function executeGMXOrder(address safe, address market, address collateralToken, uint256 collateralAmount, uint256 sizeDeltaUsd, bool isLong, uint256 acceptablePrice, address profitReceiver) external payable returns (bytes32)',
+  'function closeGMXPosition(address safe, address market, uint256 sizeDeltaUsd, bool isLong, uint256 acceptablePrice, address profitReceiver) external payable returns (int256)',
   
   // Capital Management
   'function initializeCapital(address safe) external',
-  'function resetCapitalTracking(address safe) external',
   
   // View Functions
-  'function getSafeStats(address safe) external view returns (bool initialized, uint256 initial, uint256 current, int256 profitLoss, uint256 profitTaken, uint256 unrealizedProfit)',
-  'function isReadyForTrading(address safe) external view returns (bool)',
-  'function isReadyForGMX(address safe) external view returns (bool)',
-  'function getCurrentProfitLoss(address safe) external view returns (int256)',
-  'function getUnrealizedProfit(address safe) external view returns (uint256)',
-  'function getPotentialProfitShare(address safe) external view returns (uint256)',
+  'function getCapital(address safe) external view returns (uint256)',
+  'function getSafeStats(address safe) external view returns (bool initialized, uint256 initialCapital, uint256 currentCapital, int256 profitLoss, uint256 profitTaken, uint256 unrealizedProfit)',
+  'function isTokenWhitelisted(address safe, address token) public view returns (bool)',
   
   // Admin Functions
-  'function setExecutorAuthorization(address executor, bool status) external',
-  'function setDexWhitelist(address dex, bool status) external',
-  'function setTokenWhitelist(address token, bool status) external',
-  'function approveTokenForDex(address safe, address token, address dexRouter) external',
+  'function setTokenWhitelist(address safe, address token, bool enabled) external',
+  'function setTokenWhitelistBatch(address safe, address[] calldata tokens, bool enabled) external',
+  'function executeFromModule(address safe, address to, uint256 value, bytes calldata data, uint8 operation) external returns (bool success)',
   
   // Events
-  'event TradeExecuted(address indexed safe, string tradeType, address indexed fromToken, address indexed toToken, uint256 amountIn, uint256 amountOut, uint256 feeCharged, uint256 profitShare, uint256 timestamp)',
-  'event GMXOrderCreated(address indexed safe, bytes32 indexed orderKey, string tokenSymbol, bool isLong, uint256 collateral, uint256 sizeDeltaUsd, uint256 feeCharged, uint256 timestamp)',
-  'event GMXPositionClosed(address indexed safe, string tokenSymbol, bool isLong, int256 realizedPnL, uint256 profitShare, uint256 timestamp)',
-  'event GMXSetupCompleted(address indexed safe, uint256 timestamp)',
-  'event CapitalInitialized(address indexed safe, uint256 initialCapital, uint256 timestamp)',
-  'event ProfitShareTaken(address indexed safe, uint256 profitAmount, uint256 shareAmount, uint256 timestamp)',
+  'event TradeExecuted(address indexed safe, address indexed tokenIn, address indexed tokenOut, uint256 amountIn, uint256 amountOut)',
+  'event SetupCompleted(address indexed safe, uint256 timestamp)',
+  'event CapitalInitialized(address indexed safe, uint256 amount)',
+  'event TradeFeeCollected(address indexed safe, address indexed receiver, uint256 amount)',
+  'event ProfitShareDistributed(address indexed safe, address indexed agentOwner, uint256 amount)',
+  'event TokenWhitelistUpdated(address indexed safe, address indexed token, bool enabled)',
 ];
 
 export interface ModuleConfig {
@@ -203,27 +197,30 @@ export class SafeModuleService {
     safeAddress: string,
     to: string,
     value: string | ethers.BigNumber,
-    data: string
+    data: string,
+    operation: number = 0 // 0 = CALL, 1 = DELEGATECALL
   ): Promise<{ success: boolean; txHash?: string; error?: string }> {
     try {
-      console.log('[SafeModule] Executing from module:', {
+      console.log('[SafeModule] Executing from module (V2):', {
         safe: safeAddress,
         to,
         value: value.toString(),
         dataLength: data.length,
+        operation,
       });
 
       // Get next nonce to prevent race conditions
       const nonce = await this.getNextNonce();
       
-      // Call module's executeFromModule function
+      // Call module's executeFromModule function - V2 requires operation parameter
       const tx = await this.module.executeFromModule(
         safeAddress,
         to,
         value,
         data,
+        operation, // Added for V2 compatibility
         {
-          gasLimit: 1500000, // Higher limit for complex operations
+          gasLimit: 1500000,
           nonce,
         }
       );
@@ -260,7 +257,7 @@ export class SafeModuleService {
    */
   async executeTrade(params: TradeParams): Promise<TradeResult> {
     try {
-      console.log('[SafeModule] Executing trade:', {
+      console.log('[SafeModule] Executing trade (V2):', {
         safe: params.safeAddress,
         from: params.fromToken,
         to: params.toToken,
@@ -268,26 +265,24 @@ export class SafeModuleService {
         profitReceiver: params.profitReceiver,
       });
 
-      // Call module's executeTrade function with struct
-      const tradeParams = {
-        safe: params.safeAddress,
-        fromToken: params.fromToken,
-        toToken: params.toToken,
-        amountIn: params.amountIn,
-        dexRouter: params.dexRouter,
-        swapData: params.swapData,
-        minAmountOut: params.minAmountOut,
-        profitReceiver: params.profitReceiver,
-      };
+      // V2 contract uses individual parameters, not a struct
+      // Default pool fee: 3000 = 0.3% (most common Uniswap V3 tier)
+      const poolFee = 3000;
 
       // Get next nonce to prevent race conditions
       const nonce = await this.getNextNonce();
       
       const tx = await this.module.executeTrade(
-        tradeParams,
+        params.safeAddress,         // address safe
+        params.fromToken,            // address tokenIn
+        params.toToken,              // address tokenOut
+        params.amountIn,             // uint256 amountIn
+        params.minAmountOut,         // uint256 minAmountOut
+        poolFee,                     // uint24 poolFee
+        params.profitReceiver,       // address profitReceiver
         {
-          gasLimit: 1000000, // Adjust as needed
-          nonce, // Explicit nonce to prevent conflicts
+          gasLimit: 1000000,
+          nonce,
         }
       );
 
@@ -298,27 +293,23 @@ export class SafeModuleService {
 
       console.log('[SafeModule] Transaction confirmed:', receipt.transactionHash);
 
-      // Parse events
+      // Parse events - V2 events have simpler structure
       const tradeEvent = receipt.events?.find(
         (e: any) => e.event === 'TradeExecuted'
       );
 
       let amountOut: string | undefined;
-      let feeCharged: string | undefined;
-      let profitShare: string | undefined;
 
       if (tradeEvent) {
         amountOut = tradeEvent.args.amountOut.toString();
-        feeCharged = tradeEvent.args.feeCharged.toString();
-        profitShare = tradeEvent.args.profitShare.toString();
       }
 
       return {
         success: true,
         txHash: receipt.transactionHash,
         amountOut,
-        feeCharged,
-        profitShare,
+        feeCharged: '200000', // 0.2 USDC (hardcoded in V2 contract)
+        profitShare: undefined, // Calculated on close, not on open
       };
     } catch (error: any) {
       console.error('[SafeModule] Execute trade error:', error);
@@ -352,10 +343,12 @@ export class SafeModuleService {
 
   /**
    * Check if Safe is ready for trading
+   * V2 auto-initializes, so just check if capital is set
    */
   async isReadyForTrading(safeAddress: string): Promise<boolean> {
     try {
-      return await this.module.isReadyForTrading(safeAddress);
+      const capital = await this.module.getCapital(safeAddress);
+      return capital.gt(0);
     } catch (error: any) {
       console.error('[SafeModule] Is ready check error:', error);
       return false;
@@ -755,7 +748,9 @@ export class SafeModuleService {
    */
   async isReadyForGMX(safeAddress: string): Promise<boolean> {
     try {
-      return await this.module.isReadyForGMX(safeAddress);
+      // V2 auto-initializes, so just check if capital is set
+      const capital = await this.module.getCapital(safeAddress);
+      return capital.gt(0);
     } catch (error: any) {
       console.error('[SafeModule] Is ready for GMX check error:', error);
       return false;
