@@ -321,6 +321,69 @@ export class SafeModuleService {
   }
 
   /**
+   * Close a position by swapping tokens back to USDC with profit sharing
+   */
+  async closePosition(params: {
+    safeAddress: string;
+    tokenIn: string;
+    tokenOut: string;
+    amountIn: string;
+    minAmountOut: string;
+    profitReceiver: string;
+    entryValueUSDC: string; // Original entry value in USDC (6 decimals)
+  }): Promise<TradeResult> {
+    try {
+      console.log('[SafeModule] Closing position (V2):', {
+        safe: params.safeAddress,
+        token: params.tokenIn,
+        amount: params.amountIn,
+        entryValue: params.entryValueUSDC,
+        profitReceiver: params.profitReceiver,
+      });
+
+      // V2 contract closePosition function
+      const poolFee = 3000; // 0.3%
+
+      // Get next nonce to prevent race conditions
+      const nonce = await this.getNextNonce();
+      
+      const tx = await this.module.closePosition(
+        params.safeAddress,         // address safe
+        params.tokenIn,              // address tokenIn
+        params.tokenOut,             // address tokenOut (USDC)
+        params.amountIn,             // uint256 amountIn
+        params.minAmountOut,         // uint256 minAmountOut
+        poolFee,                     // uint24 poolFee
+        params.profitReceiver,       // address agentOwner
+        params.entryValueUSDC,       // uint256 entryValueUSDC
+        {
+          gasLimit: 1000000,
+          nonce,
+        }
+      );
+
+      console.log('[SafeModule] Close position transaction sent:', tx.hash, 'with nonce:', nonce);
+
+      // Wait for confirmation
+      const receipt = await tx.wait();
+
+      console.log('[SafeModule] Close position confirmed:', receipt.transactionHash);
+
+      // Parse result
+      return {
+        success: true,
+        txHash: receipt.transactionHash,
+      };
+    } catch (error: any) {
+      console.error('[SafeModule] Close position error:', error);
+      return {
+        success: false,
+        error: error.message || 'Close position failed',
+      };
+    }
+  }
+
+  /**
    * Get Safe trading statistics
    */
   async getSafeStats(safeAddress: string): Promise<SafeStats> {

@@ -956,16 +956,22 @@ export class TradeExecutor {
         await new Promise(resolve => setTimeout(resolve, 2000));
       }
 
-      // Execute trade through module to close position
-      const result = await moduleService.executeTrade({
+      // Calculate total entry value in USDC (entryPrice * qty)
+      const totalEntryValueUSD = Number(position.entryPrice) * Number(position.qty);
+      const entryValueUSDC = ethers.utils.parseUnits(
+        totalEntryValueUSD.toFixed(6), // Format to 6 decimals for USDC
+        6
+      ).toString();
+
+      // Execute close position through module (with profit sharing)
+      const result = await moduleService.closePosition({
         safeAddress: position.deployment.safeWallet,
-        fromToken: tokenRegistry.tokenAddress,
-        toToken: usdcAddress,
+        tokenIn: tokenRegistry.tokenAddress,
+        tokenOut: usdcAddress,
         amountIn: tokenAmountWei.toString(),
-        dexRouter: routerAddress,
-        swapData: swapTx.data as string,
         minAmountOut: '0',
         profitReceiver: position.deployment.agent.profitReceiverAddress,
+        entryValueUSDC: entryValueUSDC,
       });
 
       if (!result.success) {
