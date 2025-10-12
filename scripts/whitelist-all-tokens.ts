@@ -1,140 +1,118 @@
-/**
- * Whitelist ALL tokens for trading
- * 
- * Whitelists:
- * 1. GMX markets (20 tokens for perpetuals)
- * 2. SPOT tokens (50+ tokens for spot trading)
- */
+import { ethers } from 'ethers';
+import dotenv from 'dotenv';
 
-import { createSafeModuleService } from '../lib/safe-module-service';
-import { ARBITRUM_TOKENS } from '../lib/token-whitelist-arbitrum';
+dotenv.config();
 
-// GMX Markets (for perpetuals)
-const GMX_MARKETS: Record<string, string> = {
-  'BTC': '0x47c031236e19d024b42f8AE6780E44A573170703',
-  'ETH': '0x70d95587d40A2caf56bd97485aB3Eec10Bee6336',
-  'SOL': '0x09400D9DB990D5ed3f35D7be61DfAEB900Af03C9',
-  'AVAX': '0x0CCB4fAa6f1F1B30911619f1184082aB4E25813c',
-  'ARB': '0xC25cEf6061Cf5dE5eb761b50E4743c1F5D7E5407',
-  'OP': '0xf53e80e9C18DE8aBE674bD4bD5664bE17C3e1FE1',
-  'MATIC': '0x3B1ae6c0fC8d0f86f5D2B8c5e3B8F0D1E5A9C2D4',
-  'LINK': '0x7f1fa204bb700853D36994DA19F830b6Ad18455C',
-  'UNI': '0xC5a4ab0A3F76e0a3DF5E0F8A3B1C5D6E7F8A9B0C',
-  'AAVE': '0x7E3F5C8E6A9B4C5D6E7F8A9B0C1D2E3F4A5B6C7D',
-  'DOGE': '0x6853EA96FF216fAb11D2d930CE3C508556A4bdc4',
-  'LTC': '0xD9535bB5f58A1a75032416F2dFe7880C30575a41',
+const ARBITRUM_RPC = 'https://arb1.arbitrum.io/rpc';
+const MODULE_ADDRESS = '0x07627aef95CBAD4a17381c4923Be9B9b93526d3D';
+const SAFE_ADDRESS = '0x9A85f7140776477F1A79Ea29b7A32495636f5e20';
+
+// Top SPOT tokens on Arbitrum
+const TOKENS = {
+  'WETH': '0x82af49447d8a07e3bd95bd0d56f35241523fbab1',
+  'ARB': '0x912CE59144191C1204E64559FE8253a0e49E6548',
+  'USDC': '0xaf88d065e77c8cc2239327c5edb3a432268e5831',
+  'USDT': '0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9',
+  'LINK': '0xf97f4df75117a78c1A5a0DBb814Af92458539FB4',
+  'UNI': '0xFa7F8980b0f1E64A2062791cc3b0871572f1F7f0',
+  'WBTC': '0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f',
+  'DAI': '0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1',
+  'AAVE': '0xba5DdD1f9d7F570dc94a51479a000E3BCE967196',
+  'CRV': '0x11cDb42B0EB46D95f990BeDD4695A6e3fA034978',
+  'MKR': '0x2e9a6Df78E42a30712c10a9Dc4b1C8656f8F2879',
+  'SNX': '0xcBA56Cd8216FCBBF3fA6DF6137F3147cBcA37D60',
+  'BAL': '0x040d1EdC9569d4Bab2D15287Dc5A4F10F56a56B8',
+  'COMP': '0x354A6dA3fcde098F8389cad84b0182725c6C91dE',
+  'YFI': '0x82e3A8F066a6989666b031d916c43672085b1582',
+  'SUSHI': '0xd4d42F0b6DEF4CE0383636770eF773390d85c61A',
+  'GRT': '0x9623063377AD1B27544C965cCd7342f7EA7e88C7',
+  'LDO': '0x13Ad51ed4F1B7e9Dc168d8a00cB3f4dDD85EfA60',
+  'PENDLE': '0x0c880f6761F1af8d9Aa9C466984b80DAb9a8c9e8',
 };
 
-async function main() {
-  console.log('\n🔐 Whitelisting ALL tokens in Safe Module...\n');
+const MODULE_ABI = [
+  'function setTokenWhitelist(address safe, address token, bool enabled) external',
+  'function setTokenWhitelistBatch(address safe, address[] calldata tokens, bool enabled) external',
+  'function isTokenWhitelisted(address safe, address token) public view returns (bool)',
+];
 
-  const moduleAddress = process.env.MODULE_ADDRESS || process.env.MODULE_ADDRESS_V2;
-  if (!moduleAddress) {
-    throw new Error('MODULE_ADDRESS not set in environment');
-  }
+async function whitelistAllTokens() {
+  console.log('\n🔧 Whitelisting All SPOT Tokens for Safe\n');
+  console.log('═'.repeat(60));
 
-  const chainId = 42161; // Arbitrum One
+  const provider = new ethers.providers.JsonRpcProvider(ARBITRUM_RPC);
+  const owner = new ethers.Wallet(process.env.EXECUTOR_PRIVATE_KEY!, provider);
+  
+  console.log(`\n👤 Module Owner: ${owner.address}`);
+  console.log(`🏦 Safe Address: ${SAFE_ADDRESS}`);
+  console.log(`🔧 Module Address: ${MODULE_ADDRESS}`);
 
-  console.log('📋 Configuration:');
-  console.log(`├─ Module: ${moduleAddress}`);
-  console.log(`└─ Chain: Arbitrum One (${chainId})\n`);
+  const moduleContract = new ethers.Contract(MODULE_ADDRESS, MODULE_ABI, owner);
 
-  const moduleService = createSafeModuleService(
-    moduleAddress,
-    chainId,
-    process.env.EXECUTOR_PRIVATE_KEY
-  );
+  // Get all token addresses
+  const tokenAddresses = Object.values(TOKENS);
+  const tokenSymbols = Object.keys(TOKENS);
 
-  // 1. Whitelist GMX market tokens
-  console.log('═══════════════════════════════════════════════════════════');
-  console.log('📈 GMX MARKET TOKENS (Perpetuals)');
-  console.log('═══════════════════════════════════════════════════════════');
-  console.log(`Total: ${Object.keys(GMX_MARKETS).length} markets\n`);
+  console.log(`\n📊 Tokens to whitelist: ${tokenSymbols.length}`);
+  console.log(tokenSymbols.join(', '));
 
-  let gmxSuccess = 0;
-  let gmxFailed = 0;
-
-  for (const [symbol, address] of Object.entries(GMX_MARKETS)) {
-    try {
-      console.log(`⏳ Whitelisting ${symbol} (${address})...`);
-      const result = await moduleService.setTokenWhitelist(address, true);
-      
-      if (result.success) {
-        console.log(`✅ ${symbol} whitelisted! TX: ${result.txHash}\n`);
-        gmxSuccess++;
-      } else {
-        console.error(`❌ ${symbol} failed: ${result.error}\n`);
-        gmxFailed++;
+  // Use batch whitelist for efficiency
+  console.log(`\n🔄 Whitelisting tokens in batch...`);
+  
+  try {
+    const tx = await moduleContract.setTokenWhitelistBatch(
+      SAFE_ADDRESS,
+      tokenAddresses,
+      true,
+      {
+        gasLimit: 2000000, // High limit for batch operation
       }
-    } catch (error: any) {
-      console.error(`❌ ${symbol} error: ${error.message}\n`);
-      gmxFailed++;
+    );
+    
+    console.log(`   TX sent: ${tx.hash}`);
+    await tx.wait();
+    console.log(`   ✅ Batch whitelist complete!`);
+  } catch (error: any) {
+    console.error(`   ❌ Batch failed:`, error.message);
+    console.log(`\n🔄 Falling back to individual whitelisting...`);
+    
+    // Fallback: Whitelist individually
+    for (let i = 0; i < tokenAddresses.length; i++) {
+      const symbol = tokenSymbols[i];
+      const address = tokenAddresses[i];
+      
+      try {
+        const isWhitelisted = await moduleContract.isTokenWhitelisted(SAFE_ADDRESS, address);
+        
+        if (isWhitelisted) {
+          console.log(`   ${symbol}: ✅ Already whitelisted`);
+          continue;
+        }
+        
+        const tx = await moduleContract.setTokenWhitelist(SAFE_ADDRESS, address, true);
+        console.log(`   ${symbol}: TX ${tx.hash}`);
+        await tx.wait();
+        console.log(`   ${symbol}: ✅ Whitelisted`);
+        
+        // Small delay to avoid nonce issues
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      } catch (error: any) {
+        console.error(`   ${symbol}: ❌ Failed - ${error.message}`);
+      }
     }
   }
 
-  // 2. Whitelist SPOT tokens
-  console.log('\n═══════════════════════════════════════════════════════════');
-  console.log('💱 SPOT TOKENS (Spot Trading)');
-  console.log('═══════════════════════════════════════════════════════════');
-  console.log(`Total: ${ARBITRUM_TOKENS.length} tokens\n`);
-
-  let spotSuccess = 0;
-  let spotFailed = 0;
-
-  for (const token of ARBITRUM_TOKENS) {
-    try {
-      console.log(`⏳ ${token.symbol} (${token.category}) - ${token.address}...`);
-      const result = await moduleService.setTokenWhitelist(token.address, true);
-      
-      if (result.success) {
-        console.log(`✅ ${token.symbol} whitelisted! TX: ${result.txHash}\n`);
-        spotSuccess++;
-      } else {
-        console.error(`❌ ${token.symbol} failed: ${result.error}\n`);
-        spotFailed++;
-      }
-      
-      // Rate limit: Wait 2 seconds between transactions
-      await new Promise(resolve => setTimeout(resolve, 2000));
-    } catch (error: any) {
-      console.error(`❌ ${token.symbol} error: ${error.message}\n`);
-      spotFailed++;
-    }
+  // Verify all
+  console.log(`\n✅ Final Status:`);
+  for (let i = 0; i < tokenAddresses.length; i++) {
+    const symbol = tokenSymbols[i];
+    const address = tokenAddresses[i];
+    const isWhitelisted = await moduleContract.isTokenWhitelisted(SAFE_ADDRESS, address);
+    console.log(`   ${symbol}: ${isWhitelisted ? '✅' : '❌'}`);
   }
 
-  // Summary
-  console.log('\n═══════════════════════════════════════════════════════════');
-  console.log('✅ WHITELIST COMPLETE!');
-  console.log('═══════════════════════════════════════════════════════════');
-  console.log('\n📊 GMX Markets (Perpetuals):');
-  console.log(`├─ Success: ${gmxSuccess}/${Object.keys(GMX_MARKETS).length}`);
-  console.log(`└─ Failed: ${gmxFailed}/${Object.keys(GMX_MARKETS).length}`);
-  console.log('\n📊 SPOT Tokens:');
-  console.log(`├─ Success: ${spotSuccess}/${ARBITRUM_TOKENS.length}`);
-  console.log(`└─ Failed: ${spotFailed}/${ARBITRUM_TOKENS.length}`);
-  console.log('\n📈 TOTAL:');
-  console.log(`├─ Success: ${gmxSuccess + spotSuccess}`);
-  console.log(`└─ Failed: ${gmxFailed + spotFailed}`);
-  console.log('\n═══════════════════════════════════════════════════════════\n');
-
-  console.log('🎯 Trading Enabled:');
-  console.log(`├─ GMX Perpetuals: ${Object.keys(GMX_MARKETS).join(', ')}`);
-  console.log(`└─ SPOT Trading: ${ARBITRUM_TOKENS.length} tokens`);
-  console.log('');
-  console.log('⚠️  NOTE: Some GMX market addresses are placeholders');
-  console.log('   Verify actual GMX V2 market addresses before production!');
-  console.log('');
-  console.log('📝 Next Steps:');
-  console.log('1. Verify whitelisted tokens on-chain');
-  console.log('2. Update token registry in database');
-  console.log('3. Test trading with new tokens');
-  console.log('═══════════════════════════════════════════════════════════\n');
+  console.log('\n═'.repeat(60));
+  console.log('\n✅ Done! SPOT tokens ready for trading.\n');
 }
 
-main()
-  .then(() => process.exit(0))
-  .catch((error) => {
-    console.error('\n❌ Whitelist failed:', error.message);
-    process.exit(1);
-  });
-
+whitelistAllTokens().catch(console.error);

@@ -285,7 +285,8 @@ contract MaxxitTradingModuleV2 {
         
         _collectPlatformFee(safe);
         
-        // Execute swap via Safe
+        // Execute swap via Safe (swap amount AFTER fee deduction)
+        uint256 swapAmount = amountIn - PLATFORM_FEE;
         bytes memory swapData = abi.encodeWithSelector(
             IUniswapV3Router.exactInputSingle.selector,
             IUniswapV3Router.ExactInputSingleParams({
@@ -294,7 +295,7 @@ contract MaxxitTradingModuleV2 {
                 fee: poolFee,
                 recipient: safe,
                 deadline: block.timestamp,
-                amountIn: amountIn,
+                amountIn: swapAmount,
                 amountOutMinimum: minAmountOut,
                 sqrtPriceLimitX96: 0
             })
@@ -311,7 +312,7 @@ contract MaxxitTradingModuleV2 {
         // Calculate amountOut (simplified - in production, decode return value)
         amountOut = IERC20(tokenOut).balanceOf(safe);
         
-        emit TradeExecuted(safe, tokenIn, tokenOut, amountIn, amountOut);
+        emit TradeExecuted(safe, tokenIn, tokenOut, swapAmount, amountOut);
         return amountOut;
     }
     
