@@ -26,41 +26,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
 
     if (existing) {
-      console.log('[API] WETH already exists, ensuring it is available');
-      
-      if (!existing.isAvailable) {
-        await prisma.venueStatus.update({
-          where: {
-            venue_tokenSymbol: {
-              venue: 'SPOT',
-              tokenSymbol: 'WETH',
-            },
-          },
-          data: {
-            isAvailable: true,
-          },
-        });
-        
-        return res.status(200).json({
-          success: true,
-          message: 'WETH updated to available',
-          action: 'updated',
-        });
-      }
+      console.log('[API] WETH already exists in venueStatus');
       
       return res.status(200).json({
         success: true,
-        message: 'WETH already available',
+        message: 'WETH already in venueStatus',
         action: 'already_exists',
       });
     }
 
-    // Create new entry
+    // Create new entry (venueStatus just needs venue + tokenSymbol)
     await prisma.venueStatus.create({
       data: {
         venue: 'SPOT',
         tokenSymbol: 'WETH',
-        isAvailable: true,
       },
     });
 
