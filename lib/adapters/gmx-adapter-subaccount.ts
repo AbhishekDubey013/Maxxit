@@ -351,20 +351,8 @@ export class GMXAdapterSubaccount {
         console.warn('[GMX] USDC approval failed (might already be approved):', approvalResult.error);
       }
 
-      // Step 5: Executor sponsors GMX execution fee (send ETH to Safe)
-      console.log(`[GMX] Executor sponsoring ${ethers.utils.formatEther(executionFee)} ETH execution fee...`);
-      
-      const ethTransferTx = await this.executor.sendTransaction({
-        to: params.safeAddress,
-        value: executionFee,
-      });
-      
-      console.log(`[GMX] ETH transfer sent: ${ethTransferTx.hash}`);
-      await ethTransferTx.wait();
-      console.log(`[GMX] ✅ ETH transferred to Safe: ${ethers.utils.formatEther(executionFee)} ETH`);
-
-      // Step 6: Create GMX order via Safe module (using sponsored ETH)
-      console.log('[GMX] Creating order via Safe module...');
+      // Step 5: Create GMX order via Safe module (using Safe's own ETH)
+      console.log(`[GMX] Creating order via Safe module (using Safe's ${ethers.utils.formatEther(executionFee)} ETH)...`);
       
       const result = await this.moduleService.executeFromModule(
         params.safeAddress,
@@ -426,53 +414,61 @@ export class GMXAdapterSubaccount {
         30
       );
 
-      // Create close order
-      const exchangeRouter = new ethers.Contract(
-        GMX_EXCHANGE_ROUTER,
-        [
-          'function createOrder((address,address,address,address,address,address[]),(uint256,uint256,uint256,uint256,uint256,uint256,uint256),uint8,uint8,bool,bool,bytes32) external payable returns (bytes32)',
-        ],
-        this.executor
-      );
-
+      // Create close order via Safe module (using Safe's own ETH)
       const executionFee = ethers.utils.parseEther('0.001');
       const swapPath: string[] = [];
+      
+      const exchangeRouterAbi = [
+        'function createOrder((address,address,address,address,address,address[]),(uint256,uint256,uint256,uint256,uint256,uint256,uint256),uint8,uint8,bool,bool,bytes32) external payable returns (bytes32)',
+      ];
+      const exchangeRouterInterface = new ethers.utils.Interface(exchangeRouterAbi);
 
-      const tx = await exchangeRouter.createOrder(
-        {
-          receiver: params.safeAddress,
-          callbackContract: ethers.constants.AddressZero,
-          uiFeeReceiver: ethers.constants.AddressZero,
+      const closeOrderData = exchangeRouterInterface.encodeFunctionData('createOrder', [
+        [
+          params.safeAddress, // receiver
+          ethers.constants.AddressZero, // callbackContract
+          ethers.constants.AddressZero, // uiFeeReceiver
           market,
-          initialCollateralToken: USDC_ADDRESS,
+          USDC_ADDRESS, // initialCollateralToken
           swapPath,
-        },
-        {
-          sizeDeltaUsd: params.sizeDeltaUsd,
-          initialCollateralDeltaAmount: 0,
-          triggerPrice: 0,
+        ],
+        [
+          params.sizeDeltaUsd,
+          0, // initialCollateralDeltaAmount
+          0, // triggerPrice
           acceptablePrice,
           executionFee,
-          callbackGasLimit: 0,
-          minOutputAmount: 0,
-        },
+          0, // callbackGasLimit
+          0, // minOutputAmount
+        ],
         3, // MarketDecrease
         0, // decreasePositionSwapType
         params.isLong,
         false,
         ethers.constants.HashZero,
-        { value: executionFee }
+      ]);
+
+      console.log(`[GMX] Creating close order via Safe module (using Safe's ${ethers.utils.formatEther(executionFee)} ETH)...`);
+      
+      const result = await this.moduleService.executeFromModule(
+        params.safeAddress,
+        GMX_EXCHANGE_ROUTER,
+        executionFee.toString(),
+        closeOrderData
       );
 
-      console.log('[GMX] Close order submitted:', tx.hash);
-      const receipt = await tx.wait();
+      if (!result.success) {
+        throw new Error(result.error || 'GMX close order failed');
+      }
+
+      console.log('[GMX] Close order submitted:', result.txHash);
 
       // After position closes, module will handle profit share separately
-      console.log('[GMX] ✅ Position closed:', receipt.transactionHash);
+      console.log('[GMX] ✅ Position closed:', result.txHash);
 
       return {
         success: true,
-        txHash: receipt.transactionHash,
+        txHash: result.txHash,
       };
     } catch (error: any) {
       console.error('[GMX] Close position error:', error);
