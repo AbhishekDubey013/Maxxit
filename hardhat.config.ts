@@ -1,8 +1,10 @@
-require("@nomicfoundation/hardhat-toolbox");
-require("dotenv").config();
+import { HardhatUserConfig } from "hardhat/config";
+import "@nomicfoundation/hardhat-toolbox";
+import * as dotenv from "dotenv";
 
-/** @type import('hardhat/config').HardhatUserConfig */
-module.exports = {
+dotenv.config();
+
+const config: HardhatUserConfig = {
   solidity: {
     version: "0.8.20",
     settings: {
@@ -17,7 +19,7 @@ module.exports = {
     arbitrum: {
       url: process.env.ARBITRUM_RPC || process.env.ARBITRUM_RPC_URL || "https://arb1.arbitrum.io/rpc",
       accounts: process.env.DEPLOYER_PRIVATE_KEY || process.env.EXECUTOR_PRIVATE_KEY 
-        ? [process.env.DEPLOYER_PRIVATE_KEY || process.env.EXECUTOR_PRIVATE_KEY]
+        ? [process.env.DEPLOYER_PRIVATE_KEY || process.env.EXECUTOR_PRIVATE_KEY!]
         : [],
       chainId: 42161,
     },
@@ -32,3 +34,5 @@ module.exports = {
     artifacts: "./artifacts",
   },
 };
+
+export default config;

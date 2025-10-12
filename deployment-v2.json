@@ -1,0 +1,12 @@
+{
+  "address": "0x07627aef95CBAD4a17381c4923Be9B9b93526d3D",
+  "txHash": "0x697d7ad6fdd04da54d1291fb8643c276da6a5ce2744bc912ae4cec78c782db78",
+  "deployer": "0x3828dFCBff64fD07B963Ef11BafE632260413Ab3",
+  "executor": "0x3828dFCBff64fD07B963Ef11BafE632260413Ab3",
+  "feeReceiver": "0x3828dFCBff64fD07B963Ef11BafE632260413Ab3",
+  "timestamp": "2025-10-12T07:20:30.237Z",
+  "network": "arbitrum",
+  "chainId": 42161,
+  "blockNumber": 388675023,
+  "gasUsed": "1885027"
+}

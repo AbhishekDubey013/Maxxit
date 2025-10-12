@@ -23,6 +23,7 @@
     "@nestjs/passport": "^11.0.5",
     "@nestjs/platform-express": "^11.1.6",
     "@nestjs/swagger": "^11.2.0",
+    "@openzeppelin/contracts": "^4.9.3",
     "@prisma/client": "^6.16.3",
     "@privy-io/react-auth": "^3.0.1",
     "@privy-io/wagmi": "^2.0.0",

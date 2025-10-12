@@ -153,6 +153,8 @@ export class TradeExecutor {
         };
       }
 
+      // NOTE: Module auto-initializes on first trade (handled by smart contract)
+
       // Pre-trade validations
       const preCheck = await this.preTradeValidation(signal, deployment, safeWallet);
       if (!preCheck.canExecute) {

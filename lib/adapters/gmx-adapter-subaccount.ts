@@ -306,14 +306,8 @@ export class GMXAdapterSubaccount {
         };
       }
 
-      // Check authorization
-      const isAuth = await this.isAuthorized(params.safeAddress);
-      if (!isAuth) {
-        return {
-          success: false,
-          error: 'Executor not authorized as subaccount. Please run authorizeSubaccount() first.',
-        };
-      }
+      // NOTE: V2 Module auto-authorizes GMX subaccount on first trade
+      // No pre-check needed - module handles it automatically
 
       // Step 1: Collect 0.2 USDC fee via module
       console.log('[GMX] Collecting 0.2 USDC fee...');
