@@ -210,8 +210,8 @@ export default function GMXSetup() {
             <h4 className="font-semibold mb-3">📋 Requirements:</h4>
             <ul className="space-y-2 text-sm">
               <li>• You must be a Safe owner/signer</li>
-              <li>• You must have enough ETH for gas (~$0.10)</li>
               <li>• Your Safe must be on Arbitrum One</li>
+              <li>• Gas fees are sponsored by Maxxit</li>
             </ul>
           </div>
         )}
