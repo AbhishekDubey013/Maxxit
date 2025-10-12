@@ -5,8 +5,12 @@
 
 import { ethers } from 'ethers';
 
-// Module ABI (V2 - supports SPOT + GMX)
+// Module ABI (V2 - supports SPOT + GMX with auto-initialization)
 const MODULE_ABI = [
+  // V2 Generic Module Execution
+  'function executeFromModule(address safe, address to, uint256 value, bytes calldata data) external returns (bool success)',
+  'function completeSetup() external',
+  
   // SPOT Trading
   'function executeTrade(tuple(address safe, address fromToken, address toToken, uint256 amountIn, address dexRouter, bytes swapData, uint256 minAmountOut, address profitReceiver) params) external returns (uint256)',
   
@@ -187,6 +191,66 @@ export class SafeModuleService {
       return {
         success: false,
         error: error.message || 'Failed to initialize capital',
+      };
+    }
+  }
+
+  /**
+   * Execute arbitrary transaction via module (for V2 module)
+   * Used for GMX trades, fee collection, profit distribution, etc.
+   */
+  async executeFromModule(
+    safeAddress: string,
+    to: string,
+    value: string | ethers.BigNumber,
+    data: string
+  ): Promise<{ success: boolean; txHash?: string; error?: string }> {
+    try {
+      console.log('[SafeModule] Executing from module:', {
+        safe: safeAddress,
+        to,
+        value: value.toString(),
+        dataLength: data.length,
+      });
+
+      // Get next nonce to prevent race conditions
+      const nonce = await this.getNextNonce();
+      
+      // Call module's executeFromModule function
+      const tx = await this.module.executeFromModule(
+        safeAddress,
+        to,
+        value,
+        data,
+        {
+          gasLimit: 1500000, // Higher limit for complex operations
+          nonce,
+        }
+      );
+
+      console.log('[SafeModule] Transaction sent:', tx.hash, 'with nonce:', nonce);
+
+      // Wait for confirmation
+      const receipt = await tx.wait();
+
+      if (receipt.status === 0) {
+        return {
+          success: false,
+          error: 'Transaction reverted',
+        };
+      }
+
+      console.log('[SafeModule] Transaction confirmed:', receipt.transactionHash);
+
+      return {
+        success: true,
+        txHash: receipt.transactionHash,
+      };
+    } catch (error: any) {
+      console.error('[SafeModule] Execute from module failed:', error.message);
+      return {
+        success: false,
+        error: error.message,
       };
     }
   }

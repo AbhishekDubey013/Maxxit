@@ -17,7 +17,8 @@ import { ethers } from 'ethers';
 
 // Configuration
 const GMX_ROUTER = '0x7452c558d45f8afC8c83dAe62C3f8A5BE19c71f6'; // GMX SubaccountRouter on Arbitrum
-const EXECUTOR_ADDRESS = process.env.EXECUTOR_ADDRESS || '';
+const EXECUTOR_PRIVATE_KEY = process.env.EXECUTOR_PRIVATE_KEY || '';
+const EXECUTOR_ADDRESS_ENV = process.env.EXECUTOR_ADDRESS || '';
 const SAFE_ADDRESS = process.argv[2]; // Pass as argument
 
 async function main() {
@@ -26,8 +27,15 @@ async function main() {
     process.exit(1);
   }
 
+  // Derive executor address from private key if not explicitly set
+  let EXECUTOR_ADDRESS = EXECUTOR_ADDRESS_ENV;
+  if (!EXECUTOR_ADDRESS && EXECUTOR_PRIVATE_KEY) {
+    const wallet = new ethers.Wallet(EXECUTOR_PRIVATE_KEY);
+    EXECUTOR_ADDRESS = wallet.address;
+  }
+
   if (!EXECUTOR_ADDRESS) {
-    throw new Error('EXECUTOR_ADDRESS not set in environment');
+    throw new Error('EXECUTOR_ADDRESS or EXECUTOR_PRIVATE_KEY must be set in environment');
   }
 
   console.log('\n🔐 GMX Subaccount Authorization\n');
