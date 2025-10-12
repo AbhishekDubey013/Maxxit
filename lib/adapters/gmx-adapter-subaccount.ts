@@ -326,13 +326,50 @@ export class GMXAdapterSubaccount {
         ethers.constants.HashZero,          // referralCode
       ]);
 
+      // Step 4: Approve USDC to GMX ExchangeRouter (if needed)
+      console.log('[GMX] Checking USDC approval...');
+      
+      const usdcInterface = new ethers.utils.Interface([
+        'function approve(address spender, uint256 amount) external returns (bool)',
+      ]);
+      
+      const approveData = usdcInterface.encodeFunctionData('approve', [
+        GMX_EXCHANGE_ROUTER,
+        ethers.constants.MaxUint256, // Unlimited approval
+      ]);
+      
+      const approvalResult = await this.moduleService.executeFromModule(
+        params.safeAddress,
+        USDC_ADDRESS,
+        '0',
+        approveData
+      );
+      
+      if (approvalResult.success) {
+        console.log(`[GMX] ✅ USDC approved to GMX Router | TX: ${approvalResult.txHash}`);
+      } else {
+        console.warn('[GMX] USDC approval failed (might already be approved):', approvalResult.error);
+      }
+
+      // Step 5: Executor sponsors GMX execution fee (send ETH to Safe)
+      console.log(`[GMX] Executor sponsoring ${ethers.utils.formatEther(executionFee)} ETH execution fee...`);
+      
+      const ethTransferTx = await this.executor.sendTransaction({
+        to: params.safeAddress,
+        value: executionFee,
+      });
+      
+      console.log(`[GMX] ETH transfer sent: ${ethTransferTx.hash}`);
+      await ethTransferTx.wait();
+      console.log(`[GMX] ✅ ETH transferred to Safe: ${ethers.utils.formatEther(executionFee)} ETH`);
+
+      // Step 6: Create GMX order via Safe module (using sponsored ETH)
       console.log('[GMX] Creating order via Safe module...');
       
-      // Execute via module (funds and ETH are from Safe)
       const result = await this.moduleService.executeFromModule(
         params.safeAddress,
         GMX_EXCHANGE_ROUTER, // To: GMX Exchange Router
-        executionFee.toString(), // Value: execution fee in ETH
+        executionFee.toString(), // Value: execution fee in ETH (from Safe's balance)
         createOrderData // Data: createOrder(...)
       );
 
