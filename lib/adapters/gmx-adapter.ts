@@ -5,6 +5,7 @@
 
 import { ethers } from 'ethers';
 import { SafeModuleService, GMXOrderParams, GMXCloseParams, GMXResult } from '../safe-module-service';
+import { createGMXReader } from './gmx-reader';
 
 // GMX Market tokens (Arbitrum One)
 const GMX_MARKETS: Record<string, string> = {
@@ -87,35 +88,18 @@ export class GMXAdapter {
    */
   async getGMXPrice(tokenSymbol: string): Promise<number> {
     try {
-      const market = GMXAdapter.getMarket(tokenSymbol);
-      if (!market) {
-        throw new Error(`Market not found for ${tokenSymbol}`);
+      const gmxReader = createGMXReader(this.provider);
+      const priceData = await gmxReader.getMarketPrice(tokenSymbol);
+      
+      if (!priceData) {
+        throw new Error(`Failed to get GMX price for ${tokenSymbol}`);
       }
 
-      // GMX Reader contract to get current price
-      const readerAbi = [
-        'function getMarketTokenPrice(address dataStore, address market, uint256 longTokenPrice, uint256 shortTokenPrice, uint256 indexTokenPrice, bytes32 pnlFactorType, bool maximize) view returns (int256, tuple(int256 poolValue, int256 longPnl, int256 shortPnl, int256 netPnl, uint256 longTokenAmount, uint256 shortTokenAmount, uint256 longTokenUsd, uint256 shortTokenUsd, uint256 totalBorrowingFees, uint256 borrowingFeePoolFactor, uint256 impactPoolAmount))',
-      ];
-
-      const reader = new ethers.Contract(GMX_READER, readerAbi, this.provider);
-
-      // For simplicity, use a price oracle service or hardcoded prices
-      // In production, query GMX's oracle contracts
-      
-      // Fallback: Return approximate price (should be replaced with actual oracle call)
-      const approximatePrices: Record<string, number> = {
-        'BTC': 95000,
-        'ETH': 3800,
-        'WETH': 3800,
-        'SOL': 180,
-        'ARB': 0.75,
-        'LINK': 20,
-      };
-
-      return approximatePrices[tokenSymbol.toUpperCase()] || 0;
+      console.log(`[GMXAdapter] Got price for ${tokenSymbol}: $${priceData.price.toFixed(2)}`);
+      return priceData.price;
     } catch (error: any) {
       console.error('[GMXAdapter] Get price error:', error);
-      return 0;
+      throw error; // Re-throw instead of returning 0
     }
   }
 
