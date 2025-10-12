@@ -61,7 +61,7 @@ export class GMXDirectAdapter {
     try {
       console.log('[GMXDirect] Transferring ETH from Safe to executor for gas...');
 
-      const gasAmount = ethers.utils.parseEther('0.005'); // 0.005 ETH should cover gas + execution fees
+      const gasAmount = ethers.utils.parseEther('0.003'); // 0.003 ETH should cover gas + execution fees
       const executorAddress = this.moduleService.getExecutorAddress();
 
       // Simple ETH transfer (empty data)
@@ -166,14 +166,15 @@ export class GMXDirectAdapter {
         acceptablePrice: (priceData.price * slippageFactor).toFixed(2),
       });
 
-      // Step 0: Transfer ETH from Safe to executor for gas
-      const gasResult = await this.transferGasFromSafe(params.safeAddress);
-      if (!gasResult.success) {
-        return {
-          success: false,
-          error: `Gas transfer failed: ${gasResult.error}`,
-        };
-      }
+      // Step 0: Transfer ETH from Safe to executor for gas (DISABLED - testing without it)
+      // TODO: Re-enable once Safe has more ETH
+      // const gasResult = await this.transferGasFromSafe(params.safeAddress);
+      // if (!gasResult.success) {
+      //   return {
+      //     success: false,
+      //     error: `Gas transfer failed: ${gasResult.error}`,
+      //   };
+      // }
 
       // Step 1: Collect fee
       const feeResult = await this.collectTradeFee(params.safeAddress);

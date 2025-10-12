@@ -29,7 +29,7 @@ const MODULE_ABI = [
   // Admin Functions
   'function setTokenWhitelist(address safe, address token, bool enabled) external',
   'function setTokenWhitelistBatch(address safe, address[] calldata tokens, bool enabled) external',
-  'function executeFromModule(address safe, address to, uint256 value, bytes calldata data, uint8 operation) external returns (bool success)',
+  'function executeFromModule(address safe, address to, uint256 value, bytes calldata data) external returns (bool success)',
   
   // Events
   'event TradeExecuted(address indexed safe, address indexed tokenIn, address indexed tokenOut, uint256 amountIn, uint256 amountOut)',
@@ -193,7 +193,7 @@ export class SafeModuleService {
    * Get executor address
    */
   getExecutorAddress(): string {
-    return this.executorWallet.address;
+    return this.executor.address;
   }
 
   /**
@@ -220,13 +220,12 @@ export class SafeModuleService {
       // Get next nonce to prevent race conditions
       const nonce = await this.getNextNonce();
       
-      // Call module's executeFromModule function - V2 requires operation parameter
+      // Call module's executeFromModule function (V2 - operation is hardcoded to CALL)
       const tx = await this.module.executeFromModule(
         safeAddress,
         to,
         value,
         data,
-        operation, // Added for V2 compatibility
         {
           gasLimit: 1500000,
           nonce,
