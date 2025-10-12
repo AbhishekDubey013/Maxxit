@@ -190,16 +190,24 @@ export class SafeModuleService {
   }
 
   /**
+   * Get executor address
+   */
+  getExecutorAddress(): string {
+    return this.executorWallet.address;
+  }
+
+  /**
    * Execute arbitrary transaction via module (for V2 module)
    * Used for GMX trades, fee collection, profit distribution, etc.
    */
-  async executeFromModule(
-    safeAddress: string,
-    to: string,
-    value: string | ethers.BigNumber,
-    data: string,
-    operation: number = 0 // 0 = CALL, 1 = DELEGATECALL
-  ): Promise<{ success: boolean; txHash?: string; error?: string }> {
+  async executeFromModule(params: {
+    safeAddress: string;
+    to: string;
+    value: string | ethers.BigNumber;
+    data: string;
+    operation?: number; // 0 = CALL, 1 = DELEGATECALL
+  }): Promise<{ success: boolean; txHash?: string; error?: string }> {
+    const { safeAddress, to, value, data, operation = 0 } = params;
     try {
       console.log('[SafeModule] Executing from module (V2):', {
         safe: safeAddress,
