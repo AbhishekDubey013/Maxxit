@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import { Check, AlertCircle, Loader2, Rocket, Shield, Wallet, Zap } from "lucide-react";
-import GMXSetupButton from "@components/GMXSetupButton";
 
 // Extend Window interface for MetaMask
 declare global {
@@ -176,6 +175,58 @@ export default function DeployAgent() {
   };
 
   // Enable module via Safe Transaction Builder
+  const enableModuleGMX = async () => {
+    setEnablingModule(true);
+    setDeployError('');
+
+    try {
+      // Generate GMX batch transaction (enable module + authorize GMX)
+      const response = await fetch('/api/gmx/generate-setup-tx', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ safeAddress }),
+      });
+
+      const data = await response.json();
+
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to generate setup transaction');
+      }
+
+      // Store module address and transaction data
+      setModuleAddress(data.moduleAddress);
+      
+      // For batch transactions, we'll guide user through Transaction Builder
+      // Copy the JSON to clipboard
+      const batchJson = JSON.stringify(data.transactionBuilderJSON, null, 2);
+      try {
+        await navigator.clipboard.writeText(batchJson);
+        console.log('[EnableModuleGMX] Batch transaction JSON copied to clipboard');
+      } catch (e) {
+        console.log('[EnableModuleGMX] Clipboard copy failed, but continuing...');
+      }
+
+      // Open Safe Transaction Builder
+      const chainPrefix = 'arb1'; // Arbitrum One
+      const txBuilderAppUrl = 'https://apps-portal.safe.global/tx-builder';
+      const safeUrl = `https://app.safe.global/apps/open?safe=${chainPrefix}:${safeAddress}&appUrl=${encodeURIComponent(txBuilderAppUrl)}`;
+      
+      const safeWindow = window.open(safeUrl, '_blank');
+      
+      if (!safeWindow) {
+        throw new Error('Please allow pop-ups to open Safe Transaction Builder');
+      }
+
+      // Show instructions panel
+      setShowInstructions(true);
+      setEnablingModule(false);
+    } catch (error: any) {
+      console.error('[EnableModuleGMX] Error:', error);
+      setDeployError(error.message);
+      setEnablingModule(false);
+    }
+  };
+
   const enableModule = async () => {
     setEnablingModule(true);
     setDeployError('');
@@ -418,39 +469,104 @@ export default function DeployAgent() {
             (() => {
               console.log('[Deploy Agent] Rendering setup. agentVenue:', agentVenue, 'isGMX:', agentVenue === 'GMX');
               return agentVenue === 'GMX' ? (
-                // GMX: ONE-CLICK Setup
+                // GMX: Batch Transaction Setup
                 <div className="p-4 bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-800 rounded-md">
                 <div className="flex items-start gap-3 mb-3">
                   <Zap className="h-4 w-4 text-orange-600 mt-0.5" />
                   <div>
                     <p className="font-medium text-orange-700 dark:text-orange-400">
-                      GMX Trading Setup Required (Venue: {agentVenue})
+                      GMX Trading Setup Required
                     </p>
                     <p className="text-sm text-muted-foreground mt-1">
-                      ⚡ ONE-CLICK setup: Sign one transaction to enable module + authorize GMX executor
+                      One-time batch setup: Enable module + authorize GMX executor (gas sponsored)
                     </p>
                   </div>
                 </div>
-                <div className="bg-white dark:bg-gray-900 border border-orange-200 dark:border-orange-800 rounded-lg p-3 mb-3">
-                  <ul className="space-y-2 text-sm text-muted-foreground">
-                    <li className="flex items-start gap-2">
-                      <Check className="h-4 w-4 text-green-500 mt-0.5 shrink-0" />
-                      <span>Enables Maxxit Trading Module</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <Check className="h-4 w-4 text-green-500 mt-0.5 shrink-0" />
-                      <span>Authorizes GMX executor</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <Check className="h-4 w-4 text-green-500 mt-0.5 shrink-0" />
-                      <span>First trade auto-initializes USDC approvals</span>
-                    </li>
-                  </ul>
+                <div className="flex gap-2">
+                  <button
+                    onClick={enableModuleGMX}
+                    disabled={enablingModule}
+                    className="px-4 py-2 bg-primary text-primary-foreground rounded-md font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  >
+                    {enablingModule ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Processing...
+                      </>
+                    ) : (
+                      <>
+                        <Zap className="h-4 w-4" />
+                        Enable GMX Trading
+                      </>
+                    )}
+                  </button>
+                  <button
+                    onClick={checkModuleStatus}
+                    disabled={moduleStatus.checking}
+                    className="px-4 py-2 bg-secondary text-secondary-foreground rounded-md font-medium hover:bg-secondary/90 disabled:opacity-50"
+                  >
+                    {moduleStatus.checking ? 'Checking...' : 'Recheck Status'}
+                  </button>
                 </div>
-                <GMXSetupButton 
-                  safeAddress={safeAddress}
-                  onSetupComplete={() => checkModuleStatus()}
-                />
+
+                {/* GMX Instructions Panel */}
+                {showInstructions && (
+                  <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                    <div className="flex items-start justify-between mb-3">
+                      <h4 className="font-semibold text-blue-900 dark:text-blue-100">📋 GMX Batch Setup Instructions</h4>
+                      <button
+                        onClick={() => setShowInstructions(false)}
+                        className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                    
+                    <div className="space-y-4 text-sm">
+                      <div>
+                        <p className="font-medium text-blue-900 dark:text-blue-100 mb-2">✅ Batch transaction JSON copied to clipboard!</p>
+                        <p className="text-blue-700 dark:text-blue-300 mb-3">Safe Transaction Builder opened - follow these steps:</p>
+                      </div>
+
+                      <div className="space-y-3">
+                        <div className="bg-white dark:bg-gray-900 p-3 rounded border border-blue-200 dark:border-blue-800">
+                          <p className="font-medium text-blue-900 dark:text-blue-100 mb-2">1️⃣ Import Batch Transaction:</p>
+                          <ul className="text-blue-700 dark:text-blue-300 text-xs space-y-1 ml-4">
+                            <li>• Click "Import batch" or "Create Batch"</li>
+                            <li>• Paste the JSON from clipboard</li>
+                            <li>• You'll see 2 transactions:</li>
+                            <li className="ml-4">→ Enable Module (to your Safe)</li>
+                            <li className="ml-4">→ Authorize Executor (to GMX Router)</li>
+                          </ul>
+                        </div>
+
+                        <div className="bg-white dark:bg-gray-900 p-3 rounded border border-blue-200 dark:border-blue-800">
+                          <p className="font-medium text-blue-900 dark:text-blue-100 mb-2">2️⃣ Review & Send:</p>
+                          <ul className="text-blue-700 dark:text-blue-300 text-xs space-y-1 ml-4">
+                            <li>• Review both transactions</li>
+                            <li>• Click "Send Batch"</li>
+                            <li>• Click "Sign"</li>
+                          </ul>
+                        </div>
+
+                        <div className="bg-white dark:bg-gray-900 p-3 rounded border border-blue-200 dark:border-blue-800">
+                          <p className="font-medium text-blue-900 dark:text-blue-100 mb-2">3️⃣ Execute:</p>
+                          <ul className="text-blue-700 dark:text-blue-300 text-xs space-y-1 ml-4">
+                            <li>• Go to Transactions</li>
+                            <li>• Click "Execute"</li>
+                            <li>• Sign in wallet (gas sponsored)</li>
+                            <li>• Wait for confirmation ⏳</li>
+                          </ul>
+                        </div>
+                      </div>
+
+                      <div className="bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded p-3 mt-4">
+                        <p className="text-green-800 dark:text-green-200 font-medium">⏳ After execution (~30 sec):</p>
+                        <p className="text-green-700 dark:text-green-300 text-xs mt-1">Come back here and click "Recheck Status" button above</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
               // SPOT: Old Manual Setup
