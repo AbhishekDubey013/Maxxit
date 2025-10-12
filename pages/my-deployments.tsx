@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Header } from '@components/Header';
-import GMXSetupButton from '@/components/GMXSetupButton';
+import GMXSetupButton from '@components/GMXSetupButton';
 import { 
   Wallet, 
   Activity, 
