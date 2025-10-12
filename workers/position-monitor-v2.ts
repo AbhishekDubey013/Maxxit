@@ -9,6 +9,8 @@
 import { PrismaClient } from '@prisma/client';
 import { getTokenPriceUSD, calculatePnL } from '../lib/price-oracle';
 import { TradeExecutor } from '../lib/trade-executor';
+import { createGMXReader } from '../lib/adapters/gmx-reader';
+import { ethers } from 'ethers';
 
 const prisma = new PrismaClient();
 const executor = new TradeExecutor();
@@ -72,6 +74,7 @@ export async function monitorPositions() {
       try {
         const symbol = position.tokenSymbol;
         const side = position.side;
+        const venue = position.venue; // SPOT, GMX, HYPERLIQUID
         const entryPrice = parseFloat(position.entryPrice?.toString() || '0');
         
         if (entryPrice === 0) {
@@ -79,8 +82,29 @@ export async function monitorPositions() {
           continue;
         }
 
-        // Get current price from Uniswap
-        const currentPrice = await getTokenPriceUSD(symbol);
+        // Get current price based on venue
+        let currentPrice: number | null = null;
+        
+        if (venue === 'GMX') {
+          // Use GMX Reader for on-chain GMX prices (like Uniswap Quoter for SPOT)
+          try {
+            const rpcUrl = process.env.ARBITRUM_RPC || process.env.ARBITRUM_RPC_URL || 'https://arb1.arbitrum.io/rpc';
+            const provider = new ethers.providers.JsonRpcProvider(rpcUrl);
+            const gmxReader = createGMXReader(provider);
+            
+            const priceData = await gmxReader.getMarketPrice(symbol);
+            if (priceData) {
+              currentPrice = priceData.price;
+              console.log(`📈 ${symbol} (GMX): $${currentPrice.toFixed(2)} (on-chain)`);
+            }
+          } catch (gmxError: any) {
+            console.error(`⚠️  ${symbol} (GMX): Failed to get price:`, gmxError.message);
+          }
+        } else {
+          // Use Uniswap V3 for SPOT prices
+          currentPrice = await getTokenPriceUSD(symbol);
+        }
+        
         if (!currentPrice) {
           console.log(`⚠️  ${symbol}: Price unavailable, skipping`);
           continue;
@@ -91,7 +115,7 @@ export async function monitorPositions() {
         const positionValue = qty * currentPrice;
         const { pnlUSD, pnlPercent } = calculatePnL(side, entryPrice, currentPrice, positionValue);
 
-        console.log(`📊 ${symbol} ${side}:`);
+        console.log(`📊 ${symbol} ${side} [${venue || 'SPOT'}]:`);
         console.log(`   Entry: $${entryPrice.toFixed(2)} | Current: $${currentPrice.toFixed(2)}`);
         console.log(`   P&L: $${pnlUSD.toFixed(2)} (${pnlPercent.toFixed(2)}%)`);
 

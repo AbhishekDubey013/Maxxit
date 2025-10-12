@@ -1087,16 +1087,49 @@ export class TradeExecutor {
         },
       });
 
-      // TODO: Handle profit sharing via module (20% of profit)
+      // Handle profit sharing via module (20% of profit)
+      let profitShareTxHash: string | undefined;
       if (pnl > 0) {
-        // Call module to distribute profit share
-        console.log('[TradeExecutor] TODO: Distribute 20% profit share:', (pnl * 0.2).toFixed(2), 'USD');
+        const profitShare = pnl * 0.2; // 20% of profit
+        console.log(`[TradeExecutor] Distributing 20% profit share: ${profitShare.toFixed(2)} USDC`);
+
+        try {
+          // Build USDC transfer data: Safe → Agent Owner
+          const usdcAbi = ['function transfer(address to, uint256 amount) returns (bool)'];
+          const usdcInterface = new ethers.utils.Interface(usdcAbi);
+          const usdcAddress = '0xaf88d065e77c8cC2239327C5EDb3A432268e5831'; // Arbitrum USDC
+          const profitShareWei = ethers.utils.parseUnits(profitShare.toFixed(6), 6);
+          const transferData = usdcInterface.encodeFunctionData('transfer', [
+            position.deployment.agent.profitReceiverAddress,
+            profitShareWei,
+          ]);
+
+          // Execute via module (same as fee collection)
+          const profitResult = await moduleService.executeFromModule(
+            position.deployment.safeWallet,
+            usdcAddress, // To: USDC contract
+            0, // Value: 0 ETH
+            transferData // Data: transfer(agentOwner, profitShare)
+          );
+
+          if (profitResult.success) {
+            profitShareTxHash = profitResult.txHash;
+            console.log(`[TradeExecutor] ✅ Profit share distributed: ${profitShare.toFixed(2)} USDC → ${position.deployment.agent.profitReceiverAddress}`);
+            console.log(`[TradeExecutor] TX: ${profitShareTxHash}`);
+          } else {
+            console.error(`[TradeExecutor] ⚠️ Profit share distribution failed: ${profitResult.error}`);
+          }
+        } catch (profitError: any) {
+          console.error(`[TradeExecutor] Error distributing profit share:`, profitError.message);
+        }
       }
 
       console.log('[TradeExecutor] ✅ GMX position closed:', {
         positionId: position.id,
         pnl: pnl.toFixed(2) + ' USD',
-        txHash: result.txHash,
+        profitShare: pnl > 0 ? (pnl * 0.2).toFixed(2) + ' USDC' : 'N/A',
+        closeTxHash: result.txHash,
+        profitShareTxHash,
       });
 
       return {
