@@ -5,22 +5,39 @@
 
 import { ethers } from 'ethers';
 
-// Module ABI (key functions)
+// Module ABI (V2 - supports SPOT + GMX)
 const MODULE_ABI = [
-  // Updated to use TradeParams struct
+  // SPOT Trading
   'function executeTrade(tuple(address safe, address fromToken, address toToken, uint256 amountIn, address dexRouter, bytes swapData, uint256 minAmountOut, address profitReceiver) params) external returns (uint256)',
+  
+  // GMX Trading
+  'function setupGMXTrading(address safe) external',
+  'function executeGMXOrder(tuple(address safe, address market, uint256 collateralAmount, uint256 sizeDeltaUsd, bool isLong, uint256 acceptablePrice, uint256 executionFee, address profitReceiver) params) external payable returns (bytes32)',
+  'function closeGMXPosition(tuple(address safe, address market, uint256 sizeDeltaUsd, bool isLong, uint256 acceptablePrice, uint256 executionFee, address profitReceiver) params) external payable returns (int256)',
+  
+  // Capital Management
   'function initializeCapital(address safe) external',
   'function resetCapitalTracking(address safe) external',
+  
+  // View Functions
   'function getSafeStats(address safe) external view returns (bool initialized, uint256 initial, uint256 current, int256 profitLoss, uint256 profitTaken, uint256 unrealizedProfit)',
   'function isReadyForTrading(address safe) external view returns (bool)',
+  'function isReadyForGMX(address safe) external view returns (bool)',
   'function getCurrentProfitLoss(address safe) external view returns (int256)',
   'function getUnrealizedProfit(address safe) external view returns (uint256)',
   'function getPotentialProfitShare(address safe) external view returns (uint256)',
+  
+  // Admin Functions
   'function setExecutorAuthorization(address executor, bool status) external',
   'function setDexWhitelist(address dex, bool status) external',
   'function setTokenWhitelist(address token, bool status) external',
   'function approveTokenForDex(address safe, address token, address dexRouter) external',
-  'event TradeExecuted(address indexed safe, address indexed fromToken, address indexed toToken, uint256 amountIn, uint256 amountOut, uint256 feeCharged, uint256 profitShare, uint256 timestamp)',
+  
+  // Events
+  'event TradeExecuted(address indexed safe, string tradeType, address indexed fromToken, address indexed toToken, uint256 amountIn, uint256 amountOut, uint256 feeCharged, uint256 profitShare, uint256 timestamp)',
+  'event GMXOrderCreated(address indexed safe, bytes32 indexed orderKey, string tokenSymbol, bool isLong, uint256 collateral, uint256 sizeDeltaUsd, uint256 feeCharged, uint256 timestamp)',
+  'event GMXPositionClosed(address indexed safe, string tokenSymbol, bool isLong, int256 realizedPnL, uint256 profitShare, uint256 timestamp)',
+  'event GMXSetupCompleted(address indexed safe, uint256 timestamp)',
   'event CapitalInitialized(address indexed safe, uint256 initialCapital, uint256 timestamp)',
   'event ProfitShareTaken(address indexed safe, uint256 profitAmount, uint256 shareAmount, uint256 timestamp)',
 ];
@@ -57,6 +74,36 @@ export interface TradeResult {
   txHash?: string;
   amountOut?: string;
   feeCharged?: string;
+  profitShare?: string;
+  error?: string;
+}
+
+export interface GMXOrderParams {
+  safeAddress: string;
+  market: string;              // GMX market token address
+  collateralAmount: string;    // USDC collateral (in wei, 6 decimals)
+  sizeDeltaUsd: string;        // Position size USD (in wei, 30 decimals)
+  isLong: boolean;
+  acceptablePrice: string;     // Max price for long, min for short (30 decimals)
+  executionFee: string;        // ETH for keeper (in wei, 18 decimals)
+  profitReceiver: string;      // Agent creator address
+}
+
+export interface GMXCloseParams {
+  safeAddress: string;
+  market: string;
+  sizeDeltaUsd: string;        // Size to close (30 decimals)
+  isLong: boolean;
+  acceptablePrice: string;     // Min price for long, max for short (30 decimals)
+  executionFee: string;        // ETH for keeper
+  profitReceiver: string;      // Agent creator address
+}
+
+export interface GMXResult {
+  success: boolean;
+  txHash?: string;
+  orderKey?: string;
+  realizedPnL?: string;
   profitShare?: string;
   error?: string;
 }
@@ -456,6 +503,198 @@ export class SafeModuleService {
         success: false,
         error: error.message || 'Failed to set token whitelist',
       };
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // GMX TRADING FUNCTIONS (V2)
+  // ═══════════════════════════════════════════════════════════
+
+  /**
+   * Setup GMX trading for a Safe (one-time setup)
+   */
+  async setupGMXTrading(safeAddress: string): Promise<{ success: boolean; txHash?: string; error?: string }> {
+    try {
+      console.log('[SafeModule] Setting up GMX trading for Safe:', safeAddress);
+
+      const nonce = await this.getNextNonce();
+
+      const tx = await this.module.setupGMXTrading(safeAddress, {
+        gasLimit: 300000,
+        nonce,
+      });
+
+      console.log('[SafeModule] GMX setup transaction sent:', tx.hash);
+
+      const receipt = await tx.wait();
+
+      if (receipt.status === 1) {
+        console.log('[SafeModule] GMX setup confirmed');
+        return {
+          success: true,
+          txHash: receipt.transactionHash,
+        };
+      } else {
+        return {
+          success: false,
+          error: 'GMX setup transaction reverted',
+        };
+      }
+    } catch (error: any) {
+      console.error('[SafeModule] GMX setup error:', error);
+      return {
+        success: false,
+        error: error.message || 'GMX setup failed',
+      };
+    }
+  }
+
+  /**
+   * Execute GMX perpetual order (open position)
+   */
+  async executeGMXOrder(params: GMXOrderParams): Promise<GMXResult> {
+    try {
+      console.log('[SafeModule] Executing GMX order:', {
+        safe: params.safeAddress,
+        market: params.market,
+        collateral: params.collateralAmount,
+        size: params.sizeDeltaUsd,
+        isLong: params.isLong,
+        profitReceiver: params.profitReceiver,
+      });
+
+      // Build order params struct
+      const orderParams = {
+        safe: params.safeAddress,
+        market: params.market,
+        collateralAmount: params.collateralAmount,
+        sizeDeltaUsd: params.sizeDeltaUsd,
+        isLong: params.isLong,
+        acceptablePrice: params.acceptablePrice,
+        executionFee: params.executionFee,
+        profitReceiver: params.profitReceiver,
+      };
+
+      // Get next nonce
+      const nonce = await this.getNextNonce();
+
+      // Call module (payable - sends ETH for execution fee)
+      const tx = await this.module.executeGMXOrder(orderParams, {
+        value: params.executionFee,
+        gasLimit: 1500000, // GMX orders need more gas
+        nonce,
+      });
+
+      console.log('[SafeModule] GMX order transaction sent:', tx.hash, 'with nonce:', nonce);
+
+      const receipt = await tx.wait();
+
+      console.log('[SafeModule] GMX order confirmed:', receipt.transactionHash);
+
+      // Parse GMXOrderCreated event
+      const orderEvent = receipt.events?.find(
+        (e: any) => e.event === 'GMXOrderCreated'
+      );
+
+      let orderKey: string | undefined;
+      let feeCharged: string | undefined;
+
+      if (orderEvent) {
+        orderKey = orderEvent.args.orderKey;
+        feeCharged = orderEvent.args.feeCharged.toString();
+      }
+
+      return {
+        success: true,
+        txHash: receipt.transactionHash,
+        orderKey,
+      };
+    } catch (error: any) {
+      console.error('[SafeModule] GMX order error:', error);
+      return {
+        success: false,
+        error: error.message || 'GMX order execution failed',
+      };
+    }
+  }
+
+  /**
+   * Close GMX perpetual position
+   */
+  async closeGMXPosition(params: GMXCloseParams): Promise<GMXResult> {
+    try {
+      console.log('[SafeModule] Closing GMX position:', {
+        safe: params.safeAddress,
+        market: params.market,
+        size: params.sizeDeltaUsd,
+        isLong: params.isLong,
+        profitReceiver: params.profitReceiver,
+      });
+
+      // Build close params struct
+      const closeParams = {
+        safe: params.safeAddress,
+        market: params.market,
+        sizeDeltaUsd: params.sizeDeltaUsd,
+        isLong: params.isLong,
+        acceptablePrice: params.acceptablePrice,
+        executionFee: params.executionFee,
+        profitReceiver: params.profitReceiver,
+      };
+
+      // Get next nonce
+      const nonce = await this.getNextNonce();
+
+      // Call module (payable - sends ETH for execution fee)
+      const tx = await this.module.closeGMXPosition(closeParams, {
+        value: params.executionFee,
+        gasLimit: 1500000,
+        nonce,
+      });
+
+      console.log('[SafeModule] GMX close transaction sent:', tx.hash, 'with nonce:', nonce);
+
+      const receipt = await tx.wait();
+
+      console.log('[SafeModule] GMX position closed:', receipt.transactionHash);
+
+      // Parse GMXPositionClosed event
+      const closeEvent = receipt.events?.find(
+        (e: any) => e.event === 'GMXPositionClosed'
+      );
+
+      let realizedPnL: string | undefined;
+      let profitShare: string | undefined;
+
+      if (closeEvent) {
+        realizedPnL = closeEvent.args.realizedPnL.toString();
+        profitShare = closeEvent.args.profitShare.toString();
+      }
+
+      return {
+        success: true,
+        txHash: receipt.transactionHash,
+        realizedPnL,
+        profitShare,
+      };
+    } catch (error: any) {
+      console.error('[SafeModule] GMX close error:', error);
+      return {
+        success: false,
+        error: error.message || 'GMX position close failed',
+      };
+    }
+  }
+
+  /**
+   * Check if Safe is ready for GMX trading
+   */
+  async isReadyForGMX(safeAddress: string): Promise<boolean> {
+    try {
+      return await this.module.isReadyForGMX(safeAddress);
+    } catch (error: any) {
+      console.error('[SafeModule] Is ready for GMX check error:', error);
+      return false;
     }
   }
 }

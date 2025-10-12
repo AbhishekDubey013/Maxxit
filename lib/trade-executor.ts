@@ -547,15 +547,106 @@ export class TradeExecutor {
   /**
    * Execute GMX trade
    */
+  /**
+   * Execute GMX perpetual trade (V2 - Module-Based)
+   */
   private async executeGMXTrade(ctx: ExecutionContext): Promise<ExecutionResult> {
     try {
-      const adapter = createGMXAdapter(ctx.safeWallet);
       const chainId = getChainIdForVenue(ctx.signal.venue);
+      
+      // GMX is only on Arbitrum
+      if (chainId !== 42161) {
+        return {
+          success: false,
+          error: 'GMX is only available on Arbitrum One',
+        };
+      }
+
+      // Create module service
+      const moduleAddress = ctx.deployment.moduleAddress || process.env.MODULE_ADDRESS_V2 || process.env.MODULE_ADDRESS;
+      if (!moduleAddress) {
+        return {
+          success: false,
+          error: 'Module address not configured',
+        };
+      }
+
+      const moduleService = createSafeModuleService(
+        moduleAddress,
+        chainId,
+        process.env.EXECUTOR_PRIVATE_KEY
+      );
+
+      // Create provider for GMX adapter
+      const provider = new ethers.providers.JsonRpcProvider(
+        process.env.ARBITRUM_RPC || process.env.ARBITRUM_RPC_URL || 'https://arb1.arbitrum.io/rpc'
+      );
+
+      // Create GMX adapter with module service
+      const adapter = createGMXAdapter(moduleService, provider);
+
+      // Strip _MANUAL_timestamp suffix if present (from Telegram manual trades)
+      const actualTokenSymbol = ctx.signal.tokenSymbol.split('_MANUAL_')[0];
+
+      // Calculate collateral and leverage from size model
+      const sizeModel = ctx.signal.sizeModel as any;
+      const leverage = sizeModel.leverage || 1;
+      
+      // Get USDC balance from provider
+      const usdcAbi = ['function balanceOf(address) view returns (uint256)'];
+      const usdcAddress = '0xaf88d065e77c8cC2239327C5EDb3A432268e5831'; // Arbitrum USDC
+      const usdc = new ethers.Contract(usdcAddress, usdcAbi, provider);
+      const usdcBalance = await usdc.balanceOf(ctx.deployment.safeWallet);
+      const usdcBalanceNum = parseFloat(ethers.utils.formatUnits(usdcBalance, 6));
+      
+      let collateralUSDC: number;
+      
+      if (sizeModel.type === 'fixed-usdc') {
+        // Manual trades: Use exact USDC amount specified by user
+        collateralUSDC = sizeModel.value || 0;
+        console.log('[TradeExecutor] GMX collateral (MANUAL):', {
+          walletBalance: usdcBalanceNum,
+          requestedCollateral: collateralUSDC + ' USDC',
+          type: 'fixed-usdc',
+          leverage: leverage + 'x',
+        });
+      } else {
+        // Auto trades: Use percentage of actual balance
+        const percentageToUse = sizeModel.value || 5;
+        collateralUSDC = (usdcBalanceNum * percentageToUse) / 100;
+        console.log('[TradeExecutor] GMX collateral (AUTO):', {
+          walletBalance: usdcBalanceNum,
+          percentage: percentageToUse + '%',
+          collateral: collateralUSDC.toFixed(2) + ' USDC',
+          type: 'balance-percentage',
+          leverage: leverage + 'x',
+        });
+      }
+      
+      // Minimum collateral check
+      if (collateralUSDC < 1) {
+        return {
+          success: false,
+          error: `Collateral too small: ${collateralUSDC.toFixed(2)} USDC (min: 1 USDC for GMX)`,
+          reason: 'Insufficient balance for minimum GMX position',
+        };
+      }
+      
+      // Check if user has enough balance
+      if (collateralUSDC > usdcBalanceNum) {
+        return {
+          success: false,
+          error: `Insufficient balance: Need ${collateralUSDC} USDC, have ${usdcBalanceNum.toFixed(2)} USDC`,
+          reason: 'Requested collateral exceeds wallet balance',
+        };
+      }
 
       // Get execution summary
       const summary = await adapter.getExecutionSummary({
-        signal: ctx.signal,
         safeAddress: ctx.deployment.safeWallet,
+        tokenSymbol: actualTokenSymbol,
+        collateralUSDC,
+        leverage,
       });
 
       if (!summary.canExecute) {
@@ -567,41 +658,31 @@ export class TradeExecutor {
         };
       }
 
-      // Calculate amounts
-      const collateralAmount = summary.collateralRequired || 0;
-      const collateralWei = ethers.utils.parseUnits(collateralAmount.toFixed(6), 6); // USDC 6 decimals
-
-      const sizeModel = ctx.signal.sizeModel as any;
-      const leverage = sizeModel.leverage || 1;
-
-      // Build approval transaction
-      const approvalTx = await adapter.buildApprovalTx(collateralWei.toString());
-
-      // Build position opening transaction
-      const openPositionTx = await adapter.buildIncreasePositionTx({
-        tokenSymbol: ctx.signal.tokenSymbol,
-        collateralAmount: collateralWei.toString(),
+      // Open GMX position through module
+      const result = await adapter.openGMXPosition({
+        safeAddress: ctx.deployment.safeWallet,
+        tokenSymbol: actualTokenSymbol,
+        collateralUSDC,
         leverage,
         isLong: ctx.signal.side === 'LONG',
-        acceptablePrice: '0', // Market order - will take current price
+        slippage: 0.5, // 0.5% slippage tolerance
+        profitReceiver: ctx.signal.agent?.profitReceiverAddress || ctx.deployment.agent.profitReceiverAddress,
       });
-
-      // Create Safe transaction service
-      const txService = createSafeTransactionService(
-        ctx.deployment.safeWallet,
-        chainId,
-        process.env.EXECUTOR_PRIVATE_KEY
-      );
-
-      // Submit batch transaction (approval + open position)
-      const result = await txService.batchTransactions([approvalTx, openPositionTx]);
 
       if (!result.success) {
         return {
           success: false,
-          error: result.error || 'Transaction submission failed',
+          error: result.error || 'GMX order submission failed',
         };
       }
+
+      // Get current price for entry price (approximate)
+      const entryPrice = await adapter.getGMXPrice(actualTokenSymbol);
+
+      // Calculate position qty (in tokens)
+      // GMX position size = collateral * leverage
+      const positionSizeUSD = collateralUSDC * leverage;
+      const qty = positionSizeUSD / (entryPrice || 1);
 
       // Create position record
       const position = await prisma.position.create({
@@ -609,24 +690,25 @@ export class TradeExecutor {
           deploymentId: ctx.deployment.id,
           signalId: ctx.signal.id,
           venue: ctx.signal.venue,
-          tokenSymbol: ctx.signal.tokenSymbol,
+          tokenSymbol: actualTokenSymbol,
           side: ctx.signal.side,
-          entryPrice: 0, // Will be updated when we get actual execution price
-          qty: summary.positionSize || 0,
+          entryPrice: entryPrice,
+          qty: qty,
           entryTxHash: result.txHash,
         },
       });
 
-      console.log('[TradeExecutor] GMX trade submitted:', {
+      console.log('[TradeExecutor] GMX trade executed:', {
         positionId: position.id,
-        token: ctx.signal.tokenSymbol,
+        token: actualTokenSymbol,
         side: ctx.signal.side,
-        leverage,
-        collateral: collateralAmount,
-        positionSize: summary.positionSize,
-        safeTxHash: result.safeTxHash,
+        leverage: leverage + 'x',
+        collateral: collateralUSDC + ' USDC',
+        positionSize: positionSizeUSD + ' USD',
+        entryPrice: entryPrice,
+        qty: qty.toFixed(8),
         txHash: result.txHash,
-        requiresSignatures: result.requiresMoreSignatures,
+        orderKey: result.orderKey,
       });
 
       return {
@@ -947,38 +1029,83 @@ export class TradeExecutor {
   /**
    * Close GMX position
    */
+  /**
+   * Close GMX position (V2 - Module-Based)
+   */
   private async closeGMXPosition(
     position: any,
     safeWallet: SafeWalletService,
     chainId: number
   ): Promise<ExecutionResult> {
     try {
-      const adapter = createGMXAdapter(safeWallet);
+      // Create module service
+      const moduleAddress = position.deployment.moduleAddress || process.env.MODULE_ADDRESS_V2 || process.env.MODULE_ADDRESS;
+      if (!moduleAddress) {
+        return {
+          success: false,
+          error: 'Module address not configured',
+        };
+      }
 
-      // Build close position transaction
-      const sizeDeltaUsd = ethers.utils.parseUnits(position.size.toString(), 30); // GMX uses 30 decimals
-
-      const closeTx = await adapter.buildClosePositionTx({
-        tokenSymbol: position.tokenSymbol,
-        sizeDeltaUsd: sizeDeltaUsd.toString(),
-        isLong: position.side === 'LONG',
-        acceptablePrice: '0', // Market order
-      });
-
-      // Submit transaction
-      const txService = createSafeTransactionService(
-        position.deployment.safeWallet,
+      const moduleService = createSafeModuleService(
+        moduleAddress,
         chainId,
         process.env.EXECUTOR_PRIVATE_KEY
       );
 
-      const result = await txService.proposeTransaction(closeTx, 'Close GMX position');
+      // Create provider
+      const provider = new ethers.providers.JsonRpcProvider(
+        process.env.ARBITRUM_RPC || process.env.ARBITRUM_RPC_URL || 'https://arb1.arbitrum.io/rpc'
+      );
+
+      // Create GMX adapter
+      const adapter = createGMXAdapter(moduleService, provider);
+
+      // Get current price for entry price (approximate)
+      const currentPrice = await adapter.getGMXPrice(position.tokenSymbol);
+
+      // Calculate position size in USD (30 decimals)
+      // GMX position size = qty * current price
+      const positionSizeUSD = parseFloat(position.qty.toString()) * currentPrice;
+      const sizeDeltaUsd = ethers.utils.parseUnits(positionSizeUSD.toFixed(8), 30);
+
+      console.log('[TradeExecutor] Closing GMX position:', {
+        positionId: position.id,
+        token: position.tokenSymbol,
+        side: position.side,
+        qty: position.qty.toString(),
+        currentPrice,
+        positionSizeUSD,
+        sizeDeltaUsd: sizeDeltaUsd.toString(),
+      });
+
+      // Close position through module
+      const result = await adapter.closeGMXPosition({
+        safeAddress: position.deployment.safeWallet,
+        tokenSymbol: position.tokenSymbol,
+        sizeDeltaUsd: sizeDeltaUsd.toString(),
+        isLong: position.side === 'LONG',
+        slippage: 0.5, // 0.5% slippage tolerance
+        profitReceiver: position.deployment.agent.profitReceiverAddress,
+      });
 
       if (!result.success) {
         return {
           success: false,
-          error: result.error,
+          error: result.error || 'GMX position close failed',
         };
+      }
+
+      // Calculate exit price and PnL
+      const exitPrice = currentPrice;
+      const entryPrice = parseFloat(position.entryPrice.toString());
+      const qty = parseFloat(position.qty.toString());
+      
+      let pnl: number;
+      if (position.side === 'LONG') {
+        pnl = (exitPrice - entryPrice) * qty;
+      } else {
+        pnl = (entryPrice - exitPrice) * qty;
       }
 
       // Update position as closed
@@ -986,8 +1113,20 @@ export class TradeExecutor {
         where: { id: position.id },
         data: {
           closedAt: new Date(),
+          exitPrice: exitPrice,
           exitTxHash: result.txHash,
+          pnl: pnl,
         },
+      });
+
+      console.log('[TradeExecutor] GMX position closed:', {
+        positionId: position.id,
+        entryPrice,
+        exitPrice,
+        pnl: pnl.toFixed(2) + ' USD',
+        realizedPnL: result.realizedPnL,
+        profitShare: result.profitShare,
+        txHash: result.txHash,
       });
 
       return {
@@ -996,6 +1135,7 @@ export class TradeExecutor {
         positionId: position.id,
       };
     } catch (error: any) {
+      console.error('[TradeExecutor] GMX close error:', error);
       return {
         success: false,
         error: error.message,
