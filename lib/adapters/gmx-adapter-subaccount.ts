@@ -17,6 +17,7 @@
 
 import { ethers } from 'ethers';
 import { SafeModuleService } from '../safe-module-service';
+import { createGMXReader, GMXReader } from './gmx-reader';
 
 // GMX V2 Contract addresses (Arbitrum One)
 const GMX_EXCHANGE_ROUTER = '0x7C68C7866A64FA2160F78EEaE12217FFbf871fa8';
@@ -106,6 +107,7 @@ export class GMXAdapterSubaccount {
   private provider: ethers.providers.Provider;
   private executor: ethers.Wallet;
   private moduleService: SafeModuleService;
+  private gmxReader: GMXReader;
   
   // Daily volume tracking (in-memory, should be in DB for production)
   private dailyVolume: Map<string, { date: string; volume: number }> = new Map();
@@ -118,6 +120,7 @@ export class GMXAdapterSubaccount {
     this.provider = provider;
     this.executor = new ethers.Wallet(executorPrivateKey, provider);
     this.moduleService = moduleService;
+    this.gmxReader = createGMXReader(provider);
   }
 
   /**
@@ -482,28 +485,43 @@ export class GMXAdapterSubaccount {
 
   /**
    * Collect 0.2 USDC trade fee via module
+   * Uses Safe module's executeTrade to transfer USDC: Safe → Platform
+   * This is the SAME mechanism as SPOT trading fees
+   * 100% transparent and on-chain
    */
   private async collectTradeFee(safeAddress: string): Promise<{ success: boolean; txHash?: string; error?: string }> {
     try {
-      // Use existing module to collect fee
-      // This is a simple USDC transfer: Safe → Platform
-      const usdcAbi = ['function transfer(address to, uint256 amount) returns (bool)'];
-      const usdc = new ethers.Contract(USDC_ADDRESS, usdcAbi, this.provider);
-
-      const feeAmount = ethers.utils.parseUnits('0.2', 6);
+      console.log('[GMX] Collecting 0.2 USDC fee via Safe module...');
+      
+      const feeAmount = ethers.utils.parseUnits('0.2', 6); // 0.2 USDC (6 decimals)
       const platformReceiver = process.env.PLATFORM_FEE_RECEIVER || this.executor.address;
 
-      const data = usdc.interface.encodeFunctionData('transfer', [platformReceiver, feeAmount]);
+      console.log(`[GMX] Fee: 0.2 USDC → ${platformReceiver}`);
 
-      // Execute via module
-      // Note: This requires module to have permission to execute Safe transactions
-      // In production, this would go through the module's executeTrade with a dummy swap
+      // Build USDC transfer data: Safe → Platform
+      const usdcAbi = ['function transfer(address to, uint256 amount) returns (bool)'];
+      const usdcInterface = new ethers.utils.Interface(usdcAbi);
+      const transferData = usdcInterface.encodeFunctionData('transfer', [platformReceiver, feeAmount]);
 
-      console.log('[GMX] Fee collection: 0.2 USDC to', platformReceiver);
-      
-      return {
-        success: true,
-      };
+      // Execute via module (same as SPOT trading)
+      // Module will:
+      // 1. Verify executor is authorized
+      // 2. Execute USDC transfer from Safe
+      // 3. Emit TradeExecuted event
+      const result = await this.moduleService.executeFromModule(
+        safeAddress,
+        USDC_ADDRESS, // To: USDC contract
+        0, // Value: 0 ETH
+        transferData // Data: transfer(platformReceiver, 0.2 USDC)
+      );
+
+      if (result.success) {
+        console.log(`[GMX] ✅ Fee collected: 0.2 USDC | TX: ${result.txHash}`);
+      } else {
+        console.warn(`[GMX] ⚠️ Fee collection failed: ${result.error}`);
+      }
+
+      return result;
     } catch (error: any) {
       console.error('[GMX] Fee collection error:', error);
       return {
@@ -514,55 +532,27 @@ export class GMXAdapterSubaccount {
   }
 
   /**
-   * Get current GMX price for token
-   * TODO: Integrate with GMX Reader for accurate on-chain prices
+   * Get current GMX price for token (ON-CHAIN from GMX Reader)
+   * This is the EXACT price GMX uses for settlement
+   * Similar to how we use Uniswap V3 Quoter for SPOT prices
    */
   async getGMXPrice(tokenSymbol: string): Promise<number> {
-    // Approximate prices (should be replaced with GMX Reader or Chainlink oracle)
-    const prices: Record<string, number> = {
-      // Major Crypto
-      'BTC': 95000,
-      'ETH': 3800,
-      'WETH': 3800,
-      'WBTC': 95000,
+    try {
+      console.log(`[GMX] Getting on-chain price for ${tokenSymbol}...`);
       
-      // Layer 1s
-      'SOL': 180,
-      'AVAX': 35,
-      'ATOM': 10,
-      'NEAR': 5,
-      'DOT': 7,
-      'ADA': 0.45,
+      const priceData = await this.gmxReader.getMarketPrice(tokenSymbol);
       
-      // Layer 2s
-      'ARB': 0.75,
-      'OP': 2.5,
-      'MATIC': 0.65,
+      if (!priceData) {
+        throw new Error(`Failed to get GMX price for ${tokenSymbol}`);
+      }
       
-      // DeFi Blue Chips
-      'LINK': 20,
-      'UNI': 8,
-      'AAVE': 85,
-      'CRV': 0.45,
-      'SNX': 3,
-      'COMP': 45,
-      'MKR': 1500,
-      'YFI': 8000,
-      'BAL': 4,
-      'SUSHI': 1.2,
-      'LDO': 2,
+      console.log(`[GMX] ✅ ${tokenSymbol}/USD: $${priceData.price.toFixed(2)} (on-chain from GMX)`);
       
-      // Meme Coins
-      'DOGE': 0.08,
-      'SHIB': 0.00001,
-      'PEPE': 0.000001,
-      
-      // Altcoins
-      'LTC': 70,
-      'XRP': 0.55,
-    };
-
-    return prices[tokenSymbol.toUpperCase()] || 0;
+      return priceData.price;
+    } catch (error: any) {
+      console.error(`[GMX] Error getting price for ${tokenSymbol}:`, error.message);
+      throw error;
+    }
   }
 
   /**
