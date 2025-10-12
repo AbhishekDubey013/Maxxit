@@ -63,16 +63,7 @@ export default function GMXSetupButton({ safeAddress, onSetupComplete }: Props) 
     <button
       onClick={handleSetup}
       disabled={loading}
-      style={{
-        padding: '12px 24px',
-        fontSize: '16px',
-        backgroundColor: loading ? '#6c757d' : '#007bff',
-        color: 'white',
-        border: 'none',
-        borderRadius: '5px',
-        cursor: loading ? 'not-allowed' : 'pointer',
-        fontWeight: 'bold',
-      }}
+      className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
     >
       {loading ? '⏳ Preparing...' : '🚀 Setup GMX Trading (ONE-CLICK)'}
     </button>

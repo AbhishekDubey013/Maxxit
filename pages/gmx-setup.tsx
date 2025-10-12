@@ -12,6 +12,7 @@ import { useState, useEffect } from 'react';
 import { ethers } from 'ethers';
 import Safe, { EthersAdapter } from '@safe-global/protocol-kit';
 import { MetaTransactionData } from '@safe-global/safe-core-sdk-types';
+import { CheckCircle } from 'lucide-react';
 
 const MODULE_ADDRESS = '0x07627aef95CBAD4a17381c4923Be9B9b93526d3D';
 const GMX_ROUTER = '0x7452c558d45f8afC8c83dAe62C3f8A5BE19c71f6';
@@ -144,102 +145,114 @@ export default function GMXSetup() {
   };
 
   return (
-    <div style={{ padding: '40px', maxWidth: '800px', margin: '0 auto' }}>
-      <h1>🚀 ONE-CLICK GMX Setup</h1>
-      
-      <div style={{ marginBottom: '30px' }}>
-        <h3>What This Does:</h3>
-        <ul>
-          <li>✅ Enables Maxxit Trading Module on your Safe</li>
-          <li>✅ Authorizes executor for GMX trading</li>
-          <li>✅ First trade will auto-initialize USDC approvals</li>
-        </ul>
-      </div>
-
-      <div style={{ marginBottom: '20px' }}>
-        <label>
-          <strong>Your Safe Address:</strong>
-          <br />
-          <input
-            type="text"
-            value={safeAddress}
-            onChange={(e) => setSafeAddress(e.target.value)}
-            placeholder="0x..."
-            style={{
-              width: '100%',
-              padding: '10px',
-              fontSize: '16px',
-              marginTop: '10px',
-            }}
-          />
-        </label>
-      </div>
-
-      {status && (
-        <div
-          style={{
-            padding: '15px',
-            backgroundColor: setupComplete ? '#d4edda' : '#f8f9fa',
-            border: '1px solid #ddd',
-            borderRadius: '5px',
-            marginBottom: '20px',
-          }}
-        >
-          <strong>Status:</strong> {status}
-        </div>
-      )}
-
-      <button
-        onClick={setupGMXTrading}
-        disabled={loading || setupComplete || !safeAddress}
-        style={{
-          padding: '15px 30px',
-          fontSize: '18px',
-          backgroundColor: loading || setupComplete ? '#6c757d' : '#007bff',
-          color: 'white',
-          border: 'none',
-          borderRadius: '5px',
-          cursor: loading || setupComplete ? 'not-allowed' : 'pointer',
-        }}
-      >
-        {loading ? '⏳ Setting up...' : setupComplete ? '✅ Setup Complete' : '🚀 Setup GMX Trading (ONE-CLICK)'}
-      </button>
-
-      {!setupComplete && (
-        <div style={{ marginTop: '30px', padding: '20px', backgroundColor: '#fff3cd', borderRadius: '5px' }}>
-          <h4>📋 Requirements:</h4>
-          <ul>
-            <li>You must be a Safe owner/signer</li>
-            <li>You must have enough ETH for gas (~$0.10)</li>
-            <li>Your Safe must be on Arbitrum One</li>
+    <div className="min-h-screen bg-background">
+      <div className="container mx-auto px-4 py-8 max-w-3xl">
+        <h1 className="text-3xl font-bold mb-2">🚀 ONE-CLICK GMX Setup</h1>
+        <p className="text-muted-foreground mb-8">
+          Complete your GMX trading setup with a single transaction
+        </p>
+        
+        <div className="border border-border rounded-lg bg-card p-6 mb-6">
+          <h3 className="text-lg font-semibold mb-3">What This Does:</h3>
+          <ul className="space-y-2 text-sm">
+            <li className="flex items-start gap-2">
+              <CheckCircle className="w-4 h-4 text-green-500 mt-0.5 shrink-0" />
+              <span>Enables Maxxit Trading Module on your Safe</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <CheckCircle className="w-4 h-4 text-green-500 mt-0.5 shrink-0" />
+              <span>Authorizes executor for GMX trading</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <CheckCircle className="w-4 h-4 text-green-500 mt-0.5 shrink-0" />
+              <span>First trade will auto-initialize USDC approvals</span>
+            </li>
           </ul>
         </div>
-      )}
 
-      <div style={{ marginTop: '30px', padding: '20px', backgroundColor: '#f8f9fa', borderRadius: '5px' }}>
-        <h4>🔒 Security Notes:</h4>
-        <ul>
-          <li>✅ Non-custodial: You retain full control of your Safe</li>
-          <li>✅ Module can only execute trades, not transfer funds arbitrarily</li>
-          <li>✅ You can disable the module anytime via Safe settings</li>
-          <li>✅ GMX positions are owned by your Safe, not the executor</li>
-        </ul>
-      </div>
+        <div className="border border-border rounded-lg bg-card p-6 mb-6">
+          <label className="block">
+            <span className="text-sm font-medium mb-2 block">Your Safe Address:</span>
+            <input
+              type="text"
+              value={safeAddress}
+              onChange={(e) => setSafeAddress(e.target.value)}
+              placeholder="0x..."
+              className="w-full px-4 py-2 bg-background border border-input rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+            />
+          </label>
 
-      <div style={{ marginTop: '30px' }}>
-        <h4>📚 What Happens Next:</h4>
-        <ol>
-          <li>Module is enabled on your Safe</li>
-          <li>GMX executor is authorized</li>
-          <li>First trade auto-initializes:
-            <ul>
-              <li>USDC approval to module (0.2 USDC fee per trade)</li>
-              <li>USDC approval to Uniswap (for swaps)</li>
-              <li>Capital tracking initialization</li>
+          {status && (
+            <div
+              className={`mt-4 p-4 rounded-md border ${
+                setupComplete
+                  ? 'bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800'
+                  : 'bg-muted border-border'
+              }`}
+            >
+              <p className="text-sm">
+                <strong>Status:</strong> {status}
+              </p>
+            </div>
+          )}
+
+          <button
+            onClick={setupGMXTrading}
+            disabled={loading || setupComplete || !safeAddress}
+            className="w-full mt-6 inline-flex items-center justify-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-md text-base font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {loading ? '⏳ Setting up...' : setupComplete ? '✅ Setup Complete' : '🚀 Setup GMX Trading (ONE-CLICK)'}
+          </button>
+        </div>
+
+        {!setupComplete && (
+          <div className="bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-6 mb-6">
+            <h4 className="font-semibold mb-3">📋 Requirements:</h4>
+            <ul className="space-y-2 text-sm">
+              <li>• You must be a Safe owner/signer</li>
+              <li>• You must have enough ETH for gas (~$0.10)</li>
+              <li>• Your Safe must be on Arbitrum One</li>
             </ul>
-          </li>
-          <li>Start trading! 🎉</li>
-        </ol>
+          </div>
+        )}
+
+        <div className="border border-border rounded-lg bg-card p-6 mb-6">
+          <h4 className="font-semibold mb-3">🔒 Security Notes:</h4>
+          <ul className="space-y-2 text-sm text-muted-foreground">
+            <li className="flex items-start gap-2">
+              <CheckCircle className="w-4 h-4 text-green-500 mt-0.5 shrink-0" />
+              <span>Non-custodial: You retain full control of your Safe</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <CheckCircle className="w-4 h-4 text-green-500 mt-0.5 shrink-0" />
+              <span>Module can only execute trades, not transfer funds arbitrarily</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <CheckCircle className="w-4 h-4 text-green-500 mt-0.5 shrink-0" />
+              <span>You can disable the module anytime via Safe settings</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <CheckCircle className="w-4 h-4 text-green-500 mt-0.5 shrink-0" />
+              <span>GMX positions are owned by your Safe, not the executor</span>
+            </li>
+          </ul>
+        </div>
+
+        <div className="border border-border rounded-lg bg-card p-6">
+          <h4 className="font-semibold mb-3">📚 What Happens Next:</h4>
+          <ol className="space-y-2 text-sm text-muted-foreground list-decimal list-inside">
+            <li>Module is enabled on your Safe</li>
+            <li>GMX executor is authorized</li>
+            <li>First trade auto-initializes:
+              <ul className="mt-1 ml-6 space-y-1 list-disc list-inside">
+                <li>USDC approval to module (0.2 USDC fee per trade)</li>
+                <li>USDC approval to Uniswap (for swaps)</li>
+                <li>Capital tracking initialization</li>
+              </ul>
+            </li>
+            <li>Start trading! 🎉</li>
+          </ol>
+        </div>
       </div>
     </div>
   );
