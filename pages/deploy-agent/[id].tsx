@@ -180,7 +180,7 @@ export default function DeployAgent() {
     setDeployError('');
 
     try {
-      // Generate GMX batch transaction (enable module + authorize GMX)
+      // Generate GMX setup transactions (enable module + authorize GMX)
       const response = await fetch('/api/gmx/generate-setup-tx', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -193,18 +193,25 @@ export default function DeployAgent() {
         throw new Error(data.error || 'Failed to generate setup transaction');
       }
 
-      // Store module address and transaction data
+      // Store module address and both transaction data
       setModuleAddress(data.moduleAddress);
       
-      // For batch transactions, we'll guide user through Transaction Builder
-      // Copy the JSON to clipboard
-      const batchJson = JSON.stringify(data.transactionBuilderJSON, null, 2);
+      // Get individual transaction hex data (same as SPOT flow)
+      const tx1Data = data.sdkTransactions[0].data; // Enable module
+      const tx2Data = data.sdkTransactions[1].data; // Authorize GMX
+      const gmxRouterAddress = data.gmxRouter;
+      
+      // Copy first transaction data to clipboard (enable module)
+      setTransactionData(tx1Data);
       try {
-        await navigator.clipboard.writeText(batchJson);
-        console.log('[EnableModuleGMX] Batch transaction JSON copied to clipboard');
+        await navigator.clipboard.writeText(tx1Data);
+        console.log('[EnableModuleGMX] Transaction 1 (enable module) data copied to clipboard');
       } catch (e) {
         console.log('[EnableModuleGMX] Clipboard copy failed, but continuing...');
       }
+
+      // Store GMX authorization data for second transaction
+      (window as any).gmxAuthData = { address: gmxRouterAddress, data: tx2Data };
 
       // Open Safe Transaction Builder
       const chainPrefix = 'arb1'; // Arbitrum One
@@ -513,7 +520,7 @@ export default function DeployAgent() {
                 {showInstructions && (
                   <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg">
                     <div className="flex items-start justify-between mb-3">
-                      <h4 className="font-semibold text-blue-900 dark:text-blue-100">📋 GMX Batch Setup Instructions</h4>
+                      <h4 className="font-semibold text-blue-900 dark:text-blue-100">📋 GMX Setup Instructions (2 Transactions)</h4>
                       <button
                         onClick={() => setShowInstructions(false)}
                         className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200"
@@ -524,37 +531,141 @@ export default function DeployAgent() {
                     
                     <div className="space-y-4 text-sm">
                       <div>
-                        <p className="font-medium text-blue-900 dark:text-blue-100 mb-2">✅ Batch transaction JSON copied to clipboard!</p>
-                        <p className="text-blue-700 dark:text-blue-300 mb-3">Safe Transaction Builder opened - follow these steps:</p>
+                        <p className="font-medium text-blue-900 dark:text-blue-100 mb-2">✅ Transaction data copied to clipboard!</p>
+                        <p className="text-blue-700 dark:text-blue-300 mb-3">Safe Transaction Builder opened - Add 2 transactions:</p>
                       </div>
 
                       <div className="space-y-3">
-                        <div className="bg-white dark:bg-gray-900 p-3 rounded border border-blue-200 dark:border-blue-800">
-                          <p className="font-medium text-blue-900 dark:text-blue-100 mb-2">1️⃣ Import Batch Transaction:</p>
-                          <ul className="text-blue-700 dark:text-blue-300 text-xs space-y-1 ml-4">
-                            <li>• Click "Import batch" or "Create Batch"</li>
-                            <li>• Paste the JSON from clipboard</li>
-                            <li>• You'll see 2 transactions:</li>
-                            <li className="ml-4">→ Enable Module (to your Safe)</li>
-                            <li className="ml-4">→ Authorize Executor (to GMX Router)</li>
-                          </ul>
+                        {/* Transaction 1: Enable Module */}
+                        <div className="bg-orange-50 dark:bg-orange-950/20 p-3 rounded border border-orange-300 dark:border-orange-700">
+                          <p className="font-semibold text-orange-900 dark:text-orange-100 mb-2">🔸 Transaction 1: Enable Module</p>
+                          
+                          <div className="space-y-2">
+                            <div>
+                              <p className="font-medium text-blue-900 dark:text-blue-100 mb-1 text-xs">1. Enter Address (your Safe):</p>
+                              <div className="flex gap-2">
+                                <input
+                                  readOnly
+                                  value={safeAddress}
+                                  className="flex-1 px-3 py-1.5 bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded font-mono text-xs"
+                                />
+                                <button
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(safeAddress);
+                                    alert('✅ Safe address copied!');
+                                  }}
+                                  className="px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 text-xs"
+                                >
+                                  Copy
+                                </button>
+                              </div>
+                            </div>
+
+                            <div>
+                              <p className="font-medium text-blue-900 dark:text-blue-100 mb-1 text-xs">2. Choose "Use custom data (hex encoded)"</p>
+                            </div>
+
+                            <div>
+                              <p className="font-medium text-blue-900 dark:text-blue-100 mb-1 text-xs">3. Paste transaction data (already copied!):</p>
+                              <div className="flex gap-2">
+                                <input
+                                  readOnly
+                                  value={transactionData || 'Loading...'}
+                                  className="flex-1 px-3 py-1.5 bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded font-mono text-xs overflow-hidden text-ellipsis"
+                                />
+                                <button
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(transactionData);
+                                    alert('✅ Transaction data copied!');
+                                  }}
+                                  className="px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 text-xs whitespace-nowrap"
+                                >
+                                  Copy
+                                </button>
+                              </div>
+                            </div>
+
+                            <p className="text-xs text-orange-600 dark:text-orange-400">✅ Click "Add new txn" to continue</p>
+                          </div>
                         </div>
 
+                        {/* Transaction 2: Authorize GMX */}
+                        <div className="bg-purple-50 dark:bg-purple-950/20 p-3 rounded border border-purple-300 dark:border-purple-700">
+                          <p className="font-semibold text-purple-900 dark:text-purple-100 mb-2">🔹 Transaction 2: Authorize GMX</p>
+                          
+                          <div className="space-y-2">
+                            <div>
+                              <p className="font-medium text-blue-900 dark:text-blue-100 mb-1 text-xs">1. Enter Address (GMX Router):</p>
+                              <div className="flex gap-2">
+                                <input
+                                  readOnly
+                                  value={(typeof window !== 'undefined' && (window as any).gmxAuthData?.address) || '0x7452c558d45f8afC8c83dAe62C3f8A5BE19c71f6'}
+                                  className="flex-1 px-3 py-1.5 bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded font-mono text-xs"
+                                />
+                                <button
+                                  onClick={() => {
+                                    const addr = (typeof window !== 'undefined' && (window as any).gmxAuthData?.address) || '0x7452c558d45f8afC8c83dAe62C3f8A5BE19c71f6';
+                                    navigator.clipboard.writeText(addr);
+                                    alert('✅ GMX Router address copied!');
+                                  }}
+                                  className="px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 text-xs"
+                                >
+                                  Copy
+                                </button>
+                              </div>
+                            </div>
+
+                            <div>
+                              <p className="font-medium text-blue-900 dark:text-blue-100 mb-1 text-xs">2. Choose "Use custom data (hex encoded)"</p>
+                            </div>
+
+                            <div>
+                              <p className="font-medium text-blue-900 dark:text-blue-100 mb-1 text-xs">3. Paste authorization data:</p>
+                              <div className="flex gap-2">
+                                <input
+                                  readOnly
+                                  value={typeof window !== 'undefined' && (window as any).gmxAuthData?.data ? (window as any).gmxAuthData.data.substring(0, 20) + '...' : 'Click Copy'}
+                                  className="flex-1 px-3 py-1.5 bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded font-mono text-xs overflow-hidden text-ellipsis"
+                                />
+                                <button
+                                  onClick={() => {
+                                    const data = (typeof window !== 'undefined' && (window as any).gmxAuthData?.data) || '';
+                                    if (data) {
+                                      navigator.clipboard.writeText(data);
+                                      alert('✅ GMX authorization data copied!');
+                                    } else {
+                                      alert('❌ Data not available. Please refresh and try again.');
+                                    }
+                                  }}
+                                  className="px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 text-xs whitespace-nowrap"
+                                >
+                                  Copy
+                                </button>
+                              </div>
+                            </div>
+
+                            <p className="text-xs text-purple-600 dark:text-purple-400">✅ Ready to create batch!</p>
+                          </div>
+                        </div>
+
+                        {/* Final Steps */}
                         <div className="bg-white dark:bg-gray-900 p-3 rounded border border-blue-200 dark:border-blue-800">
-                          <p className="font-medium text-blue-900 dark:text-blue-100 mb-2">2️⃣ Review & Send:</p>
+                          <p className="font-medium text-blue-900 dark:text-blue-100 mb-2">4️⃣ Create & Execute Batch:</p>
                           <ul className="text-blue-700 dark:text-blue-300 text-xs space-y-1 ml-4">
-                            <li>• Review both transactions</li>
+                            <li>• Click "Create Batch"</li>
                             <li>• Click "Send Batch"</li>
-                            <li>• Click "Sign"</li>
+                            <li>• Click "Continue" on confirmation</li>
+                            <li>• Click "Sign txn"</li>
                           </ul>
                         </div>
 
                         <div className="bg-white dark:bg-gray-900 p-3 rounded border border-blue-200 dark:border-blue-800">
-                          <p className="font-medium text-blue-900 dark:text-blue-100 mb-2">3️⃣ Execute:</p>
+                          <p className="font-medium text-blue-900 dark:text-blue-100 mb-2">5️⃣ Execute:</p>
                           <ul className="text-blue-700 dark:text-blue-300 text-xs space-y-1 ml-4">
-                            <li>• Go to Transactions</li>
+                            <li>• Go back to Transactions</li>
                             <li>• Click "Execute"</li>
-                            <li>• Sign in wallet (gas sponsored)</li>
+                            <li>• Click "Continue"</li>
+                            <li>• Sign again in wallet (gas sponsored)</li>
                             <li>• Wait for confirmation ⏳</li>
                           </ul>
                         </div>
