@@ -621,6 +621,9 @@ export class TradeExecutor {
         collateralUSDC = (usdcBalanceNum * percentageToUse) / 100;
       }
 
+      // GMX minimum: Ensure collateral is at least 1.5 USDC (above 1 USDC GMX minimum)
+      collateralUSDC = Math.max(collateralUSDC, 1.5);
+
       console.log('[TradeExecutor] GMX trade:', {
         token: actualTokenSymbol,
         collateral: collateralUSDC,
