@@ -874,23 +874,36 @@ export class TradeExecutor {
       };
       const usdcAddress = USDC_ADDRESSES[chainId];
 
-      // Use the position's tracked quantity (not the entire Safe balance)
-      // This ensures we only close THIS position, not all positions at once
-      if (!position.qty || position.qty === 0) {
+      // Check actual token balance in Safe (not DB qty, as it might be outdated)
+      const tokenDecimals = tokenRegistry.decimals || 18;
+      const provider = new ethers.providers.JsonRpcProvider(
+        chainId === 42161 ? 'https://arb1.arbitrum.io/rpc' : 'https://mainnet.base.org'
+      );
+      const tokenContract = new ethers.Contract(
+        tokenRegistry.tokenAddress,
+        ['function balanceOf(address) view returns (uint256)'],
+        provider
+      );
+      
+      const actualBalance = await tokenContract.balanceOf(position.deployment.safeWallet);
+      
+      if (actualBalance.eq(0)) {
         return {
           success: false,
-          error: 'Position qty not recorded - cannot close',
+          error: `No ${position.tokenSymbol} balance in Safe to close`,
         };
       }
-
-      const tokenDecimals = tokenRegistry.decimals || 18;
-      const tokenAmountWei = ethers.utils.parseUnits(position.qty.toString(), tokenDecimals);
+      
+      // Use actual balance instead of DB qty
+      const tokenAmountWei = actualBalance;
+      const actualQty = ethers.utils.formatUnits(actualBalance, tokenDecimals);
       
       console.log('[TradeExecutor] Closing position:', {
         positionId: position.id,
         token: position.tokenSymbol,
         tokenAddress: tokenRegistry.tokenAddress,
-        qtyToClose: position.qty,
+        dbQty: position.qty,
+        actualQty: actualQty,
         amountWei: tokenAmountWei.toString(),
       });
 
@@ -956,8 +969,8 @@ export class TradeExecutor {
         await new Promise(resolve => setTimeout(resolve, 2000));
       }
 
-      // Calculate total entry value in USDC (entryPrice * qty)
-      const totalEntryValueUSD = Number(position.entryPrice) * Number(position.qty);
+      // Calculate total entry value in USDC (entryPrice * actualQty)
+      const totalEntryValueUSD = Number(position.entryPrice) * Number(actualQty);
       const entryValueUSDC = ethers.utils.parseUnits(
         totalEntryValueUSD.toFixed(6), // Format to 6 decimals for USDC
         6
@@ -981,13 +994,14 @@ export class TradeExecutor {
         };
       }
 
-      // Update position as closed
+      // Update position as closed with actual qty
       await prisma.position.update({
         where: { id: position.id },
         data: {
           closedAt: new Date(),
           exitPrice: 0, // TODO: Calculate from swap
           exitTxHash: result.txHash,
+          qty: actualQty, // Update to actual closed qty
         },
       });
 
