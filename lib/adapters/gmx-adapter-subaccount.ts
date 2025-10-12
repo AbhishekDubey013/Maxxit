@@ -300,30 +300,30 @@ export class GMXAdapterSubaccount {
       const executionFee = ethers.utils.parseEther('0.001');
       const swapPath: string[] = [];
 
-      // Encode GMX createOrder call
+      // Encode GMX createOrder call (tuples must be arrays, not objects)
       const createOrderData = exchangeRouterInterface.encodeFunctionData('createOrder', [
-        {
-          receiver: params.safeAddress,
-          callbackContract: ethers.constants.AddressZero,
-          uiFeeReceiver: ethers.constants.AddressZero,
-          market,
-          initialCollateralToken: USDC_ADDRESS,
-          swapPath,
-        },
-        {
-          sizeDeltaUsd,
-          initialCollateralDeltaAmount: collateralWei,
-          triggerPrice: 0,
-          acceptablePrice,
-          executionFee,
-          callbackGasLimit: 0,
-          minOutputAmount: 0,
-        },
-        2, // MarketIncrease
-        0, // decreasePositionSwapType
-        params.isLong,
-        false, // shouldUnwrapNativeToken
-        ethers.constants.HashZero, // referralCode
+        [
+          params.safeAddress,              // receiver
+          ethers.constants.AddressZero,    // callbackContract
+          ethers.constants.AddressZero,    // uiFeeReceiver
+          market,                           // market
+          USDC_ADDRESS,                     // initialCollateralToken
+          swapPath,                         // swapPath
+        ],
+        [
+          sizeDeltaUsd,                     // sizeDeltaUsd
+          collateralWei,                    // initialCollateralDeltaAmount
+          0,                                // triggerPrice
+          acceptablePrice,                  // acceptablePrice
+          executionFee,                     // executionFee
+          0,                                // callbackGasLimit
+          0,                                // minOutputAmount
+        ],
+        2,                                  // orderType: MarketIncrease
+        0,                                  // decreasePositionSwapType
+        params.isLong,                      // isLong
+        false,                              // shouldUnwrapNativeToken
+        ethers.constants.HashZero,          // referralCode
       ]);
 
       console.log('[GMX] Creating order via Safe module...');
