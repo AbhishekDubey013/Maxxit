@@ -292,19 +292,16 @@ export class GMXAdapterSubaccount {
         30
       );
 
-      // Step 3: Create GMX order
-      const exchangeRouter = new ethers.Contract(
-        GMX_EXCHANGE_ROUTER,
-        [
-          'function createOrder((address,address,address,address,address,address[]),(uint256,uint256,uint256,uint256,uint256,uint256,uint256),uint8,uint8,bool,bool,bytes32) external payable returns (bytes32)',
-        ],
-        this.executor
-      );
+      // Step 3: Create GMX order via Safe module
+      const exchangeRouterInterface = new ethers.utils.Interface([
+        'function createOrder((address,address,address,address,address,address[]),(uint256,uint256,uint256,uint256,uint256,uint256,uint256),uint8,uint8,bool,bool,bytes32) external payable returns (bytes32)',
+      ]);
 
       const executionFee = ethers.utils.parseEther('0.001');
       const swapPath: string[] = [];
 
-      const tx = await exchangeRouter.createOrder(
+      // Encode GMX createOrder call
+      const createOrderData = exchangeRouterInterface.encodeFunctionData('createOrder', [
         {
           receiver: params.safeAddress,
           callbackContract: ethers.constants.AddressZero,
@@ -327,20 +324,32 @@ export class GMXAdapterSubaccount {
         params.isLong,
         false, // shouldUnwrapNativeToken
         ethers.constants.HashZero, // referralCode
-        { value: executionFee }
+      ]);
+
+      console.log('[GMX] Creating order via Safe module...');
+      
+      // Execute via module (funds and ETH are from Safe)
+      const result = await this.moduleService.executeFromModule(
+        params.safeAddress,
+        GMX_EXCHANGE_ROUTER, // To: GMX Exchange Router
+        executionFee.toString(), // Value: execution fee in ETH
+        createOrderData // Data: createOrder(...)
       );
 
-      console.log('[GMX] Order submitted:', tx.hash);
-      const receipt = await tx.wait();
+      if (!result.success) {
+        throw new Error(result.error || 'GMX order creation failed');
+      }
+
+      console.log('[GMX] Order submitted:', result.txHash);
 
       // Update daily volume tracking
       this.updateDailyVolume(params.safeAddress, params.collateralUSDC);
 
-      console.log('[GMX] ✅ Position opened:', receipt.transactionHash);
+      console.log('[GMX] ✅ Position opened:', result.txHash);
 
       return {
         success: true,
-        txHash: receipt.transactionHash,
+        txHash: result.txHash,
       };
     } catch (error: any) {
       console.error('[GMX] Open position error:', error);
