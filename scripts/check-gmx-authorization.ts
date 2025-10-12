@@ -1,60 +1,58 @@
 /**
- * Check if executor is authorized as GMX subaccount for a Safe
+ * Check if executor is authorized on GMX
  */
 
 import { ethers } from 'ethers';
 
+const ARBITRUM_RPC = 'https://arb1.arbitrum.io/rpc';
+const SAFE_ADDRESS = '0x9A85f7140776477F1A79Ea29b7A32495636f5e20';
+const EXECUTOR_ADDRESS = '0x3828dFCBff64fD07B963Ef11BafE632260413Ab3';
 const GMX_ROUTER = '0x7452c558d45f8afC8c83dAe62C3f8A5BE19c71f6';
-const EXECUTOR_ADDRESS = process.env.EXECUTOR_ADDRESS || '';
-const SAFE_ADDRESS = process.argv[2];
-const ARBITRUM_RPC = process.env.ARBITRUM_RPC || process.env.ARBITRUM_RPC_URL || 'https://arb1.arbitrum.io/rpc';
+
+const ROUTER_ABI = [
+  'function isSubaccount(address account, address subaccount) external view returns (bool)',
+];
 
 async function main() {
-  if (!SAFE_ADDRESS) {
-    console.error('Usage: npx tsx scripts/check-gmx-authorization.ts <SAFE_ADDRESS>');
-    process.exit(1);
-  }
-
-  if (!EXECUTOR_ADDRESS) {
-    throw new Error('EXECUTOR_ADDRESS not set in environment');
-  }
-
-  console.log('\n🔍 Checking GMX Authorization...\n');
-
-  const provider = new ethers.providers.JsonRpcProvider(ARBITRUM_RPC);
-
-  const subaccountRouterAbi = [
-    'function isSubaccount(address account, address subaccount) external view returns (bool)',
-  ];
-
-  const subaccountRouter = new ethers.Contract(GMX_ROUTER, subaccountRouterAbi, provider);
-
-  const isAuthorized = await subaccountRouter.isSubaccount(SAFE_ADDRESS, EXECUTOR_ADDRESS);
-
-  console.log('Safe Address:', SAFE_ADDRESS);
-  console.log('Executor Address:', EXECUTOR_ADDRESS);
-  console.log('GMX Router:', GMX_ROUTER);
-  console.log('');
-  console.log('Authorization Status:', isAuthorized ? '✅ AUTHORIZED' : '❌ NOT AUTHORIZED');
-  console.log('');
-
-  if (isAuthorized) {
-    console.log('✅ Executor can create GMX orders for this Safe');
-    console.log('✅ Ready for GMX trading!');
-  } else {
-    console.log('❌ Executor NOT authorized');
+  try {
+    console.log('🔍 Checking GMX authorization...\n');
+    console.log('Safe:', SAFE_ADDRESS);
+    console.log('Executor:', EXECUTOR_ADDRESS);
+    console.log('GMX Router:', GMX_ROUTER);
     console.log('');
-    console.log('To authorize, run:');
-    console.log(`npx tsx scripts/authorize-gmx-subaccount.ts ${SAFE_ADDRESS}`);
-  }
 
-  console.log('');
+    const provider = new ethers.providers.JsonRpcProvider(ARBITRUM_RPC);
+    
+    // Check if contract exists
+    const code = await provider.getCode(GMX_ROUTER);
+    if (code === '0x') {
+      console.log('❌ GMX Router contract does NOT exist at this address!');
+      console.log('   This is the problem - wrong address!');
+      return;
+    }
+    
+    console.log('✅ GMX Router contract exists');
+    console.log('');
+
+    // Check authorization
+    const router = new ethers.Contract(GMX_ROUTER, ROUTER_ABI, provider);
+    
+    try {
+      const isAuthorized = await router.isSubaccount(SAFE_ADDRESS, EXECUTOR_ADDRESS);
+      console.log('Executor Authorized:', isAuthorized ? '✅ YES' : '❌ NO');
+      
+      if (isAuthorized) {
+        console.log('\n✅ Executor is already authorized! No need for Step 2.');
+      } else {
+        console.log('\n⚠️  Executor NOT authorized. Step 2 is needed.');
+      }
+    } catch (error: any) {
+      console.log('❌ Error calling isSubaccount():', error.message);
+      console.log('   The contract might not have this function!');
+    }
+  } catch (error: any) {
+    console.error('Error:', error.message);
+  }
 }
 
-main()
-  .then(() => process.exit(0))
-  .catch((error) => {
-    console.error('\n❌ Error:', error.message);
-    process.exit(1);
-  });
-
+main();

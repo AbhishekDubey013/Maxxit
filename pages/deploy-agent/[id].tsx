@@ -35,7 +35,6 @@ export default function DeployAgent() {
   const [transactionData, setTransactionData] = useState('');
   const [deploying, setDeploying] = useState(false);
   const [deployError, setDeployError] = useState("");
-  const [gmxStep, setGmxStep] = useState(1); // 1 = Enable Module, 2 = Authorize GMX
 
   // Fetch agent details
   useEffect(() => {
@@ -175,14 +174,13 @@ export default function DeployAgent() {
     }
   };
 
-  // Enable module via Safe Transaction Builder
-  // Step 1: Enable Module
+  // Enable GMX module via Safe Transaction Builder
   const enableModuleGMXStep1 = async () => {
     setEnablingModule(true);
     setDeployError('');
 
     try {
-      // Generate GMX setup transactions
+      // Generate GMX setup transaction (module enable only - GMX V2 doesn't need authorization!)
       const response = await fetch('/api/gmx/generate-setup-tx', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -195,27 +193,20 @@ export default function DeployAgent() {
         throw new Error(data.error || 'Failed to generate setup transaction');
       }
 
-      // Store module address and both transaction data
+      // Store module address and transaction data
       setModuleAddress(data.moduleAddress);
-      
-      // Get individual transaction hex data
-      const tx1Data = data.sdkTransactions[0].data; // Enable module
-      const tx2Data = data.sdkTransactions[1].data; // Authorize GMX
-      const gmxRouterAddress = data.gmxRouter;
-      
-      // Store both for later use
-      setTransactionData(tx1Data);
-      (window as any).gmxAuthData = { address: gmxRouterAddress, data: tx2Data };
+      const txData = data.sdkTransactions[0].data; // Enable module
+      setTransactionData(txData);
 
-      // Copy first transaction data to clipboard
+      // Copy transaction data to clipboard
       try {
-        await navigator.clipboard.writeText(tx1Data);
-        console.log('[EnableModuleGMX Step1] Enable module data copied to clipboard');
+        await navigator.clipboard.writeText(txData);
+        console.log('[EnableModuleGMX] Enable module data copied to clipboard');
       } catch (e) {
-        console.log('[EnableModuleGMX Step1] Clipboard copy failed');
+        console.log('[EnableModuleGMX] Clipboard copy failed');
       }
 
-      // Open Safe Transaction Builder for step 1
+      // Open Safe Transaction Builder
       const chainPrefix = 'arb1';
       const txBuilderAppUrl = 'https://apps-portal.safe.global/tx-builder';
       const safeUrl = `https://app.safe.global/apps/open?safe=${chainPrefix}:${safeAddress}&appUrl=${encodeURIComponent(txBuilderAppUrl)}`;
@@ -226,54 +217,11 @@ export default function DeployAgent() {
         throw new Error('Please allow pop-ups to open Safe Transaction Builder');
       }
 
-      // Show instructions for step 1
+      // Show instructions
       setShowInstructions(true);
-      setGmxStep(1);
       setEnablingModule(false);
     } catch (error: any) {
-      console.error('[EnableModuleGMX Step1] Error:', error);
-      setDeployError(error.message);
-      setEnablingModule(false);
-    }
-  };
-
-  // Step 2: Authorize GMX
-  const enableModuleGMXStep2 = async () => {
-    setEnablingModule(true);
-    setDeployError('');
-
-    try {
-      const gmxAuthData = (window as any).gmxAuthData;
-      
-      if (!gmxAuthData) {
-        throw new Error('GMX authorization data not found. Please complete Step 1 first.');
-      }
-
-      // Copy GMX authorization data to clipboard
-      try {
-        await navigator.clipboard.writeText(gmxAuthData.data);
-        console.log('[EnableModuleGMX Step2] GMX authorization data copied to clipboard');
-      } catch (e) {
-        console.log('[EnableModuleGMX Step2] Clipboard copy failed');
-      }
-
-      // Open Safe Transaction Builder for step 2
-      const chainPrefix = 'arb1';
-      const txBuilderAppUrl = 'https://apps-portal.safe.global/tx-builder';
-      const safeUrl = `https://app.safe.global/apps/open?safe=${chainPrefix}:${safeAddress}&appUrl=${encodeURIComponent(txBuilderAppUrl)}`;
-      
-      const safeWindow = window.open(safeUrl, '_blank');
-      
-      if (!safeWindow) {
-        throw new Error('Please allow pop-ups to open Safe Transaction Builder');
-      }
-
-      // Show instructions for step 2
-      setShowInstructions(true);
-      setGmxStep(2);
-      setEnablingModule(false);
-    } catch (error: any) {
-      console.error('[EnableModuleGMX Step2] Error:', error);
+      console.error('[EnableModuleGMX] Error:', error);
       setDeployError(error.message);
       setEnablingModule(false);
     }
@@ -530,62 +478,34 @@ export default function DeployAgent() {
                       GMX Trading Setup Required
                     </p>
                     <p className="text-sm text-muted-foreground mt-1">
-                      One-time batch setup: Enable module + authorize GMX executor (gas sponsored)
+                      One-time setup: Enable trading module (gas sponsored)
                     </p>
                   </div>
                 </div>
-                <div className="space-y-3">
-                  {/* Step 1: Enable Module */}
-                  <div className="flex items-center gap-2">
-                    <span className="text-2xl">1️⃣</span>
-                    <button
-                      onClick={enableModuleGMXStep1}
-                      disabled={enablingModule}
-                      className="flex-1 px-4 py-2 bg-orange-600 text-white rounded-md font-medium hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                    >
-                      {enablingModule && gmxStep === 1 ? (
-                        <>
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                          Processing...
-                        </>
-                      ) : (
-                        <>
-                          <Shield className="h-4 w-4" />
-                          Enable Module on Safe
-                        </>
-                      )}
-                    </button>
-                  </div>
-
-                  {/* Step 2: Authorize GMX */}
-                  <div className="flex items-center gap-2">
-                    <span className="text-2xl">2️⃣</span>
-                    <button
-                      onClick={enableModuleGMXStep2}
-                      disabled={enablingModule}
-                      className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-md font-medium hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                    >
-                      {enablingModule && gmxStep === 2 ? (
-                        <>
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                          Processing...
-                        </>
-                      ) : (
-                        <>
-                          <Zap className="h-4 w-4" />
-                          Authorize GMX Trading
-                        </>
-                      )}
-                    </button>
-                  </div>
-
-                  {/* Recheck Status */}
+                <div className="flex gap-2">
+                  <button
+                    onClick={enableModuleGMXStep1}
+                    disabled={enablingModule}
+                    className="px-4 py-2 bg-primary text-primary-foreground rounded-md font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  >
+                    {enablingModule ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Processing...
+                      </>
+                    ) : (
+                      <>
+                        <Shield className="h-4 w-4" />
+                        Enable GMX Trading
+                      </>
+                    )}
+                  </button>
                   <button
                     onClick={checkModuleStatus}
                     disabled={moduleStatus.checking}
-                    className="w-full px-4 py-2 bg-secondary text-secondary-foreground rounded-md font-medium hover:bg-secondary/90 disabled:opacity-50"
+                    className="px-4 py-2 bg-secondary text-secondary-foreground rounded-md font-medium hover:bg-secondary/90 disabled:opacity-50"
                   >
-                    {moduleStatus.checking ? 'Checking...' : 'Recheck Status (After Both Complete)'}
+                    {moduleStatus.checking ? 'Checking...' : 'Recheck Status'}
                   </button>
                 </div>
 
@@ -593,9 +513,7 @@ export default function DeployAgent() {
                 {showInstructions && (
                   <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg">
                     <div className="flex items-start justify-between mb-3">
-                      <h4 className="font-semibold text-blue-900 dark:text-blue-100">
-                        {gmxStep === 1 ? '📋 Step 1: Enable Module' : '📋 Step 2: Authorize GMX'}
-                      </h4>
+                      <h4 className="font-semibold text-blue-900 dark:text-blue-100">📋 GMX Setup Instructions</h4>
                       <button
                         onClick={() => setShowInstructions(false)}
                         className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200"
@@ -607,14 +525,12 @@ export default function DeployAgent() {
                     <div className="space-y-4 text-sm">
                       <div>
                         <p className="font-medium text-blue-900 dark:text-blue-100 mb-2">✅ Transaction data copied to clipboard!</p>
-                        <p className="text-blue-700 dark:text-blue-300 mb-3">Safe Transaction Builder opened - Follow these steps:</p>
+                        <p className="text-blue-700 dark:text-blue-300 mb-3">Safe Transaction Builder opened - follow these steps:</p>
                       </div>
 
                       <div className="space-y-3">
-                        {/* Transaction 1: Enable Module */}
-                        {gmxStep === 1 && (
                         <div className="bg-orange-50 dark:bg-orange-950/20 p-3 rounded border border-orange-300 dark:border-orange-700">
-                          <p className="font-semibold text-orange-900 dark:text-orange-100 mb-2">🔸 Enable Module on Your Safe</p>
+                          <p className="font-semibold text-orange-900 dark:text-orange-100 mb-2">Enable GMX Trading Module</p>
                           
                           <div className="space-y-2">
                             <div>
@@ -662,70 +578,9 @@ export default function DeployAgent() {
                             </div>
 
                             <p className="text-xs text-orange-600 dark:text-orange-400">✅ Then click "Create Batch", "Send Batch", and "Execute"</p>
+                            <p className="text-xs text-green-600 dark:text-green-400 mt-2">💡 Note: GMX V2 doesn't require separate authorization!</p>
                           </div>
                         </div>
-                        )}
-
-                        {/* Transaction 2: Authorize GMX */}
-                        {gmxStep === 2 && (
-                        <div className="bg-purple-50 dark:bg-purple-950/20 p-3 rounded border border-purple-300 dark:border-purple-700">
-                          <p className="font-semibold text-purple-900 dark:text-purple-100 mb-2">🔹 Authorize GMX Executor</p>
-                          
-                          <div className="space-y-2">
-                            <div>
-                              <p className="font-medium text-blue-900 dark:text-blue-100 mb-1 text-xs">1. Enter Address (GMX Router):</p>
-                              <div className="flex gap-2">
-                                <input
-                                  readOnly
-                                  value={(typeof window !== 'undefined' && (window as any).gmxAuthData?.address) || '0x7452c558d45f8afC8c83dAe62C3f8A5BE19c71f6'}
-                                  className="flex-1 px-3 py-1.5 bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded font-mono text-xs"
-                                />
-                                <button
-                                  onClick={() => {
-                                    const addr = (typeof window !== 'undefined' && (window as any).gmxAuthData?.address) || '0x7452c558d45f8afC8c83dAe62C3f8A5BE19c71f6';
-                                    navigator.clipboard.writeText(addr);
-                                    alert('✅ GMX Router address copied!');
-                                  }}
-                                  className="px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 text-xs"
-                                >
-                                  Copy
-                                </button>
-                              </div>
-                            </div>
-
-                            <div>
-                              <p className="font-medium text-blue-900 dark:text-blue-100 mb-1 text-xs">2. Choose "Use custom data (hex encoded)"</p>
-                            </div>
-
-                            <div>
-                              <p className="font-medium text-blue-900 dark:text-blue-100 mb-1 text-xs">3. Paste authorization data:</p>
-                              <div className="flex gap-2">
-                                <input
-                                  readOnly
-                                  value={typeof window !== 'undefined' && (window as any).gmxAuthData?.data ? (window as any).gmxAuthData.data.substring(0, 20) + '...' : 'Click Copy'}
-                                  className="flex-1 px-3 py-1.5 bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded font-mono text-xs overflow-hidden text-ellipsis"
-                                />
-                                <button
-                                  onClick={() => {
-                                    const data = (typeof window !== 'undefined' && (window as any).gmxAuthData?.data) || '';
-                                    if (data) {
-                                      navigator.clipboard.writeText(data);
-                                      alert('✅ GMX authorization data copied!');
-                                    } else {
-                                      alert('❌ Data not available. Please refresh and try again.');
-                                    }
-                                  }}
-                                  className="px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 text-xs whitespace-nowrap"
-                                >
-                                  Copy
-                                </button>
-                              </div>
-                            </div>
-
-                            <p className="text-xs text-purple-600 dark:text-purple-400">✅ Then click "Create Batch", "Send Batch", and "Execute"</p>
-                          </div>
-                        </div>
-                        )}
 
                         {/* Final Steps */}
                         <div className="bg-white dark:bg-gray-900 p-3 rounded border border-blue-200 dark:border-blue-800">
@@ -742,13 +597,9 @@ export default function DeployAgent() {
                       </div>
 
                       <div className="bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded p-3 mt-4">
-                        <p className="text-green-800 dark:text-green-200 font-medium">
-                          {gmxStep === 1 ? '⏳ After Step 1 completes:' : '⏳ After Step 2 completes:'}
-                        </p>
+                        <p className="text-green-800 dark:text-green-200 font-medium">⏳ After execution (~30 sec):</p>
                         <p className="text-green-700 dark:text-green-300 text-xs mt-1">
-                          {gmxStep === 1 
-                            ? 'Click the "2️⃣ Authorize GMX Trading" button above to continue' 
-                            : 'Click "Recheck Status" button above to verify both steps are complete'}
+                          Click "Recheck Status" button above to verify setup is complete
                         </p>
                       </div>
                     </div>

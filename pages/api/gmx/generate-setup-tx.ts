@@ -1,16 +1,14 @@
 /**
  * API: Generate GMX Setup Transaction
  * 
- * Returns the batch transaction data for ONE-CLICK setup
- * User can execute this via Safe Transaction Builder or SDK
+ * Returns the enable module transaction data
+ * GMX V2 doesn't require separate subaccount authorization!
  */
 
 import { NextApiRequest, NextApiResponse } from 'next';
 import { ethers } from 'ethers';
 
 const MODULE_ADDRESS = process.env.TRADING_MODULE_ADDRESS || '0x07627aef95CBAD4a17381c4923Be9B9b93526d3D';
-const GMX_ROUTER = '0x7452c558d45f8afC8c83dAe62C3f8A5BE19c71f6';
-const EXECUTOR_PRIVATE_KEY = process.env.EXECUTOR_PRIVATE_KEY || '';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
@@ -24,38 +22,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(400).json({ error: 'safeAddress required' });
     }
 
-    // Derive executor address
-    let executorAddress = '';
-    if (EXECUTOR_PRIVATE_KEY) {
-      const wallet = new ethers.Wallet(EXECUTOR_PRIVATE_KEY);
-      executorAddress = wallet.address;
-    } else {
-      return res.status(500).json({ error: 'Executor not configured' });
-    }
-
-    // Transaction 1: Enable Module
+    // Transaction: Enable Module (GMX V2 doesn't need authorization!)
     const safeInterface = new ethers.utils.Interface([
       'function enableModule(address module)',
     ]);
     const enableModuleData = safeInterface.encodeFunctionData('enableModule', [MODULE_ADDRESS]);
 
-    // Transaction 2: Authorize GMX Subaccount
-    const gmxInterface = new ethers.utils.Interface([
-      'function setSubaccount(address subaccount, bool authorized)',
-    ]);
-    const authorizeGMXData = gmxInterface.encodeFunctionData('setSubaccount', [
-      executorAddress,
-      true,
-    ]);
-
-    // Batch transaction for Safe
+    // Batch transaction for Safe (single transaction now!)
     const batchTransaction = {
       version: '1.0',
       chainId: '42161',
       createdAt: Date.now(),
       meta: {
         name: 'Maxxit GMX Setup',
-        description: 'ONE-CLICK setup for GMX trading with Maxxit',
+        description: 'Enable trading module for GMX (no authorization needed!)',
         txBuilderVersion: '1.16.1',
       },
       transactions: [
@@ -72,23 +52,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             module: MODULE_ADDRESS,
           },
         },
-        {
-          to: GMX_ROUTER,
-          value: '0',
-          data: authorizeGMXData,
-          contractMethod: {
-            inputs: [
-              { name: 'subaccount', type: 'address' },
-              { name: 'authorized', type: 'bool' },
-            ],
-            name: 'setSubaccount',
-            payable: false,
-          },
-          contractInputsValues: {
-            subaccount: executorAddress,
-            authorized: 'true',
-          },
-        },
       ],
     };
 
@@ -100,20 +63,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         value: '0',
         operation: 0, // CALL
       },
-      {
-        to: GMX_ROUTER,
-        data: authorizeGMXData,
-        value: '0',
-        operation: 0, // CALL
-      },
     ];
 
     res.status(200).json({
       success: true,
       safeAddress,
-      executorAddress,
       moduleAddress: MODULE_ADDRESS,
-      gmxRouter: GMX_ROUTER,
       
       // For Safe Transaction Builder (import JSON)
       transactionBuilderJSON: batchTransaction,
@@ -124,20 +79,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       // Manual instructions
       instructions: {
         step1: 'Go to Safe Transaction Builder',
-        step2: 'Import this JSON or create batch manually',
+        step2: 'Enter Safe address and paste hex data',
         step3: 'Execute transaction',
+        note: 'GMX V2 does NOT require separate authorization!',
         transactions: [
           {
             description: 'Enable Maxxit Trading Module',
             to: safeAddress,
             abi: 'enableModule(address)',
             params: { module: MODULE_ADDRESS },
-          },
-          {
-            description: 'Authorize GMX Executor',
-            to: GMX_ROUTER,
-            abi: 'setSubaccount(address,bool)',
-            params: { subaccount: executorAddress, authorized: true },
           },
         ],
       },
