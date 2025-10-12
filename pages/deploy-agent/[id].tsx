@@ -44,10 +44,11 @@ export default function DeployAgent() {
         .then(res => res.json())
         .then(data => {
           console.log('[Deploy Agent] Fetched agent data:', data);
-          if (data && data[0]) {
-            setAgentName(data[0].name);
-            setAgentVenue(data[0].venue);
-            console.log('[Deploy Agent] Set agentVenue to:', data[0].venue);
+          // API returns single object, not array
+          if (data && data.id) {
+            setAgentName(data.name);
+            setAgentVenue(data.venue);
+            console.log('[Deploy Agent] Set agentVenue to:', data.venue);
           }
         })
         .catch(err => console.error("Failed to load agent:", err));
