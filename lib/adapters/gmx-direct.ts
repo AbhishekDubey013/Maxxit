@@ -55,6 +55,38 @@ export class GMXDirectAdapter {
   }
 
   /**
+   * Step 0: Transfer ETH from Safe to executor for gas costs
+   */
+  private async transferGasFromSafe(safeAddress: string): Promise<{ success: boolean; txHash?: string; error?: string }> {
+    try {
+      console.log('[GMXDirect] Transferring ETH from Safe to executor for gas...');
+
+      const gasAmount = ethers.utils.parseEther('0.005'); // 0.005 ETH should cover gas + execution fees
+      const executorAddress = this.moduleService.getExecutorAddress();
+
+      // Simple ETH transfer (empty data)
+      const result = await this.moduleService.executeFromModule({
+        safeAddress,
+        to: executorAddress,
+        value: gasAmount.toString(),
+        data: '0x',
+      });
+
+      if (result.success) {
+        console.log('[GMXDirect] ✅ Transferred 0.005 ETH for gas');
+      }
+
+      return result;
+    } catch (error: any) {
+      console.error('[GMXDirect] Gas transfer failed:', error.message);
+      return {
+        success: false,
+        error: error.message,
+      };
+    }
+  }
+
+  /**
    * Step 1: Collect 0.2 USDC fee (before GMX trade)
    */
   private async collectTradeFee(safeAddress: string): Promise<{ success: boolean; txHash?: string; error?: string }> {
@@ -133,6 +165,15 @@ export class GMXDirectAdapter {
         positionSize: positionSizeUsd + ' USD',
         acceptablePrice: (priceData.price * slippageFactor).toFixed(2),
       });
+
+      // Step 0: Transfer ETH from Safe to executor for gas
+      const gasResult = await this.transferGasFromSafe(params.safeAddress);
+      if (!gasResult.success) {
+        return {
+          success: false,
+          error: `Gas transfer failed: ${gasResult.error}`,
+        };
+      }
 
       // Step 1: Collect fee
       const feeResult = await this.collectTradeFee(params.safeAddress);
