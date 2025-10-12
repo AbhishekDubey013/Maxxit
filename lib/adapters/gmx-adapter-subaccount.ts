@@ -124,72 +124,32 @@ export class GMXAdapterSubaccount {
   }
 
   /**
-   * Authorize executor as GMX subaccount for a Safe
-   * CRITICAL: One-time setup per Safe
+   * NOTE: GMX V2 AUTHORIZATION NOT NEEDED!
+   * 
+   * GMX V2 on Arbitrum doesn't require explicit subaccount authorization.
+   * Anyone can create orders on behalf of any account, but:
+   * - The position is owned by the Safe wallet (not the executor)
+   * - Funds never leave Safe custody
+   * - The executor can only create/close positions for the Safe
+   * 
+   * These functions are kept for reference but are NOT used in production.
    */
-  async authorizeSubaccount(safeAddress: string): Promise<{ success: boolean; txHash?: string; error?: string }> {
-    try {
-      console.log('[GMX] Authorizing executor as subaccount for Safe:', safeAddress);
 
-      // GMX SubaccountRouter contract
-      const subaccountRouterAbi = [
-        'function setSubaccount(address subaccount, bool authorized) external',
-      ];
+  // /**
+  //  * DEPRECATED: GMX V2 doesn't need this
+  //  */
+  // async authorizeSubaccount(safeAddress: string): Promise<{ success: boolean; txHash?: string; error?: string }> {
+  //   console.log('[GMX] Note: Authorization not needed for GMX V2');
+  //   return { success: true };
+  // }
 
-      const subaccountRouter = new ethers.Contract(
-        GMX_ROUTER,
-        subaccountRouterAbi,
-        this.provider
-      );
-
-      // Build authorization transaction data
-      const data = subaccountRouter.interface.encodeFunctionData('setSubaccount', [
-        this.executor.address,
-        true,
-      ]);
-
-      // User must sign this via Safe UI or multisig
-      console.log('[GMX] Authorization transaction data:', {
-        to: GMX_ROUTER,
-        data,
-        description: `Authorize ${this.executor.address} as GMX subaccount`,
-      });
-
-      return {
-        success: true,
-        txHash: undefined, // User will execute via Safe
-        error: undefined,
-      };
-    } catch (error: any) {
-      console.error('[GMX] Authorization error:', error);
-      return {
-        success: false,
-        error: error.message,
-      };
-    }
-  }
-
-  /**
-   * Check if executor is authorized as subaccount
-   */
-  async isAuthorized(safeAddress: string): Promise<boolean> {
-    try {
-      const subaccountRouterAbi = [
-        'function isSubaccount(address account, address subaccount) external view returns (bool)',
-      ];
-
-      const subaccountRouter = new ethers.Contract(
-        GMX_ROUTER,
-        subaccountRouterAbi,
-        this.provider
-      );
-
-      return await subaccountRouter.isSubaccount(safeAddress, this.executor.address);
-    } catch (error: any) {
-      console.error('[GMX] Check authorization error:', error);
-      return false;
-    }
-  }
+  // /**
+  //  * DEPRECATED: GMX V2 doesn't need this
+  //  */
+  // async isAuthorized(safeAddress: string): Promise<boolean> {
+  //   // Always return true since GMX V2 doesn't require authorization
+  //   return true;
+  // }
 
   /**
    * SECURITY: Validate trade parameters before execution
