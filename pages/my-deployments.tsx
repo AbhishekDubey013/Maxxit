@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Header } from '@components/Header';
+import GMXSetupButton from '@/components/GMXSetupButton';
 import { 
   Wallet, 
   Activity, 
@@ -9,7 +10,8 @@ import {
   Settings,
   Loader2,
   X,
-  Copy
+  Copy,
+  Zap
 } from 'lucide-react';
 
 // Extend Window interface for MetaMask
@@ -238,6 +240,30 @@ export default function MyDeployments() {
                       )}
                     </div>
                   </div>
+
+                  {/* GMX Setup (if GMX agent and not enabled) */}
+                  {deployment.agent.venue === 'GMX' && !deployment.moduleEnabled && (
+                    <div className="pt-4 border-t border-border">
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
+                        <Zap className="w-4 h-4" />
+                        GMX Trading Setup
+                      </div>
+                      <div className="bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-800 rounded-lg p-3 mb-3">
+                        <p className="text-xs text-orange-700 dark:text-orange-300 mb-2">
+                          ⚡ ONE-CLICK setup required before trading
+                        </p>
+                        <ul className="text-xs text-orange-600 dark:text-orange-400 space-y-1 ml-4">
+                          <li>• Enables Maxxit Trading Module</li>
+                          <li>• Authorizes GMX executor</li>
+                          <li>• Sign ONE transaction and you're ready!</li>
+                        </ul>
+                      </div>
+                      <GMXSetupButton 
+                        safeAddress={deployment.safeWallet}
+                        onSetupComplete={() => fetchDeployments()}
+                      />
+                    </div>
+                  )}
 
                   {/* Telegram Connection */}
                   <div className="pt-4 border-t border-border">
