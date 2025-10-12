@@ -65,9 +65,9 @@ async function testGMXManual() {
       return;
     }
 
-    if (parseFloat(ethFormatted) < 0.005) {
-      console.log('\n❌ Insufficient ETH in Safe (need at least 0.005 ETH)');
-      console.log('   Required: 0.005 ETH for gas + execution fees');
+    if (parseFloat(ethFormatted) < 0.003) {
+      console.log('\n❌ Insufficient ETH in Safe (need at least 0.003 ETH)');
+      console.log('   Required: 0.003 ETH for gas + execution fees');
       console.log(`   Send ETH to Safe: ${deployment.safeWallet}`);
       return;
     }
