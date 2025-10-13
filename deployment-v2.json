@@ -1,12 +1,12 @@
 {
-  "address": "0x07627aef95CBAD4a17381c4923Be9B9b93526d3D",
-  "txHash": "0x697d7ad6fdd04da54d1291fb8643c276da6a5ce2744bc912ae4cec78c782db78",
+  "address": "0x2218dD82E2bbFe759BDe741Fa419Bb8A9F658A46",
+  "txHash": "0xfa99848ad8e5b11e8d02a493952d9dec21767425e7c6772c925afca98f3f3070",
   "deployer": "0x3828dFCBff64fD07B963Ef11BafE632260413Ab3",
   "executor": "0x3828dFCBff64fD07B963Ef11BafE632260413Ab3",
   "feeReceiver": "0x3828dFCBff64fD07B963Ef11BafE632260413Ab3",
-  "timestamp": "2025-10-12T07:20:30.237Z",
+  "timestamp": "2025-10-13T14:49:17.742Z",
   "network": "arbitrum",
   "chainId": 42161,
-  "blockNumber": 388675023,
-  "gasUsed": "1885027"
+  "blockNumber": 389129060,
+  "gasUsed": "2000583"
 }
