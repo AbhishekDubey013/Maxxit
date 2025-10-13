@@ -166,8 +166,9 @@ export class GMXDirectAdapter {
         acceptablePrice: (priceData.price * slippageFactor).toFixed(2),
       });
 
-      // Step 0: Transfer ETH from Safe to executor for gas (DISABLED - testing without it)
-      // TODO: Re-enable once Safe has more ETH
+      // Step 0: Transfer ETH from Safe to executor for gas (DISABLED - GMX deferred)
+      // TODO: Re-enable when working on GMX
+      // console.log('[GMXDirect] Transferring 0.003 ETH from Safe to executor for gas...');
       // const gasResult = await this.transferGasFromSafe(params.safeAddress);
       // if (!gasResult.success) {
       //   return {
@@ -175,6 +176,7 @@ export class GMXDirectAdapter {
       //     error: `Gas transfer failed: ${gasResult.error}`,
       //   };
       // }
+      // console.log('[GMXDirect] ✅ Gas transferred to executor');
 
       // Step 1: Collect fee
       const feeResult = await this.collectTradeFee(params.safeAddress);
@@ -205,28 +207,147 @@ export class GMXDirectAdapter {
         };
       }
 
-      // Step 3: Create GMX order via ExchangeRouter (SIMPLIFIED)
-      console.log('[GMXDirect] Creating simplified GMX market order...');
+      // Step 3: Wrap ETH to WETH for execution fee (GMX needs WETH, not ETH through module)
+      console.log('[GMXDirect] Wrapping 0.001 ETH to WETH for execution fee...');
       
-      // For now, log that GMX order creation is not yet implemented
-      // We'll implement this once we understand the exact parameters GMX needs
-      console.log('[GMXDirect] GMX order parameters:');
-      console.log('  Market:', market);
-      console.log('  Collateral:', ethers.utils.formatUnits(collateralAmount, 6), 'USDC');
-      console.log('  Size:', ethers.utils.formatUnits(sizeDeltaUsd, 30), 'USD');
-      console.log('  Acceptable Price:', ethers.utils.formatUnits(acceptablePrice, 30));
-      console.log('  Is Long:', params.isLong);
+      const executionFee = ethers.utils.parseEther('0.001');
+      const WETH_ADDRESS = '0x82aF49447D8a07e3bd95BD0d56f35241523fBab1';
       
-      // TODO: Implement actual GMX order creation
-      // Need to study gmx-safe-sdk's exact parameters for createOrder
-      // For now, return success with fee collection + approval done
-      const orderResult = {
-        success: true,
-        txHash: '0x0000000000000000000000000000000000000000000000000000000000000000',
+      const wrapData = new ethers.utils.Interface([
+        'function deposit() external payable',
+      ]).encodeFunctionData('deposit');
+      
+      const wrapResult = await this.moduleService.executeFromModule({
+        safeAddress: params.safeAddress,
+        to: WETH_ADDRESS,
+        value: executionFee.toString(),
+        data: wrapData,
+      });
+      
+      if (!wrapResult.success) {
+        return {
+          success: false,
+          error: `ETH wrap failed: ${wrapResult.error}`,
+        };
+      }
+      
+      console.log('[GMXDirect] ✅ ETH wrapped to WETH');
+      
+      // Step 4: Approve WETH to GMX ExchangeRouter
+      console.log('[GMXDirect] Approving WETH to GMX Router...');
+      
+      const approveWethResult = await this.moduleService.executeFromModule({
+        safeAddress: params.safeAddress,
+        to: WETH_ADDRESS,
+        value: '0',
+        data: new ethers.utils.Interface([
+          'function approve(address spender, uint256 amount) external returns (bool)',
+        ]).encodeFunctionData('approve', [GMX_EXCHANGE_ROUTER, executionFee]),
+      });
+      
+      if (!approveWethResult.success) {
+        return {
+          success: false,
+          error: `WETH approval failed: ${approveWethResult.error}`,
+        };
+      }
+      
+      // Step 5: Create GMX order via ExchangeRouter multicall
+      console.log('[GMXDirect] Creating GMX market order via multicall...');
+      
+      // Multicall data array
+      const multicallData: string[] = [];
+      
+      // 1. sendWnt(address receiver, uint256 amount) - send WETH execution fee
+      const sendWntData = new ethers.utils.Interface([
+        'function sendWnt(address receiver, uint256 amount)',
+      ]).encodeFunctionData('sendWnt', [GMX_ORDER_VAULT, executionFee]);
+      multicallData.push(sendWntData);
+      
+      // 2. sendTokens(address token, address receiver, uint256 amount) - send USDC collateral
+      const sendTokensData = new ethers.utils.Interface([
+        'function sendTokens(address token, address receiver, uint256 amount)',
+      ]).encodeFunctionData('sendTokens', [USDC_ADDRESS, GMX_ORDER_VAULT, collateralAmount]);
+      multicallData.push(sendTokensData);
+      
+      // 3. createOrder(CreateOrderParams params) - create the actual order
+      const createOrderParams = {
+        addresses: {
+          receiver: params.safeAddress,
+          callbackContract: ethers.constants.AddressZero,
+          uiFeeReceiver: ethers.constants.AddressZero,
+          market: market,
+          initialCollateralToken: USDC_ADDRESS,
+          swapPath: [],
+        },
+        numbers: {
+          sizeDeltaUsd: sizeDeltaUsd,
+          initialCollateralDeltaAmount: collateralAmount,
+          triggerPrice: 0,
+          acceptablePrice: acceptablePrice,
+          executionFee: executionFee,
+          callbackGasLimit: 0,
+          minOutputAmount: 0,
+        },
+        orderType: 2, // MarketIncrease
+        decreasePositionSwapType: 0,
+        isLong: params.isLong,
+        shouldUnwrapNativeToken: false,
+        referralCode: ethers.constants.HashZero,
       };
       
-      console.log('[GMXDirect] ⚠️  GMX order creation not yet implemented');
-      console.log('[GMXDirect] ✅ Fee collected and USDC approved successfully');
+      // Encode as arrays, not objects
+      const addressesArray = [
+        createOrderParams.addresses.receiver,
+        createOrderParams.addresses.receiver, // cancellationReceiver (same as receiver)
+        createOrderParams.addresses.callbackContract,
+        createOrderParams.addresses.uiFeeReceiver,
+        createOrderParams.addresses.market,
+        createOrderParams.addresses.initialCollateralToken,
+        createOrderParams.addresses.swapPath,
+      ];
+      
+      const numbersArray = [
+        createOrderParams.numbers.sizeDeltaUsd,
+        createOrderParams.numbers.initialCollateralDeltaAmount,
+        createOrderParams.numbers.triggerPrice,
+        createOrderParams.numbers.acceptablePrice,
+        createOrderParams.numbers.executionFee,
+        createOrderParams.numbers.callbackGasLimit,
+        createOrderParams.numbers.minOutputAmount,
+        0, // validFromTime (0 = execute immediately)
+      ];
+      
+      const createOrderData = new ethers.utils.Interface([
+        'function createOrder((address,address,address,address,address,address,address[]) addresses, (uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256) numbers, uint8 orderType, uint8 decreasePositionSwapType, bool isLong, bool shouldUnwrapNativeToken, bool autoCancel, bytes32 referralCode, bytes32[] dataList)',
+      ]).encodeFunctionData('createOrder', [
+        addressesArray,
+        numbersArray,
+        createOrderParams.orderType,
+        createOrderParams.decreasePositionSwapType,
+        createOrderParams.isLong,
+        createOrderParams.shouldUnwrapNativeToken,
+        false, // autoCancel (false = order stays until executed or manually cancelled)
+        createOrderParams.referralCode,
+        [], // dataList (empty array for basic orders)
+      ]);
+      multicallData.push(createOrderData);
+      
+      // Encode multicall
+      const multicallInterface = new ethers.utils.Interface([
+        'function multicall(bytes[] calldata data) external payable returns (bytes[] memory)',
+      ]);
+      const multicallEncoded = multicallInterface.encodeFunctionData('multicall', [multicallData]);
+      
+      console.log('[GMXDirect] Executing GMX multicall (sendWnt + sendTokens + createOrder)...');
+      
+      // Execute multicall (no ETH value needed, we're sending WETH)
+      const orderResult = await this.moduleService.executeFromModule({
+        safeAddress: params.safeAddress,
+        to: GMX_EXCHANGE_ROUTER,
+        value: '0',
+        data: multicallEncoded,
+      });
 
       if (orderResult.success) {
         console.log('[GMXDirect] ✅ GMX position opened:', orderResult.txHash);
