@@ -483,13 +483,23 @@ export class SafeModuleService {
         dexRouter,
       });
 
+      // V2 module doesn't have approveTokenForDex function
+      // Instead, use executeFromModule to call ERC20.approve() directly
+      const erc20Abi = ['function approve(address spender, uint256 amount) returns (bool)'];
+      const erc20Interface = new ethers.utils.Interface(erc20Abi);
+      const approveData = erc20Interface.encodeFunctionData('approve', [
+        dexRouter,
+        ethers.constants.MaxUint256, // Approve max amount
+      ]);
+
       // Get next nonce to prevent race conditions
       const nonce = await this.getNextNonce();
 
-      const tx = await this.module.approveTokenForDex(
+      const tx = await this.module.executeFromModule(
         safeAddress,
-        tokenAddress,
-        dexRouter,
+        tokenAddress, // to: token contract
+        0, // value: 0
+        approveData, // data: approve(dexRouter, maxUint256)
         {
           gasLimit: 300000,
           nonce, // Explicit nonce to prevent conflicts
