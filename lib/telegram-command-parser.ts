@@ -176,14 +176,33 @@ Action must be exactly: BUY, SELL, CLOSE, STATUS, HELP, or UNKNOWN`
     
     const upperCommand = command.toUpperCase();
     
+    // First, try to match "of [TOKEN]" pattern (most explicit)
+    const ofPattern = /\bOF\s+([A-Z]+)/i;
+    const ofMatch = upperCommand.match(ofPattern);
+    if (ofMatch) {
+      const potentialToken = ofMatch[1];
+      if (tokens.includes(potentialToken)) {
+        // Convert BTC to WBTC and ETH to WETH
+        if (potentialToken === 'ETH') return 'WETH';
+        if (potentialToken === 'BTC') return 'WBTC';
+        return potentialToken;
+      }
+    }
+    
+    // Fallback: Look for any token, but exclude amount context
+    // Remove common amount phrases to avoid matching USDC in "1 USDC"
+    const cleanedCommand = upperCommand
+      .replace(/\d+(\.\d+)?\s*(USDC|USD|DOLLARS?)/gi, '')
+      .replace(/\bUSDC\s+OF\b/gi, ''); // Remove "USDC of" pattern
+    
     // Sort by length (longest first) to match multi-char tokens first
     const sortedTokens = tokens.sort((a, b) => b.length - a.length);
     
     for (const token of sortedTokens) {
-      if (upperCommand.includes(token)) {
+      if (cleanedCommand.includes(token)) {
         // Convert BTC to WBTC and ETH to WETH for consistency
-        if (token === 'ETH' && !upperCommand.includes('WETH')) return 'WETH';
-        if (token === 'BTC' && !upperCommand.includes('WBTC')) return 'WBTC';
+        if (token === 'ETH' && !cleanedCommand.includes('WETH')) return 'WETH';
+        if (token === 'BTC' && !cleanedCommand.includes('WBTC')) return 'WBTC';
         return token;
       }
     }
