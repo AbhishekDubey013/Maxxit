@@ -45,8 +45,8 @@ User command: "${command}"
 Return ONLY valid JSON in this format:
 {
   "action": "BUY" | "SELL" | "CLOSE" | "STATUS" | "HELP" | "UNKNOWN",
-  "token": "WETH" | "ARB" | null,
-  "amount": 10.5 | null,
+  "token": string | null,
+  "amount": number | null,
   "amountType": "USDC" | "PERCENTAGE" | null,
   "confidence": 0.9,
   "reasoning": "Brief explanation"
@@ -55,10 +55,12 @@ Return ONLY valid JSON in this format:
 Examples:
 "Buy 10 USDC of WETH" → {"action":"BUY","token":"WETH","amount":10,"amountType":"USDC","confidence":1.0}
 "Sell 50% of my ARB" → {"action":"SELL","token":"ARB","amount":50,"amountType":"PERCENTAGE","confidence":1.0}
-"Close my WETH position" → {"action":"CLOSE","token":"WETH","amount":null,"amountType":null,"confidence":1.0}
+"Buy 2 USDC of LINK" → {"action":"BUY","token":"LINK","amount":2,"amountType":"USDC","confidence":1.0}
+"Close my PEPE position" → {"action":"CLOSE","token":"PEPE","amount":null,"amountType":null,"confidence":1.0}
 "What's my status?" → {"action":"STATUS","token":null,"amount":null,"amountType":null,"confidence":1.0}
 
-Token must be one of: WETH, ARB, or null
+Supported tokens: BTC, ETH, WETH, WBTC, USDC, USDT, DAI, ARB, GMX, LINK, UNI, AAVE, SOL, AVAX, OP, POL, DOGE, PEPE, LDO, CRV, MKR, AERO, SNX, BAL, COMP, YFI, SUSHI, GRT, PENDLE
+Token should be uppercase ticker symbol from the list above, or null
 Action must be exactly: BUY, SELL, CLOSE, STATUS, HELP, or UNKNOWN`
           }]
         }),
@@ -163,11 +165,26 @@ Action must be exactly: BUY, SELL, CLOSE, STATUS, HELP, or UNKNOWN`
    * Extract token symbol from command
    */
   private extractToken(command: string): string | null {
-    const tokens = ['WETH', 'ARB', 'ETH'];
+    // All supported tokens on Arbitrum
+    const tokens = [
+      'WETH', 'WBTC', 'ARB', 'LINK', 'UNI', 'AAVE', 'GMX', 
+      'USDC', 'USDT', 'DAI', 'SOL', 'AVAX', 'OP', 'POL',
+      'DOGE', 'PEPE', 'LDO', 'CRV', 'MKR', 'AERO', 'SNX',
+      'BAL', 'COMP', 'YFI', 'SUSHI', 'GRT', 'PENDLE',
+      'BTC', 'ETH' // ETH will be converted to WETH
+    ];
     
-    for (const token of tokens) {
-      if (command.toUpperCase().includes(token)) {
-        return token === 'ETH' ? 'WETH' : token; // Convert ETH to WETH
+    const upperCommand = command.toUpperCase();
+    
+    // Sort by length (longest first) to match multi-char tokens first
+    const sortedTokens = tokens.sort((a, b) => b.length - a.length);
+    
+    for (const token of sortedTokens) {
+      if (upperCommand.includes(token)) {
+        // Convert BTC to WBTC and ETH to WETH for consistency
+        if (token === 'ETH' && !upperCommand.includes('WETH')) return 'WETH';
+        if (token === 'BTC' && !upperCommand.includes('WBTC')) return 'WBTC';
+        return token;
       }
     }
 
