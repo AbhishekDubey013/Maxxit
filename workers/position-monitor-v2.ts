@@ -143,8 +143,10 @@ export async function monitorPositions() {
           
           // For LONG positions
           if (side === 'BUY' || side === 'LONG') {
-            // Track highest price
-            const highestPrice = trailingParams.highestPrice || currentPrice;
+            // Track highest price with 3% buffer on first initialization
+            // This prevents premature exit from normal market volatility
+            const initialHighest = entryPrice * 1.03; // 3% buffer above entry
+            const highestPrice = trailingParams.highestPrice || initialHighest;
             const newHighest = Math.max(highestPrice, currentPrice);
             
             if (newHighest > highestPrice) {

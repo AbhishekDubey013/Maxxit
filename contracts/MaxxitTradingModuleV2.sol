@@ -336,6 +336,9 @@ contract MaxxitTradingModuleV2 {
         // First approve tokenIn to Uniswap if needed
         _ensureTokenApproval(safe, tokenIn, UNISWAP_ROUTER);
         
+        // Track USDC balance BEFORE swap to calculate actual output
+        uint256 usdcBefore = IERC20(USDC).balanceOf(safe);
+        
         // Execute swap
         bytes memory swapData = abi.encodeWithSelector(
             IUniswapV3Router.exactInputSingle.selector,
@@ -359,11 +362,11 @@ contract MaxxitTradingModuleV2 {
         );
         require(success, "Close swap failed");
         
-        // Get USDC received
-        uint256 currentUSDC = IERC20(USDC).balanceOf(safe);
-        amountOut = currentUSDC; // Simplified
+        // Get USDC received from THIS swap (not total balance!)
+        uint256 usdcAfter = IERC20(USDC).balanceOf(safe);
+        amountOut = usdcAfter - usdcBefore; // Actual swap output
         
-        // Calculate profit/loss
+        // Calculate profit/loss based on swap output only
         if (amountOut > entryValueUSDC) {
             uint256 profit = amountOut - entryValueUSDC;
             uint256 profitShare = (profit * PROFIT_SHARE_BPS) / 10000; // 20%
