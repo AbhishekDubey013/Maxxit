@@ -976,6 +976,19 @@ export class TradeExecutor {
         6
       ).toString();
 
+      // Get current price for exit price recording
+      const { getTokenPriceUSD } = await import('../lib/price-oracle');
+      const exitPrice = await getTokenPriceUSD(position.tokenSymbol, chainId);
+      
+      // Calculate PnL
+      const entryPrice = parseFloat(position.entryPrice.toString());
+      let pnl: number;
+      if (position.side === 'LONG') {
+        pnl = (exitPrice - entryPrice) * actualQty;
+      } else {
+        pnl = (entryPrice - exitPrice) * actualQty;
+      }
+
       // Execute close position through module (with profit sharing)
       const result = await moduleService.closePosition({
         safeAddress: position.deployment.safeWallet,
@@ -994,14 +1007,15 @@ export class TradeExecutor {
         };
       }
 
-      // Update position as closed with actual qty
+      // Update position as closed with actual exit price and PnL
       await prisma.position.update({
         where: { id: position.id },
         data: {
           closedAt: new Date(),
-          exitPrice: 0, // TODO: Calculate from swap
+          exitPrice: exitPrice,
           exitTxHash: result.txHash,
           qty: actualQty, // Update to actual closed qty
+          pnl: pnl,
         },
       });
 

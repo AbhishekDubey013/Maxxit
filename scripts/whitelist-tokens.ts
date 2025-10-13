@@ -1,93 +1,85 @@
 /**
- * Whitelist tokens in the trading module
+ * Whitelist trading tokens for the Safe
  */
 
 import { ethers } from 'ethers';
-import * as dotenv from 'dotenv';
 
-dotenv.config();
+const RPC = process.env.ARBITRUM_RPC || 'https://arb1.arbitrum.io/rpc';
+const MODULE_OWNER_KEY = process.env.EXECUTOR_PRIVATE_KEY; // Module owner
+const SAFE = '0x9A85f7140776477F1A79Ea29b7A32495636f5e20';
+const MODULE = '0x2218dD82E2bbFe759BDe741Fa419Bb8A9F658A46';
 
-const MODULE_ADDRESS = process.env.MODULE_ADDRESS || '0x74437d894C8E8A5ACf371E10919c688ae79E89FA';
-const PRIVATE_KEY = process.env.MODULE_OWNER_PRIVATE_KEY || process.env.EXECUTOR_PRIVATE_KEY;
-const RPC_URL = process.env.ARBITRUM_RPC_URL || 'https://arb1.arbitrum.io/rpc';
-
-// Token addresses on Arbitrum One
-const TOKENS = {
-  USDC: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831',
-  WETH: '0x82aF49447D8a07e3bd95BD0d56f35241523fBab1',
-  ARB: '0x912CE59144191C1204E64559FE8253a0e49E6548',
-};
+// Tokens to whitelist (Arbitrum addresses)
+const TOKENS_TO_WHITELIST = [
+  { symbol: 'WETH', address: '0x82aF49447D8a07e3bd95BD0d56f35241523fBab1' },
+  { symbol: 'WBTC', address: '0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f' },
+  { symbol: 'ARB', address: '0x912CE59144191C1204E64559FE8253a0e49E6548' },
+  { symbol: 'LINK', address: '0xf97f4df75117a78c1A5a0DBb814Af92458539FB4' },
+  { symbol: 'UNI', address: '0xFa7F8980b0f1E64A2062791cc3b0871572f1F7f0' },
+  { symbol: 'PENDLE', address: '0x0c880f6761F1af8d9Aa9C466984b80DAb9a8c9e8' },
+  { symbol: 'GMX', address: '0xfc5A1A6EB076a2C7aD06eD22C90d7E710E35ad0a' },
+  { symbol: 'GRT', address: '0x9623063377AD1B27544C965cCd7342f7EA7e88C7' },
+  { symbol: 'AAVE', address: '0xba5DdD1f9d7F570dc94a51479a000E3BCE967196' },
+  { symbol: 'CRV', address: '0x11cDb42B0EB46D95f990BeDD4695A6e3fA034978' },
+  { symbol: 'SNX', address: '0xcBA56Cd8216FCBBF3fA6DF6137F3147cBcA37D60' },
+  { symbol: 'LDO', address: '0x13Ad51ed4F1B7e9Dc168d8a00cB3f4dDD85EfA60' },
+  { symbol: 'PEPE', address: '0x25d887Ce7a35172C62FeBFD67a1856F20FaEbB00' },
+  { symbol: 'WIF', address: '0x3a1429d50E0cBBc45c9f3e8Da072C7473A84193D' },
+  { symbol: 'BONK', address: '0x09199d9A5F4448D0848e4395D065e1ad9c4a1F74' },
+  { symbol: 'RNDR', address: '0xC8a4EeA31E9B6b61c406DF013DD4FEc76f21E279' },
+  { symbol: 'FET', address: '0x4BE87C766A7CE11D5Cc864b6C3Abb7457dCC4cC9' },
+  { symbol: 'AVAX', address: '0x565609fAF65B92F7be02468acF86f8979423e514' },
+  { symbol: 'MATIC', address: '0x561877b6b3DD7651313794e5F2894B2F18bE0766' },
+  { symbol: 'SOL', address: '0x2bcC6D6CdBbDC0a4071e48bb3B969b06B3330c07' },
+];
 
 const MODULE_ABI = [
-  'function setTokenWhitelist(address token, bool status) external',
-  'function whitelistedTokens(address) external view returns (bool)',
-  'function moduleOwner() external view returns (address)',
+  'function setTokenWhitelist(address safe, address token, bool enabled) external',
+  'function isTokenWhitelisted(address safe, address token) external view returns (bool)',
 ];
 
 async function main() {
-  if (!PRIVATE_KEY) {
-    throw new Error('MODULE_OWNER_PRIVATE_KEY or EXECUTOR_PRIVATE_KEY not found in .env');
+  if (!MODULE_OWNER_KEY) {
+    console.error('❌ EXECUTOR_PRIVATE_KEY not found in .env');
+    process.exit(1);
   }
 
-  console.log('[TokenWhitelist] Connecting to Arbitrum...');
-  const provider = new ethers.providers.JsonRpcProvider(RPC_URL);
-  const wallet = new ethers.Wallet(PRIVATE_KEY, provider);
-  
-  console.log('[TokenWhitelist] Wallet address:', wallet.address);
-  console.log('[TokenWhitelist] Module address:', MODULE_ADDRESS);
-  
-  const module = new ethers.Contract(MODULE_ADDRESS, MODULE_ABI, wallet);
-  
-  // Check module owner
-  const moduleOwner = await module.moduleOwner();
-  console.log('[TokenWhitelist] Module owner:', moduleOwner);
-  console.log('[TokenWhitelist] Our wallet:', wallet.address);
-  
-  if (moduleOwner.toLowerCase() !== wallet.address.toLowerCase()) {
-    console.warn('[TokenWhitelist] ⚠️  WARNING: You are not the module owner!');
-    console.warn('[TokenWhitelist] Owner:', moduleOwner);
-    console.warn('[TokenWhitelist] You:', wallet.address);
-    return;
-  }
-  
-  // Check current whitelist status
-  console.log('\n[TokenWhitelist] Current whitelist status:');
-  for (const [name, address] of Object.entries(TOKENS)) {
-    const isWhitelisted = await module.whitelistedTokens(address);
-    console.log(`  ${name} (${address}): ${isWhitelisted ? '✅ Whitelisted' : '❌ Not whitelisted'}`);
-  }
-  
-  // Whitelist tokens that aren't already whitelisted
-  console.log('\n[TokenWhitelist] Whitelisting tokens...');
-  for (const [name, address] of Object.entries(TOKENS)) {
-    const isWhitelisted = await module.whitelistedTokens(address);
-    
-    if (isWhitelisted) {
-      console.log(`  ${name}: Already whitelisted ✅`);
-      continue;
+  console.log('🔧 Whitelisting tokens for Safe...\n');
+  console.log(`Safe: ${SAFE}`);
+  console.log(`Module: ${MODULE}\n`);
+
+  const provider = new ethers.providers.JsonRpcProvider(RPC);
+  const signer = new ethers.Wallet(MODULE_OWNER_KEY, provider);
+  const module = new ethers.Contract(MODULE, MODULE_ABI, signer);
+
+  console.log(`Module Owner: ${signer.address}\n`);
+
+  for (const token of TOKENS_TO_WHITELIST) {
+    try {
+      // Check if already whitelisted
+      const isWhitelisted = await module.isTokenWhitelisted(SAFE, token.address);
+      
+      if (isWhitelisted) {
+        console.log(`✅ ${token.symbol} already whitelisted`);
+        continue;
+      }
+
+      console.log(`⏳ Whitelisting ${token.symbol}...`);
+      
+      const tx = await module.setTokenWhitelist(SAFE, token.address, true);
+      console.log(`   TX: ${tx.hash}`);
+      
+      await tx.wait();
+      console.log(`   ✅ ${token.symbol} whitelisted!\n`);
+      
+    } catch (error: any) {
+      console.error(`   ❌ Failed to whitelist ${token.symbol}:`, error.message, '\n');
     }
-    
-    console.log(`  ${name}: Whitelisting...`);
-    const tx = await module.setTokenWhitelist(address, true);
-    console.log(`  ${name}: TX sent: ${tx.hash}`);
-    await tx.wait();
-    console.log(`  ${name}: Confirmed ✅`);
   }
-  
-  // Verify final status
-  console.log('\n[TokenWhitelist] Final whitelist status:');
-  for (const [name, address] of Object.entries(TOKENS)) {
-    const isWhitelisted = await module.whitelistedTokens(address);
-    console.log(`  ${name}: ${isWhitelisted ? '✅' : '❌'}`);
-  }
-  
-  console.log('\n[TokenWhitelist] ✅ All done!');
+
+  console.log('═══════════════════════════════════════════════════════');
+  console.log('✅ Token whitelisting complete!\n');
+  console.log('You can now trade these tokens via Telegram! 🚀\n');
 }
 
-main()
-  .then(() => process.exit(0))
-  .catch((error) => {
-    console.error('[TokenWhitelist] ❌ Error:', error);
-    process.exit(1);
-  });
-
+main();

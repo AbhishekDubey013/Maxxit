@@ -59,8 +59,9 @@ Examples:
 "Close my PEPE position" → {"action":"CLOSE","token":"PEPE","amount":null,"amountType":null,"confidence":1.0}
 "What's my status?" → {"action":"STATUS","token":null,"amount":null,"amountType":null,"confidence":1.0}
 
-Supported tokens: BTC, ETH, WETH, WBTC, USDC, USDT, DAI, ARB, GMX, LINK, UNI, AAVE, SOL, AVAX, OP, POL, DOGE, PEPE, LDO, CRV, MKR, AERO, SNX, BAL, COMP, YFI, SUSHI, GRT, PENDLE
+Supported tokens: WETH, WBTC, ARB, LINK, UNI, PENDLE, GMX, GRT, AAVE, CRV, LDO, PEPE, MATIC, SOL
 Token should be uppercase ticker symbol from the list above, or null
+Note: ETH → auto-convert to WETH, BTC → auto-convert to WBTC
 Action must be exactly: BUY, SELL, CLOSE, STATUS, HELP, or UNKNOWN`
           }]
         }),
@@ -167,10 +168,8 @@ Action must be exactly: BUY, SELL, CLOSE, STATUS, HELP, or UNKNOWN`
   private extractToken(command: string): string | null {
     // All supported tokens on Arbitrum
     const tokens = [
-      'WETH', 'WBTC', 'ARB', 'LINK', 'UNI', 'AAVE', 'GMX', 
-      'USDC', 'USDT', 'DAI', 'SOL', 'AVAX', 'OP', 'POL',
-      'DOGE', 'PEPE', 'LDO', 'CRV', 'MKR', 'AERO', 'SNX',
-      'BAL', 'COMP', 'YFI', 'SUSHI', 'GRT', 'PENDLE',
+      'WETH', 'WBTC', 'ARB', 'LINK', 'UNI', 'PENDLE', 'GMX', 
+      'GRT', 'AAVE', 'CRV', 'LDO', 'PEPE', 'MATIC', 'SOL',
       'BTC', 'ETH' // ETH will be converted to WETH
     ];
     
