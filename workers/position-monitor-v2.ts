@@ -143,10 +143,10 @@ export async function monitorPositions() {
           
           // For LONG positions
           if (side === 'BUY' || side === 'LONG') {
-            // Track highest price with 3% buffer on first initialization
-            // This prevents premature exit from normal market volatility
-            const initialHighest = entryPrice * 1.03; // 3% buffer above entry
-            const highestPrice = trailingParams.highestPrice || initialHighest;
+            // Track highest price - only activate trailing stop if price has gone UP from entry
+            // This prevents immediate exit from fictitious "buffer" price
+            const activationThreshold = entryPrice * 1.03; // Need 3% gain to activate
+            const highestPrice = trailingParams.highestPrice || entryPrice; // Start from entry, not buffered
             const newHighest = Math.max(highestPrice, currentPrice);
             
             if (newHighest > highestPrice) {
@@ -162,12 +162,50 @@ export async function monitorPositions() {
               });
             }
 
-            // Check if price dropped by trailing %
-            const trailingStopPrice = newHighest * (1 - trailingPercent / 100);
-            if (currentPrice <= trailingStopPrice) {
-              shouldClose = true;
-              closeReason = 'TRAILING_STOP';
-              console.log(`   🔴 Trailing stop triggered! High: $${newHighest.toFixed(2)}, Stop: $${trailingStopPrice.toFixed(2)}`);
+            // Only activate trailing stop if price has reached activation threshold
+            if (newHighest >= activationThreshold) {
+              // Trailing stop is now active - check if price dropped by trailing %
+              const trailingStopPrice = newHighest * (1 - trailingPercent / 100);
+              if (currentPrice <= trailingStopPrice) {
+                shouldClose = true;
+                closeReason = 'TRAILING_STOP';
+                console.log(`   🔴 Trailing stop triggered! High: $${newHighest.toFixed(2)}, Stop: $${trailingStopPrice.toFixed(2)}`);
+              }
+            } else {
+              // Trailing stop not yet active - waiting for 3% gain
+              console.log(`   ⏳ Trailing stop inactive. Need +3% gain to activate (current: ${pnlPercent.toFixed(2)}%)`);
+            }
+          } else {
+            // For SHORT positions
+            const activationThreshold = entryPrice * 0.97; // Need 3% drop to activate
+            const lowestPrice = trailingParams.lowestPrice || entryPrice; // Start from entry
+            const newLowest = Math.min(lowestPrice, currentPrice);
+            
+            if (newLowest < lowestPrice) {
+              // Update lowest price in DB
+              await prisma.position.update({
+                where: { id: position.id },
+                data: {
+                  trailingParams: {
+                    ...trailingParams,
+                    lowestPrice: newLowest,
+                  },
+                },
+              });
+            }
+
+            // Only activate trailing stop if price has dropped below activation threshold
+            if (newLowest <= activationThreshold) {
+              // Trailing stop is now active - check if price rose by trailing %
+              const trailingStopPrice = newLowest * (1 + trailingPercent / 100);
+              if (currentPrice >= trailingStopPrice) {
+                shouldClose = true;
+                closeReason = 'TRAILING_STOP';
+                console.log(`   🔴 Trailing stop triggered! Low: $${newLowest.toFixed(2)}, Stop: $${trailingStopPrice.toFixed(2)}`);
+              }
+            } else {
+              // Trailing stop not yet active - waiting for 3% drop
+              console.log(`   ⏳ Trailing stop inactive. Need +3% gain to activate (current: ${pnlPercent.toFixed(2)}%)`);
             }
           }
         }
