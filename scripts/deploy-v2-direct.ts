@@ -127,6 +127,7 @@ async function main() {
   const factory = new ethers.ContractFactory(abi, bytecode, deployer);
   const contract = await factory.deploy(executor.address, feeReceiver, {
     gasLimit: 3000000, // Set explicit gas limit
+    // Use auto gas price (no manual override)
   });
 
   console.log('⏳ Waiting for deployment transaction...');
