@@ -101,7 +101,7 @@ export default function DocsPage() {
                   <p className="text-foreground">
                     <strong>Maxxit</strong> is a <strong className="text-green-600">fully non-custodial</strong> DeFi trading platform 
                     that enables users to deploy AI-powered trading agents that execute trades autonomously on <strong>your own Safe wallet</strong>. 
-                    Agents monitor crypto Twitter (X) accounts for signals and execute trades 24/7 while you maintain complete control over your funds.
+                    Agents process multi-parameter market signals and execute trades 24/7 while you maintain complete control over your funds.
                   </p>
                   <div className="bg-green-50 dark:bg-green-950/20 p-4 rounded-lg border border-green-200 dark:border-green-800 mb-4">
                     <h4 className="font-semibold mb-2 flex items-center gap-2">
@@ -123,7 +123,7 @@ export default function DocsPage() {
                     <div className="p-4 border rounded-md">
                       <h4 className="font-semibold mb-2">⚡ Gasless Trading</h4>
                       <p className="text-sm text-muted-foreground">
-                        Your Safe wallet pays gas fees. No need to hold ETH in your executor wallet or worry about gas management.
+                        Maxxit system pays for all gas fees. Trade with just USDC - no need to hold ETH or worry about gas management.
                       </p>
                     </div>
                     <div className="p-4 border rounded-md">
@@ -159,14 +159,14 @@ export default function DocsPage() {
                       <strong>Connect Your Safe Wallet</strong>
                       <p className="ml-6 text-sm text-muted-foreground mt-1">
                         Connect your Arbitrum Safe wallet (or create one at <a href="https://app.safe.global" target="_blank" className="text-blue-600 hover:underline">app.safe.global</a>). 
-                        Fund it with USDC for trading and ETH for gas fees.
+                        Fund it with USDC for trading. Gas fees are handled by Maxxit - no need to hold ETH.
                       </p>
                     </li>
                     <li>
                       <strong>Browse the Agent Marketplace</strong>
                       <p className="ml-6 text-sm text-muted-foreground mt-1">
-                        Explore agents created by the community. Each agent tracks specific X accounts and has its own trading strategy. 
-                        Review performance metrics and the X accounts they monitor before deploying.
+                        Explore agents created by the community. Each agent uses multi-parameter analysis with its own unique strategy configuration. 
+                        Review performance metrics, Impact Factor scores, and risk parameters before deploying.
                       </p>
                     </li>
                     <li>
@@ -179,7 +179,7 @@ export default function DocsPage() {
                     <li>
                       <strong>Fund and Activate</strong>
                       <p className="ml-6 text-sm text-muted-foreground mt-1">
-                        Approve USDC to the module and initialize capital tracking. Your agent will begin monitoring X accounts and executing trades when signals are detected.
+                        Approve USDC to the module and initialize capital tracking. Your agent will begin processing multi-parameter market signals and executing trades automatically.
                       </p>
                     </li>
                     <li>
@@ -781,8 +781,8 @@ export default function DocsPage() {
                       <h5 className="font-semibold mb-2">⚡ Gasless Trading Experience</h5>
                       <p className="text-sm text-muted-foreground">
                         Unlike traditional DeFi trading where you need to manage ETH for gas fees, Maxxit provides a <strong>gasless experience</strong>. 
-                        Your Safe wallet handles all gas payments automatically, so you only need to hold USDC for trading. 
-                        No complex gas management, no transaction failures due to insufficient ETH.
+                        The Maxxit system sponsors all gas costs, so you only need to hold USDC for trading. 
+                        No complex gas management, no transaction failures due to insufficient ETH, no need to bridge ETH to Arbitrum.
                       </p>
                     </div>
                     
@@ -934,8 +934,8 @@ export default function DocsPage() {
                       <li>Diversify across multiple agents and tokens</li>
                       <li>Monitor your deployments daily via dashboard or Telegram</li>
                       <li>Keep 10-20% of your Safe balance in USDC for fees</li>
-                      <li>Ensure your Safe has ETH for gas (~0.005 ETH minimum)</li>
-                      <li>Review agent performance and X accounts before deploying</li>
+                      <li>Only USDC is required - Maxxit covers all gas costs</li>
+                      <li>Review agent performance and signal sources before deploying</li>
                       <li>Set realistic expectations - most strategies have 40-60% win rates</li>
                       <li>Revoke module access if you want to pause trading</li>
                     </ul>
