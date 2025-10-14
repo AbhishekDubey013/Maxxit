@@ -3,8 +3,16 @@ import { PrismaClient } from '@prisma/client';
 import { insertAgentDeploymentSchema } from '@shared/schema';
 import { z } from 'zod';
 import { relayerService } from '../../../lib/relayer';
+import { ethers } from 'ethers';
 
 const prisma = new PrismaClient();
+
+const ARBITRUM_RPC = process.env.ARBITRUM_RPC || 'https://arb1.arbitrum.io/rpc';
+const MODULE_ADDRESS = process.env.TRADING_MODULE_ADDRESS || '0x2218dD82E2bbFe759BDe741Fa419Bb8A9F658A46';
+
+const SAFE_ABI = [
+  'function isModuleEnabled(address module) view returns (bool)',
+];
 
 export default async function handler(
   req: NextApiRequest,
@@ -53,13 +61,51 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse) {
     },
   });
 
-  // Add telegramLinked flag to response
-  const deploymentsWithTelegram = deployments.map(d => ({
-    ...d,
-    telegramLinked: d.telegramUsers.length > 0
-  }));
+  // PERMANENT FIX: Check on-chain module status and auto-sync database
+  const provider = new ethers.providers.JsonRpcProvider(ARBITRUM_RPC);
+  const deploymentsWithStatus = await Promise.all(
+    deployments.map(async (deployment) => {
+      try {
+        // Check on-chain module status
+        const safeContract = new ethers.Contract(
+          deployment.safeWallet,
+          SAFE_ABI,
+          provider
+        );
+        const isModuleEnabledOnChain = await safeContract.isModuleEnabled(MODULE_ADDRESS);
+        
+        // If database is out of sync, update it
+        if (deployment.moduleEnabled !== isModuleEnabledOnChain) {
+          console.log(`[Deployments API] Syncing module status for ${deployment.safeWallet}: DB=${deployment.moduleEnabled} → OnChain=${isModuleEnabledOnChain}`);
+          await prisma.agentDeployment.update({
+            where: { id: deployment.id },
+            data: {
+              moduleEnabled: isModuleEnabledOnChain,
+              moduleAddress: MODULE_ADDRESS, // Ensure correct module address
+            },
+          });
+          // Update local object
+          deployment.moduleEnabled = isModuleEnabledOnChain;
+          deployment.moduleAddress = MODULE_ADDRESS;
+        }
+        
+        return {
+          ...deployment,
+          telegramLinked: deployment.telegramUsers.length > 0,
+          moduleEnabled: isModuleEnabledOnChain, // Always use on-chain truth
+        };
+      } catch (error: any) {
+        console.error(`[Deployments API] Error checking module status for ${deployment.safeWallet}:`, error.message);
+        // Return deployment as-is if check fails
+        return {
+          ...deployment,
+          telegramLinked: deployment.telegramUsers.length > 0,
+        };
+      }
+    })
+  );
 
-  return res.status(200).json(deploymentsWithTelegram);
+  return res.status(200).json(deploymentsWithStatus);
 }
 
 async function handlePost(req: NextApiRequest, res: NextApiResponse) {
