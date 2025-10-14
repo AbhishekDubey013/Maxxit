@@ -295,7 +295,7 @@ export default function DocsPage() {
                         <ul className="space-y-1 text-muted-foreground">
                           <li>• Funds held in exchange's wallets</li>
                           <li>• Exchange controls private keys</li>
-                          <li>• Risk of hacks (e.g., WazirX, FTX, Mt.Gox)</li>
+                          <li>• Risk of hacks and insolvency events</li>
                           <li>• Withdrawals can be frozen</li>
                           <li>• Must trust the platform</li>
                         </ul>
@@ -498,11 +498,11 @@ export default function DocsPage() {
                     <div className="space-y-1 text-sm">
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Entry:</span>
-                        <span>$1,000 USDC → 0.5 WETH</span>
+                        <span>$1,000 USDC → 0.5 WETH (fee: $0.20)</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Exit:</span>
-                        <span>0.5 WETH → $1,500 USDC</span>
+                        <span>0.5 WETH → $1,500 USDC (fee: $0.20)</span>
                       </div>
                       <div className="flex justify-between font-semibold text-green-600">
                         <span>Gross Profit:</span>
@@ -510,16 +510,16 @@ export default function DocsPage() {
                       </div>
                       <Separator className="my-2" />
                       <div className="flex justify-between">
+                        <span className="text-muted-foreground">Trade fees ($0.20 × 2):</span>
+                        <span>$0.40 USDC</span>
+                      </div>
+                      <div className="flex justify-between">
                         <span className="text-muted-foreground">Agent creator (10%):</span>
                         <span>$50 USDC</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">X accounts (10%):</span>
                         <span>$50 USDC</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Infrastructure fee:</span>
-                        <span>$0.40 USDC ($0.20 entry + $0.20 exit)</span>
                       </div>
                       <Separator className="my-2" />
                       <div className="flex justify-between font-semibold text-lg">
@@ -529,6 +529,10 @@ export default function DocsPage() {
                       <div className="flex justify-between text-xs text-muted-foreground">
                         <span>Net Profit:</span>
                         <span>+$399.60 USDC (+39.96%)</span>
+                      </div>
+                      <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                        <span>Monthly subscription:</span>
+                        <span>$20 USDC (covers unlimited trades)</span>
                       </div>
                     </div>
                   </div>
@@ -566,19 +570,21 @@ export default function DocsPage() {
                   <div className="space-y-3">
                     <div className="p-4 border rounded-lg">
                       <div className="flex items-center justify-between mb-2">
-                        <h4 className="font-semibold">Infrastructure Fee</h4>
+                        <h4 className="font-semibold">Agent Subscription</h4>
+                        <Badge variant="secondary">$20 USDC per month</Badge>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        Monthly subscription per active agent deployment. Covers continuous monitoring, signal processing, and automated execution infrastructure. 
+                        Cancel anytime with no early termination fees.
+                      </p>
+                    </div>
+                    <div className="p-4 border rounded-lg">
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="font-semibold">Trade Execution Fee</h4>
                         <Badge variant="secondary">$0.20 USDC per trade</Badge>
                       </div>
                       <p className="text-sm text-muted-foreground">
-                        Charged on <strong>every trade execution</strong> (both entry and exit). This flat fee covers:
-                      </p>
-                      <ul className="list-disc list-inside text-sm text-muted-foreground mt-2 ml-2">
-                        <li>Gas costs for on-chain execution</li>
-                        <li>Backend infrastructure (workers, monitoring, Telegram bot)</li>
-                        <li>API costs (LLM classification, price feeds)</li>
-                      </ul>
-                      <p className="text-xs text-muted-foreground mt-2">
-                        <strong>Example:</strong> Open a position = $0.20, Close a position = $0.20. Total per full trade cycle = $0.40.
+                        Charged on <strong>each trade execution</strong> (opening or closing a position). This covers gas costs and on-chain transaction processing.
                       </p>
                     </div>
                     <div className="p-4 border rounded-lg">
@@ -603,11 +609,11 @@ export default function DocsPage() {
                   <div className="bg-green-50 dark:bg-green-950/20 p-4 rounded-lg border border-green-200 dark:border-green-800">
                     <h4 className="font-semibold mb-2">✅ No Hidden Fees</h4>
                     <ul className="space-y-1 text-sm text-muted-foreground">
-                      <li>✓ No monthly subscription</li>
                       <li>✓ No withdrawal fees</li>
                       <li>✓ No deposit fees</li>
                       <li>✓ No maker/taker fees</li>
                       <li>✓ No liquidation fees</li>
+                      <li>✓ No inactivity fees</li>
                     </ul>
                   </div>
                 </CardContent>
@@ -706,27 +712,39 @@ export default function DocsPage() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-3">
-                    <h4 className="font-semibold">Automated Trading Flow</h4>
-                    <ol className="list-decimal list-inside space-y-3 text-sm">
-                      <li>
-                        <strong>Tweet Monitoring:</strong> Workers scan subscribed X accounts every 2 minutes for new tweets
-                      </li>
-                      <li>
-                        <strong>LLM Classification:</strong> Claude Haiku analyzes tweets to identify trading signals (bullish/bearish token mentions)
-                      </li>
-                      <li>
-                        <strong>Signal Generation:</strong> Valid signals are created with token, side (LONG/SHORT), and confidence score
-                      </li>
-                      <li>
-                        <strong>Trade Execution:</strong> Agent deployments automatically execute trades on high-confidence signals via Safe module
-                      </li>
-                      <li>
-                        <strong>Position Monitoring:</strong> Worker tracks positions every 5 minutes, applies trailing stop loss (1%, activates at +3%)
-                      </li>
-                      <li>
-                        <strong>Auto-Close:</strong> Positions close automatically when trailing stop triggers (price drops 1% from peak after reaching +3%)
-                      </li>
-                    </ol>
+                    <h4 className="font-semibold">How Maxxit Agents Work</h4>
+                    <p className="text-sm text-muted-foreground">
+                      Maxxit agents are <strong>decentralized, autonomous trading systems</strong> that monitor carefully selected X accounts for market signals. 
+                      Each agent processes inputs from multiple data sources to identify high-probability trading opportunities:
+                    </p>
+                    <div className="bg-blue-50 dark:bg-blue-950/20 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
+                      <ul className="space-y-2 text-sm">
+                        <li className="flex gap-2">
+                          <span className="text-blue-600 font-semibold">•</span>
+                          <span><strong>Worthy X Account Monitoring:</strong> Agents track influential crypto traders and analysts whose insights have demonstrated market impact</span>
+                        </li>
+                        <li className="flex gap-2">
+                          <span className="text-blue-600 font-semibold">•</span>
+                          <span><strong>Multi-Factor Analysis:</strong> Combines on-chain market activity, sentiment analysis, technical indicators, and risk assessment</span>
+                        </li>
+                        <li className="flex gap-2">
+                          <span className="text-blue-600 font-semibold">•</span>
+                          <span><strong>Real Alpha Generation:</strong> Proprietary signal processing identifies genuine market opportunities before mainstream awareness</span>
+                        </li>
+                        <li className="flex gap-2">
+                          <span className="text-blue-600 font-semibold">•</span>
+                          <span><strong>Real-Time Execution:</strong> Instant on-chain trade execution via your Safe wallet when high-confidence signals are detected</span>
+                        </li>
+                        <li className="flex gap-2">
+                          <span className="text-blue-600 font-semibold">•</span>
+                          <span><strong>Continuous Monitoring:</strong> 24/7 position tracking with intelligent risk management and automated exit strategies</span>
+                        </li>
+                      </ul>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      All trade execution happens directly from <strong>your non-custodial Safe wallet</strong>, ensuring you maintain full control 
+                      over your assets at all times while benefiting from automated, data-driven trading decisions.
+                    </p>
                   </div>
                   
                   <Separator />
@@ -743,7 +761,7 @@ export default function DocsPage() {
                       <div>Status</div>
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      Manual trades use the same non-custodial execution (via your Safe), same profit sharing (20%), and same monitoring (1% trailing stop).
+                      Manual trades execute from your Safe wallet with the same $0.20 per trade fee, 20% profit sharing, and automated risk management.
                     </p>
                   </div>
                   
@@ -775,33 +793,19 @@ export default function DocsPage() {
                   <Separator />
                   
                   <div className="space-y-3">
-                    <h4 className="font-semibold">Trailing Stop Loss (1%)</h4>
+                    <h4 className="font-semibold">Intelligent Risk Management</h4>
                     <p className="text-sm text-muted-foreground">
-                      All positions are protected by an intelligent trailing stop loss:
+                      All positions are protected by advanced risk management systems that automatically monitor and exit positions to protect capital 
+                      and lock in profits. The system uses dynamic trailing stops, take-profit targets, and market volatility analysis to optimize exits.
                     </p>
-                    <div className="bg-blue-50 dark:bg-blue-950/20 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
-                      <ol className="list-decimal list-inside space-y-2 text-sm">
-                        <li>
-                          <strong>Inactive Phase:</strong> Position opens, trailing stop waits for <strong>+3% profit</strong> before activating
-                        </li>
-                        <li>
-                          <strong>Activation:</strong> Once price reaches +3%, trailing stop activates at 1% below that price
-                        </li>
-                        <li>
-                          <strong>Tracking:</strong> As price rises, stop loss trails 1% below the highest price reached
-                        </li>
-                        <li>
-                          <strong>Exit:</strong> If price drops 1% from peak, position closes automatically, locking in profits
-                        </li>
-                      </ol>
-                      <div className="mt-3 p-3 bg-white dark:bg-gray-900 rounded text-xs font-mono">
-                        <div>Entry: $100</div>
-                        <div className="text-muted-foreground">→ Waiting for +3% ($103)...</div>
-                        <div className="text-green-600">Price hits $103 → Stop activates at $101.97</div>
-                        <div className="text-green-600">Price rises to $110 → Stop moves to $108.90</div>
-                        <div className="text-green-600">Price rises to $120 → Stop moves to $118.80</div>
-                        <div className="text-red-600">Price drops to $118.80 → EXIT (+18.8% profit locked!)</div>
-                      </div>
+                    <div className="bg-green-50 dark:bg-green-950/20 p-4 rounded-lg border border-green-200 dark:border-green-800">
+                      <h5 className="font-semibold text-sm mb-2">Key Features:</h5>
+                      <ul className="space-y-1 text-sm text-muted-foreground">
+                        <li>✓ Automated profit protection on winning trades</li>
+                        <li>✓ Dynamic position sizing based on market conditions</li>
+                        <li>✓ Real-time monitoring 24/7 with instant execution</li>
+                        <li>✓ Adaptive exit strategies for different market regimes</li>
+                      </ul>
                     </div>
                   </div>
                 </CardContent>
@@ -864,19 +868,15 @@ export default function DocsPage() {
                   <div className="bg-yellow-50 dark:bg-yellow-950/20 p-4 rounded-lg border border-yellow-200 dark:border-yellow-800">
                     <h4 className="font-semibold mb-2 flex items-center gap-2">
                       <AlertTriangle className="h-4 w-4" />
-                      CEX Hack Comparison (WazirX, FTX, Mt.Gox)
+                      Centralized Exchange Risks
                     </h4>
                     <p className="text-sm mb-2">
-                      In recent years, centralized exchanges have been hacked or collapsed, leading to billions in user losses:
+                      Historically, centralized exchanges have experienced security breaches, operational failures, and insolvency events that 
+                      resulted in significant user fund losses. When you deposit funds to a centralized exchange, you lose direct control.
                     </p>
-                    <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground ml-2">
-                      <li><strong>WazirX (2024):</strong> $230M stolen in hack, users' funds locked</li>
-                      <li><strong>FTX (2022):</strong> $8B+ in customer deposits misappropriated, bankruptcy</li>
-                      <li><strong>Mt.Gox (2014):</strong> 850,000 BTC stolen, users still recovering funds 11 years later</li>
-                    </ul>
                     <p className="text-sm mt-2 font-semibold text-green-600">
-                      ✅ Maxxit's Non-Custodial Advantage: If Maxxit's servers were hacked or shut down tomorrow, <strong>your funds remain 100% safe 
-                      in your Safe wallet</strong>. Simply revoke the module and you have full control. No one can freeze, seize, or steal your assets.
+                      ✅ Maxxit's Non-Custodial Advantage: If Maxxit's servers were compromised or shut down, <strong>your funds remain 100% safe 
+                      in your Safe wallet</strong>. Simply revoke the module and you retain full control. No one can freeze, seize, or access your assets.
                     </p>
                   </div>
                   
