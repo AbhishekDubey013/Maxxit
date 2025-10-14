@@ -254,7 +254,7 @@ export default function DeployAgent() {
       const txData = checkData.transaction?.data || '';
       setModuleAddress(moduleAddr);
       setTransactionData(txData);
-
+      
       // Copy transaction data to clipboard
       try {
         await navigator.clipboard.writeText(txData);
@@ -608,19 +608,19 @@ export default function DeployAgent() {
               </div>
             ) : (
               // SPOT: Old Manual Setup
-              <div className="p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-md">
-                <div className="flex items-start gap-3 mb-3">
-                  <AlertCircle className="h-4 w-4 text-yellow-600 mt-0.5" />
-                  <div>
-                    <p className="font-medium text-yellow-700 dark:text-yellow-400">
+            <div className="p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-md">
+              <div className="flex items-start gap-3 mb-3">
+                <AlertCircle className="h-4 w-4 text-yellow-600 mt-0.5" />
+                <div>
+                  <p className="font-medium text-yellow-700 dark:text-yellow-400">
                       Trading Module Setup Required (SPOT Mode - Venue: {agentVenue || 'empty'})
-                    </p>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      One-time setup: Enable the trading module to allow your agent to execute trades on your behalf.
-                    </p>
-                  </div>
+                  </p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    One-time setup: Enable the trading module to allow your agent to execute trades on your behalf.
+                  </p>
                 </div>
-                <div className="flex gap-2">
+              </div>
+              <div className="flex gap-2">
                 <button
                   onClick={enableModule}
                   disabled={enablingModule}
@@ -745,7 +745,7 @@ export default function DeployAgent() {
                   </div>
                 </div>
               )}
-              </div>
+            </div>
             );
             })()
           )}
