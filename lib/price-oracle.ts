@@ -4,6 +4,9 @@
  */
 
 import { ethers } from 'ethers';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
 
 const ARBITRUM_RPC = process.env.ARBITRUM_RPC || 'https://arb1.arbitrum.io/rpc';
 
@@ -14,14 +17,39 @@ const QUOTER_ABI = [
   'function quoteExactInputSingle(address tokenIn, address tokenOut, uint24 fee, uint256 amountIn, uint160 sqrtPriceLimitX96) external returns (uint256 amountOut)',
 ];
 
-// Token addresses on Arbitrum
-const TOKENS: Record<string, string> = {
-  USDC: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831',
-  WETH: '0x82aF49447D8a07e3bd95BD0d56f35241523fBab1',
-  ARB: '0x912CE59144191C1204E64559FE8253a0e49E6548',
-  WBTC: '0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f',
-  LINK: '0xf97f4df75117a78c1A5a0DBb814Af92458539FB4',
-};
+// USDC address (hardcoded for performance)
+const USDC_ADDRESS = '0xaf88d065e77c8cC2239327C5EDb3A432268e5831';
+
+// Token address cache (refreshed from DB)
+let tokenCache: Record<string, string> = {};
+let cacheLastUpdated = 0;
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+async function getTokenAddress(tokenSymbol: string): Promise<string | null> {
+  // Refresh cache if expired
+  const now = Date.now();
+  if (now - cacheLastUpdated > CACHE_TTL) {
+    try {
+      const tokens = await prisma.tokenRegistry.findMany({
+        where: { chain: 'arbitrum-one' },
+        select: { tokenSymbol: true, tokenAddress: true }
+      });
+      
+      tokenCache = {};
+      for (const token of tokens) {
+        tokenCache[token.tokenSymbol] = token.tokenAddress;
+      }
+      tokenCache['USDC'] = USDC_ADDRESS; // Always include USDC
+      cacheLastUpdated = now;
+      
+      console.log(`[PriceOracle] Token cache refreshed: ${Object.keys(tokenCache).length} tokens`);
+    } catch (error) {
+      console.error('[PriceOracle] Failed to refresh token cache:', error);
+    }
+  }
+  
+  return tokenCache[tokenSymbol] || null;
+}
 
 let provider: ethers.providers.JsonRpcProvider | null = null;
 let quoter: ethers.Contract | null = null;
@@ -50,14 +78,14 @@ export async function getTokenPriceUSD(tokenSymbol: string): Promise<number | nu
       return 1.0;
     }
 
-    const tokenAddress = TOKENS[tokenSymbol];
+    const tokenAddress = await getTokenAddress(tokenSymbol);
     if (!tokenAddress) {
-      console.error(`[PriceOracle] Token ${tokenSymbol} not found`);
+      console.error(`[PriceOracle] Token ${tokenSymbol} not found in TokenRegistry`);
       return null;
     }
 
     const quoter = getQuoter();
-    const usdcAddress = TOKENS.USDC;
+    const usdcAddress = USDC_ADDRESS;
 
     // Quote 1 token worth (using appropriate decimals)
     // Most tokens use 18 decimals, WBTC uses 8, USDC uses 6

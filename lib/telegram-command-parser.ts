@@ -115,7 +115,12 @@ Action must be exactly: BUY, SELL, CLOSE, STATUS, HELP, or UNKNOWN`
     }
 
     // CLOSE command
-    if (lower.includes('close') || lower.includes('exit') || lower.includes('sell all')) {
+    // CLOSE/EXIT command (with typo tolerance)
+    const closePatterns = [
+      'close', 'exit', 'sell all', 'closme', 'clsoe', 'clos', 
+      'cloze', 'closee', 'sell my'
+    ];
+    if (closePatterns.some(pattern => lower.includes(pattern))) {
       const token = this.extractToken(lower);
       return {
         action: 'CLOSE',
