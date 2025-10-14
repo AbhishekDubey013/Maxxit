@@ -24,6 +24,7 @@ export async function executeTradesForSignals() {
           deployments: {
             some: {
               status: 'ACTIVE',
+              moduleEnabled: true, // CRITICAL: Only execute on deployments with module enabled
             },
           },
         },
@@ -32,7 +33,10 @@ export async function executeTradesForSignals() {
         agent: {
           include: {
             deployments: {
-              where: { status: 'ACTIVE' },
+              where: { 
+                status: 'ACTIVE',
+                moduleEnabled: true, // CRITICAL: Only fetch deployments with module enabled
+              },
               take: 1,
             },
           },

@@ -40,8 +40,8 @@ export default async function handler(
       return res.status(404).json({ error: 'Signal not found' });
     }
 
-    // Find ACTIVE deployments for this agent
-    const deployments = await prisma.agentDeployment.findMany({
+    // Check total active deployments (for logging)
+    const allDeployments = await prisma.agentDeployment.findMany({
       where: {
         agentId: signal.agentId,
         status: 'ACTIVE',
@@ -49,10 +49,26 @@ export default async function handler(
       },
     });
 
+    // Find ACTIVE deployments for this agent with module enabled
+    const deployments = await prisma.agentDeployment.findMany({
+      where: {
+        agentId: signal.agentId,
+        status: 'ACTIVE',
+        subActive: true,
+        moduleEnabled: true, // CRITICAL: Only execute on deployments with module enabled
+      },
+    });
+
+    console.log(`[TRADE] Found ${allDeployments.length} total active deployments, ${deployments.length} with module enabled`);
+
     if (deployments.length === 0) {
+      const message = allDeployments.length === 0
+        ? 'No active deployments found for this agent'
+        : `${allDeployments.length} active deployments found, but module is not enabled on any. Users must enable the trading module on their Safe first.`;
+      
       return res.status(200).json({
         success: false,
-        error: 'No active deployments found',
+        error: message,
         positionsCreated: 0,
       });
     }

@@ -390,7 +390,7 @@ export default function DocsPage() {
                           <Badge variant="outline">GRT</Badge>
                           <Badge variant="outline">MATIC</Badge>
                           <Badge variant="outline">SOL</Badge>
-                        </div>
+                      </div>
                       </div>
                       
                       <div className="p-4 border rounded-md">
@@ -808,7 +808,7 @@ export default function DocsPage() {
                     <p className="text-xs text-muted-foreground">
                       Manual trades execute from your Safe wallet with the same $0.20 per trade fee, 20% profit sharing, and automated risk management.
                     </p>
-                  </div>
+                        </div>
                   
                   <Separator />
                   
@@ -829,11 +829,11 @@ export default function DocsPage() {
                       <Badge>GRT</Badge>
                       <Badge>MATIC</Badge>
                       <Badge>SOL</Badge>
-                    </div>
+                        </div>
                     <p className="text-xs text-muted-foreground">
                       All tokens have verified liquidity on Uniswap V3. Swaps execute with 0.5% slippage tolerance.
                     </p>
-                  </div>
+                      </div>
                   
                   <Separator />
                   
