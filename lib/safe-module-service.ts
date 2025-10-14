@@ -111,7 +111,8 @@ export class SafeModuleService {
   private executor: ethers.Wallet;
   private module: ethers.Contract;
   private chainId: number;
-  private static noncePromises: Map<string, Promise<number>> = new Map();
+  private static nonceTracker: Map<string, number> = new Map();
+  private static nonceLocks: Map<string, Promise<void>> = new Map();
 
   constructor(config: ModuleConfig) {
     this.chainId = config.chainId;
@@ -137,35 +138,68 @@ export class SafeModuleService {
   }
 
   /**
-   * Get next nonce for executor wallet (with mutex to prevent race conditions)
+   * Get next nonce for executor wallet (with proper lock to prevent race conditions)
+   * This ensures concurrent transactions get sequential nonces
    */
   private async getNextNonce(): Promise<number> {
     const address = this.executor.address;
     
-    // Wait for any pending nonce request for this address
-    const pendingNonce = SafeModuleService.noncePromises.get(address);
-    if (pendingNonce) {
-      await pendingNonce;
+    // Wait for any pending lock for this address
+    while (SafeModuleService.nonceLocks.has(address)) {
+      await SafeModuleService.nonceLocks.get(address);
+      await new Promise(resolve => setTimeout(resolve, 50)); // Small delay to avoid tight loop
     }
     
-    // Create new promise for this nonce request
-    const noncePromise = (async () => {
-      const nonce = await this.provider.getTransactionCount(address, 'pending');
-      console.log(`[SafeModule] Got nonce ${nonce} for ${address}`);
-      return nonce;
-    })();
+    // Create a new lock for this nonce request
+    let releaseLock: () => void;
+    const lockPromise = new Promise<void>((resolve) => {
+      releaseLock = resolve;
+    });
+    SafeModuleService.nonceLocks.set(address, lockPromise);
     
-    SafeModuleService.noncePromises.set(address, noncePromise);
-    const nonce = await noncePromise;
-    
-    // Clean up after a short delay
-    setTimeout(() => {
-      if (SafeModuleService.noncePromises.get(address) === noncePromise) {
-        SafeModuleService.noncePromises.delete(address);
+    try {
+      // Check if we have a cached nonce
+      let nonce = SafeModuleService.nonceTracker.get(address);
+      
+      if (nonce === undefined) {
+        // First time - fetch from network
+        nonce = await this.provider.getTransactionCount(address, 'latest');
+        console.log(`[SafeModule] Initial nonce fetch: ${nonce} for ${address}`);
+      } else {
+        // Increment cached nonce
+        nonce++;
+        console.log(`[SafeModule] Using incremented nonce: ${nonce} for ${address}`);
+        
+        // Sanity check: make sure our nonce isn't behind the network
+        const networkNonce = await this.provider.getTransactionCount(address, 'latest');
+        if (networkNonce > nonce) {
+          console.log(`[SafeModule] Network nonce (${networkNonce}) ahead of cached (${nonce}), using network nonce`);
+          nonce = networkNonce;
+        }
       }
-    }, 100);
-    
-    return nonce;
+      
+      // Update cached nonce
+      SafeModuleService.nonceTracker.set(address, nonce);
+      
+      return nonce;
+    } finally {
+      // Release lock
+      SafeModuleService.nonceLocks.delete(address);
+      releaseLock!();
+    }
+  }
+  
+  /**
+   * Reset nonce tracker (useful for testing or after errors)
+   */
+  public static resetNonceTracker(address?: string) {
+    if (address) {
+      SafeModuleService.nonceTracker.delete(address);
+      console.log(`[SafeModule] Reset nonce tracker for ${address}`);
+    } else {
+      SafeModuleService.nonceTracker.clear();
+      console.log('[SafeModule] Reset all nonce trackers');
+    }
   }
 
   /**
@@ -623,11 +657,29 @@ export class SafeModuleService {
   }
 
   /**
-   * Whitelist/unwhitelist a token
+   * Check if token is whitelisted for a Safe
    */
-  async setTokenWhitelist(token: string, status: boolean): Promise<{ success: boolean; txHash?: string; error?: string }> {
+  async checkTokenWhitelist(safeAddress: string, tokenAddress: string): Promise<boolean> {
     try {
-      const tx = await this.module.setTokenWhitelist(token, status);
+      const isWhitelisted = await this.module.isTokenWhitelisted(safeAddress, tokenAddress);
+      return isWhitelisted;
+    } catch (error: any) {
+      console.error('[SafeModule] Check token whitelist error:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Whitelist/unwhitelist a token for a Safe
+   */
+  async setTokenWhitelist(safeAddress: string, tokenAddress: string, status: boolean): Promise<{ success: boolean; txHash?: string; error?: string }> {
+    try {
+      const nonce = await this.getNextNonce();
+      
+      const tx = await this.module.setTokenWhitelist(safeAddress, tokenAddress, status, {
+        gasLimit: 300000,
+        nonce,
+      });
       const receipt = await tx.wait();
 
       return {

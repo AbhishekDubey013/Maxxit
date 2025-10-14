@@ -11,7 +11,7 @@ import { ethers } from 'ethers';
 const prisma = new PrismaClient();
 
 const SEPOLIA_RPC = process.env.SEPOLIA_RPC_URL || 'https://ethereum-sepolia.publicnode.com';
-const MODULE_ADDRESS = process.env.MODULE_ADDRESS || '0xa87f82433294cE8A3C8f08Ec5D2825e946C0c0FE';
+const MODULE_ADDRESS = process.env.TRADING_MODULE_ADDRESS || '0x2218dD82E2bbFe759BDe741Fa419Bb8A9F658A46';
 
 const SAFE_ABI = [
   'function isModuleEnabled(address module) external view returns (bool)',
@@ -103,12 +103,13 @@ export default async function handler(
       // Continue with deployment but moduleEnabled will be false
     }
 
-    // Create deployment with correct module status
+    // Create deployment with correct module status and moduleAddress
     const deployment = await prisma.agentDeployment.create({
       data: {
         agentId,
         userWallet,
         safeWallet,
+        moduleAddress: MODULE_ADDRESS, // Save module address
         moduleEnabled, // Set based on on-chain status
         status: 'ACTIVE',
         subActive: true,

@@ -470,7 +470,35 @@ export class TradeExecutor {
         // Continue anyway - might be a transient issue
       }
       
-      // Step 2: Ensure USDC is approved to router
+      // Step 2: Ensure token is whitelisted
+      console.log('[TradeExecutor] 📋 Checking token whitelist for', ctx.signal.tokenSymbol);
+      try {
+        const isWhitelisted = await moduleService.checkTokenWhitelist(
+          ctx.deployment.safeWallet,
+          tokenRegistry.tokenAddress
+        );
+        
+        if (!isWhitelisted) {
+          console.log('[TradeExecutor] 📋 Token not whitelisted - whitelisting now...');
+          const whitelistResult = await moduleService.setTokenWhitelist(
+            ctx.deployment.safeWallet,
+            tokenRegistry.tokenAddress,
+            true
+          );
+          if (whitelistResult.success) {
+            console.log('[TradeExecutor] ✅ Token whitelisted:', whitelistResult.txHash);
+          } else {
+            console.warn('[TradeExecutor] ⚠️  Whitelist failed:', whitelistResult.error);
+          }
+        } else {
+          console.log('[TradeExecutor] ✅ Token already whitelisted');
+        }
+      } catch (error: any) {
+        console.warn('[TradeExecutor] ⚠️  Could not check/whitelist token:', error.message);
+        // Continue anyway
+      }
+      
+      // Step 3: Ensure USDC is approved to router
       console.log('[TradeExecutor] 📋 Ensuring USDC approval...');
       const approvalResult = await moduleService.approveTokenForDex(
         ctx.deployment.safeWallet,
