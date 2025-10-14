@@ -139,7 +139,7 @@ export async function monitorPositions() {
 
         if (trailingParams?.enabled) {
           // Implement trailing stop
-          const trailingPercent = trailingParams.trailingPercent || 5; // 5% default
+          const trailingPercent = trailingParams.trailingPercent || 1; // 1% default - tighter stop
           
           // For LONG positions
           if (side === 'BUY' || side === 'LONG') {
