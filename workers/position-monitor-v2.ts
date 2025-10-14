@@ -210,22 +210,25 @@ export async function monitorPositions() {
           }
         }
 
-        // Check fixed stop loss
-        if (!shouldClose && stopLoss) {
-          if (side === 'BUY' || side === 'LONG') {
-            if (currentPrice <= stopLoss) {
-              shouldClose = true;
-              closeReason = 'STOP_LOSS';
-              console.log(`   🔴 Stop loss hit! SL: $${stopLoss.toFixed(2)}`);
-            }
-          } else { // SHORT
-            if (currentPrice >= stopLoss) {
-              shouldClose = true;
-              closeReason = 'STOP_LOSS';
-              console.log(`   🔴 Stop loss hit! SL: $${stopLoss.toFixed(2)}`);
-            }
-          }
-        }
+        // DISABLED: Fixed stop loss (using trailing stop only)
+        // The signal's stopLoss is a percentage (0.05 = 5%) but was being
+        // incorrectly treated as an absolute price. Trailing stop provides better protection.
+        // 
+        // if (!shouldClose && stopLoss) {
+        //   if (side === 'BUY' || side === 'LONG') {
+        //     if (currentPrice <= stopLoss) {
+        //       shouldClose = true;
+        //       closeReason = 'STOP_LOSS';
+        //       console.log(`   🔴 Stop loss hit! SL: $${stopLoss.toFixed(2)}`);
+        //     }
+        //   } else { // SHORT
+        //     if (currentPrice >= stopLoss) {
+        //       shouldClose = true;
+        //       closeReason = 'STOP_LOSS';
+        //       console.log(`   🔴 Stop loss hit! SL: $${stopLoss.toFixed(2)}`);
+        //     }
+        //   }
+        // }
 
         // Check take profit
         if (!shouldClose && takeProfit) {
