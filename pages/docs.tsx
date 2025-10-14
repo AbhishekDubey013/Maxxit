@@ -135,7 +135,7 @@ export default function DocsPage() {
                     <div className="p-4 border rounded-md">
                       <h4 className="font-semibold mb-2">📊 Impact Factor Verified</h4>
                       <p className="text-sm text-muted-foreground">
-                        Live-tested signal sources with proven trading efficacy. Similar to Kaito's mindshare, but for trading impact.
+                        Forward-tested signal sources with on-chain verified results. Similar to Kaito's mindshare, but for trading impact.
                       </p>
                     </div>
                   </div>
@@ -350,7 +350,7 @@ export default function DocsPage() {
                     <p className="text-sm text-muted-foreground">
                       Unlike other platforms that rely on unverified social signals, Maxxit agents use <strong>Impact Factor-verified sources</strong>. 
                       Similar to how Kaito measures mindshare, we've developed a proprietary system to measure <strong>real trading efficacy</strong> 
-                      through live forward-testing with actual capital. Only sources with proven positive impact are integrated into agent decision-making.
+                      through forward-testing with results recorded on-chain for transparency. Only sources with proven positive impact are integrated into agent decision-making.
                     </p>
                   </div>
                   
@@ -741,7 +741,7 @@ export default function DocsPage() {
                         <strong> Impact Factor scoring</strong> to measure the real-time trading efficacy of signal sources.
                       </p>
                       <ul className="space-y-1 text-sm text-muted-foreground ml-4">
-                        <li>• <strong>Live-tested on real trades</strong> - not backtested, but forward-tested with actual capital</li>
+                        <li>• <strong>On-chain test results</strong> - forward-tested signals with results recorded on-chain for transparency</li>
                         <li>• <strong>Performance-verified sources</strong> - only signals with proven positive impact are used</li>
                         <li>• <strong>Continuous recalibration</strong> - impact scores update in real-time based on trading outcomes</li>
                         <li>• <strong>Multi-source validation</strong> - agents weight signals from multiple verified sources</li>
