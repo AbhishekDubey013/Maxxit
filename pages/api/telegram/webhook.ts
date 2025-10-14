@@ -253,8 +253,8 @@ async function executeTrade(chatId: number, tradeId: string) {
         side: intent.action === 'BUY' ? 'LONG' : 'SHORT',
         sizeModel,
         riskModel: {
-          stopLoss: 0.05,
-          takeProfit: 0.15,
+          // NO fixed stop loss or take profit - using trailing stop only
+          // Trailing stop is set automatically when position is created
         },
         sourceTweets: [`telegram_manual_${trade.id}_${Date.now()}`],
       }
