@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Bot, Home, BarChart3, FileText, Wallet } from 'lucide-react';
+import { Bot, Home, BarChart3, FileText, Wallet, User } from 'lucide-react';
 import { usePrivy } from '@privy-io/react-auth';
 
 export function Header() {
@@ -37,6 +37,15 @@ export function Header() {
               >
                 <Wallet className="h-4 w-4" />
                 <span className="hidden sm:inline">My Deployments</span>
+              </button>
+            </Link>
+            <Link href="/creator">
+              <button 
+                className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-md text-sm font-medium hover-elevate active-elevate-2 transition-all"
+                data-testid="nav-my-agents"
+              >
+                <User className="h-4 w-4" />
+                <span className="hidden sm:inline">My Agents</span>
               </button>
             </Link>
             <Link href="/create-agent">
