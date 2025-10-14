@@ -241,27 +241,41 @@ export default function MyDeployments() {
                     </div>
                   </div>
 
-                  {/* GMX Setup (if GMX agent and not enabled) */}
-                  {deployment.agent.venue === 'GMX' && !deployment.moduleEnabled && (
+                  {/* Trading Setup (if module not enabled) */}
+                  {!deployment.moduleEnabled && (
                     <div className="pt-4 border-t border-border">
                       <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
                         <Zap className="w-4 h-4" />
-                        GMX Trading Setup
+                        {deployment.agent.venue === 'GMX' ? 'GMX Trading Setup' : 'Trading Module Setup'}
                       </div>
                       <div className="bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-800 rounded-lg p-3 mb-3">
                         <p className="text-xs text-orange-700 dark:text-orange-300 mb-2">
-                          ⚡ ONE-CLICK setup required before trading
+                          ⚡ Setup required before trading
                         </p>
                         <ul className="text-xs text-orange-600 dark:text-orange-400 space-y-1 ml-4">
-                          <li>• Enables Maxxit Trading Module</li>
-                          <li>• Authorizes GMX executor</li>
-                          <li>• Sign ONE transaction and you're ready!</li>
+                          <li>• Enable Maxxit Trading Module on your Safe</li>
+                          {deployment.agent.venue === 'GMX' && (
+                            <li>• Authorize GMX executor</li>
+                          )}
+                          <li>• {deployment.agent.venue === 'GMX' ? 'Sign ONE transaction and you\'re ready!' : 'Then the system will auto-setup on first trade'}</li>
                         </ul>
                       </div>
-                      <GMXSetupButton 
-                        safeAddress={deployment.safeWallet}
-                        onSetupComplete={() => fetchDeployments()}
-                      />
+                      {deployment.agent.venue === 'GMX' ? (
+                        <GMXSetupButton 
+                          safeAddress={deployment.safeWallet}
+                          onSetupComplete={() => fetchDeployments()}
+                        />
+                      ) : (
+                        <a
+                          href={`https://app.safe.global/home?safe=arb1:${deployment.safeWallet}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:bg-primary/90"
+                        >
+                          <Settings className="w-4 h-4" />
+                          Enable Module on Safe
+                        </a>
+                      )}
                     </div>
                   )}
 
