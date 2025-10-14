@@ -521,6 +521,11 @@ export class TradeExecutor {
           entryPrice: actualEntryPrice,
           qty: actualAmountOut,
           entryTxHash: result.txHash, // ⚡ REAL ON-CHAIN TX HASH
+          trailingParams: {
+            enabled: true,
+            trailingPercent: 1, // 1% trailing stop
+            highestPrice: null, // Will be set on first monitor check
+          },
         },
       });
 
@@ -671,6 +676,11 @@ export class TradeExecutor {
           entryPrice: entryPrice,
           qty: qty,
           entryTxHash: result.txHash,
+          trailingParams: {
+            enabled: true,
+            trailingPercent: 1, // 1% trailing stop
+            highestPrice: null, // Will be set on first monitor check
+          },
         },
       });
 
