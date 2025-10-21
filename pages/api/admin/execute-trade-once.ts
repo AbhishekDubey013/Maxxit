@@ -113,9 +113,9 @@ export default async function handler(
         continue;
       }
 
-      // Execute REAL on-chain trade via TradeExecutor
-      console.log(`[TRADE] Executing real trade for deployment ${deployment.id}`);
-      const result = await executor.executeSignal(signal.id);
+      // Execute REAL on-chain trade via TradeExecutor for SPECIFIC deployment
+      console.log(`[TRADE] Executing real trade for deployment ${deployment.id} (Safe: ${deployment.safeWallet})`);
+      const result = await executor.executeSignalForDeployment(signal.id, deployment.id);
 
       if (result.success && result.positionId) {
         console.log(`[TRADE] ✅ Trade executed on-chain! Position: ${result.positionId}, TX: ${result.txHash}`);
