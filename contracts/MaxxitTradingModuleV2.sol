@@ -95,6 +95,7 @@ contract MaxxitTradingModuleV2 {
     event CapitalInitialized(address indexed safe, uint256 amount);
     event TradeFeeCollected(address indexed safe, address indexed receiver, uint256 amount);
     event ProfitShareDistributed(address indexed safe, address indexed agentOwner, uint256 amount);
+    event ProfitCalculation(address indexed safe, uint256 amountOut, uint256 entryValueUSDC, uint256 profit, uint256 profitShare);
     event TokenWhitelistUpdated(address indexed safe, address indexed token, bool enabled);
     event TradeExecuted(address indexed safe, address indexed tokenIn, address indexed tokenOut, uint256 amountIn, uint256 amountOut);
     
@@ -371,6 +372,13 @@ contract MaxxitTradingModuleV2 {
             uint256 profit = amountOut - entryValueUSDC;
             uint256 profitShare = (profit * PROFIT_SHARE_BPS) / 10000; // 20%
             
+            // Safety check: Ensure profit share is reasonable
+            require(profitShare <= profit, "Profit share exceeds total profit");
+            require(profitShare > 0, "Profit share is zero");
+            
+            // Additional safety: Log the calculation for debugging
+            emit ProfitCalculation(safe, amountOut, entryValueUSDC, profit, profitShare);
+            
             // Distribute profit share to agent owner
             _distributeProfitShare(safe, agentOwner, profitShare);
         }
@@ -494,6 +502,14 @@ contract MaxxitTradingModuleV2 {
     }
     
     function _distributeProfitShare(address safe, address agentOwner, uint256 amount) internal {
+        // Safety check: Ensure amount is reasonable (not more than 50% of Safe's USDC balance)
+        uint256 safeUSDCBalance = IERC20(USDC).balanceOf(safe);
+        require(amount <= safeUSDCBalance, "Profit share exceeds Safe balance");
+        require(amount <= safeUSDCBalance / 2, "Profit share too large - potential bug");
+        
+        // Additional safety: Ensure amount is not zero
+        require(amount > 0, "Profit share amount is zero");
+        
         bytes memory transferData = abi.encodeWithSelector(
             IERC20.transfer.selector,
             agentOwner,
