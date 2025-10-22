@@ -265,28 +265,29 @@ export default function DeployAgent() {
     setDeployError('');
 
     try {
-      // First check if already enabled
+      // Use the new V3 module enablement API
       const chainId = 42161; // Arbitrum One
-      const checkResponse = await fetch('/api/safe/enable-module', {
+      const response = await fetch('/api/admin/enable-v3-module', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ safeAddress, chainId }),
       });
 
-      const checkData = await checkResponse.json();
+      const data = await response.json();
 
-      if (checkData.success && checkData.alreadyEnabled) {
-        // Module already enabled, just update status
+      if (data.success && data.alreadyEnabled) {
+        // V3 module already enabled, just update status
         await checkModuleStatus();
         setEnablingModule(false);
         return;
       }
 
-      // Store module address and complete transaction data
-      const moduleAddr = checkData.moduleAddress || '0x74437d894C8E8A5ACf371E10919c688ae79E89FA';
-      const txData = checkData.transaction?.data || '';
-      setModuleAddress(moduleAddr);
-      setTransactionData(txData);
+      if (data.success && data.transactionData) {
+        // Store module address and transaction data
+        const moduleAddr = data.moduleAddress || '0x6ad58921173219A19B7c4b6f54C07A4c040bf8Cb';
+        const txData = data.transactionData.data || '';
+        setModuleAddress(moduleAddr);
+        setTransactionData(txData);
       
       // Copy transaction data to clipboard
       try {
@@ -667,7 +668,7 @@ export default function DeployAgent() {
                   ) : (
                     <>
                       <Shield className="h-4 w-4" />
-                      Enable Trading Module
+                      Enable V3 Module
                     </>
                   )}
                 </button>
@@ -694,7 +695,7 @@ export default function DeployAgent() {
               {showInstructions && (
                 <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg">
                   <div className="flex items-start justify-between mb-3">
-                    <h4 className="font-semibold text-blue-900 dark:text-blue-100">📋 Step-by-Step Instructions</h4>
+                    <h4 className="font-semibold text-blue-900 dark:text-blue-100">📋 V3 Module Setup Instructions</h4>
                     <button
                       onClick={() => setShowInstructions(false)}
                       className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200"
