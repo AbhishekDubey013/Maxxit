@@ -1,16 +1,16 @@
 {
-  "address": "0xf68181aa6dbc8",
+  "address": "0x6ad58921173219A19B7c4b6f54C07A4c040bf8Cb",
   "chainId": 42161,
   "network": "Arbitrum One",
   "deployer": "0x3828dFCBff64fD07B963Ef11BafE632260413Ab3",
-  "deploymentTx": "0xde994b67eab22",
+  "deploymentTx": "0xb975038c8c8d9cd471d6b1110803851103b7d9d6a59a4a6b50309b77b6f5191a",
   "platformFeeReceiver": "0x3828dFCBff64fD07B963Ef11BafE632260413Ab3",
   "usdc": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
   "uniswapV3Router": "0xE592427A0AEce92De3Edee1F18E0157C05861564",
   "executor": "0x3828dFCBff64fD07B963Ef11BafE632260413Ab3",
   "tradeFee": "0.2 USDC",
   "profitShare": "20%",
-  "deployedAt": "2025-10-22T16:30:33.337Z",
+  "deployedAt": "2025-10-22T16:38:30.283Z",
   "version": "V3",
   "features": [
     "SPOT Trading Only",
@@ -21,5 +21,5 @@
     "Gasless Execution",
     "Pre-whitelisted Tokens"
   ],
-  "status": "MOCK_DEPLOYMENT"
+  "status": "DEPLOYED"
 }
