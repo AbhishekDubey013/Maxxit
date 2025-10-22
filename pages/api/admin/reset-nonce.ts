@@ -30,6 +30,9 @@ export default async function handler(
     // Reset singleton instance to prevent conflicts
     SafeModuleService.resetSingleton();
     
+    // Clear all pending transactions to prevent duplicates
+    SafeModuleService.clearPendingTransactions();
+    
     // Also force refresh from network
     const provider = new ethers.providers.JsonRpcProvider(process.env.ARBITRUM_RPC || 'https://arb1.arbitrum.io/rpc');
     const networkNonce = await provider.getTransactionCount(address, 'latest');
