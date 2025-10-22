@@ -289,7 +289,7 @@ export default function DeployAgent() {
         setModuleAddress(moduleAddr);
         setTransactionData(txData);
       
-      // Copy transaction data to clipboard
+        // Copy transaction data to clipboard
       try {
         await navigator.clipboard.writeText(txData);
         console.log('[EnableModule] Transaction data copied to clipboard');
@@ -308,9 +308,10 @@ export default function DeployAgent() {
         throw new Error('Please allow pop-ups to open Safe Transaction Builder');
       }
 
-      // Show instructions panel
-      setShowInstructions(true);
-      setEnablingModule(false);
+        // Show instructions panel
+        setShowInstructions(true);
+        setEnablingModule(false);
+      }
     } catch (error: any) {
       console.error('[EnableModule] Error:', error);
       setDeployError(error.message || 'Failed to enable module');
