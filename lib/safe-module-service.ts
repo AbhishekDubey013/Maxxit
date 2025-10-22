@@ -113,7 +113,6 @@ export class SafeModuleService {
   public readonly chainId: number;
   private static nonceTracker: Map<string, number> = new Map();
   private static nonceLocks: Map<string, Promise<void>> = new Map();
-  private static nonceCounter: Map<string, number> = new Map();
 
   constructor(config: ModuleConfig) {
     this.chainId = config.chainId;
@@ -162,19 +161,13 @@ export class SafeModuleService {
       // Always fetch fresh nonce from network to avoid issues
       const networkNonce = await this.provider.getTransactionCount(address, 'latest');
       
-      // Track how many times we've used this nonce
-      const currentCount = SafeModuleService.nonceCounter.get(address) || 0;
-      const actualNonce = networkNonce + currentCount;
-      
-      console.log(`[SafeModule] Network nonce: ${networkNonce}, usage count: ${currentCount}, actual nonce: ${actualNonce} for ${address}`);
-      
-      // Increment counter for next time
-      SafeModuleService.nonceCounter.set(address, currentCount + 1);
+      // Use network nonce directly - no counter to avoid conflicts
+      console.log(`[SafeModule] Using fresh network nonce: ${networkNonce} for ${address}`);
       
       // Update cached nonce
-      SafeModuleService.nonceTracker.set(address, actualNonce);
+      SafeModuleService.nonceTracker.set(address, networkNonce);
       
-      return actualNonce;
+      return networkNonce;
     } finally {
       // Release lock
       SafeModuleService.nonceLocks.delete(address);
@@ -188,12 +181,10 @@ export class SafeModuleService {
   public static resetNonceTracker(address?: string) {
     if (address) {
       SafeModuleService.nonceTracker.delete(address);
-      SafeModuleService.nonceCounter.delete(address);
-      console.log(`[SafeModule] Reset nonce tracker and counter for ${address}`);
+      console.log(`[SafeModule] Reset nonce tracker for ${address}`);
     } else {
       SafeModuleService.nonceTracker.clear();
-      SafeModuleService.nonceCounter.clear();
-      console.log('[SafeModule] Reset all nonce trackers and counters');
+      console.log('[SafeModule] Reset all nonce trackers');
     }
   }
 
