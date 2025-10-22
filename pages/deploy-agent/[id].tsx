@@ -131,6 +131,7 @@ export default function DeployAgent() {
 
   // Check if module is enabled and sync with blockchain
   const checkModuleStatus = async () => {
+    console.log('[CheckModule] Starting module status check...');
     setModuleStatus({ checking: true, enabled: false, needsEnabling: false });
 
     try {
@@ -143,26 +144,28 @@ export default function DeployAgent() {
       });
 
       const syncData = await syncResponse.json();
+      console.log('[CheckModule] Sync API response:', syncData);
 
       if (syncData.success) {
-        // Module status is now synced with blockchain
-        if (syncData.moduleEnabled) {
+        // Only consider V3 module as "enabled" - V2 is legacy
+        if (syncData.v3Enabled) {
           setModuleStatus({
             checking: false,
             enabled: true,
             needsEnabling: false,
           });
-          console.log('[CheckModule] Module is enabled and synced with blockchain');
+          console.log('[CheckModule] V3 module is enabled and synced with blockchain');
         } else {
           setModuleStatus({
             checking: false,
             enabled: false,
             needsEnabling: true,
           });
-          console.log('[CheckModule] Module needs to be enabled');
+          console.log('[CheckModule] V3 module needs to be enabled (V2 enabled but V3 required)');
         }
       } else {
         // Sync failed, fall back to old check
+        console.log('[CheckModule] Sync failed, using fallback API');
         const response = await fetch('/api/safe/enable-module', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -172,10 +175,11 @@ export default function DeployAgent() {
         const data = await response.json();
 
         if (data.success && data.alreadyEnabled) {
+          // Even in fallback, only consider V3 as enabled
           setModuleStatus({
             checking: false,
-            enabled: true,
-            needsEnabling: false,
+            enabled: false, // Always false for fallback since we can't check V3 status
+            needsEnabling: true,
           });
         } else if (data.success && data.needsEnabling) {
           setModuleStatus({
@@ -673,6 +677,16 @@ export default function DeployAgent() {
                   className="px-4 py-2 bg-secondary text-secondary-foreground rounded-md font-medium hover:bg-secondary/90 disabled:opacity-50"
                 >
                   {moduleStatus.checking ? 'Checking...' : 'Recheck Status'}
+                </button>
+                <button
+                  onClick={() => {
+                    console.log('[CheckModule] Force refresh clicked');
+                    checkModuleStatus();
+                  }}
+                  disabled={moduleStatus.checking}
+                  className="px-4 py-2 bg-blue-500 text-white rounded-md font-medium hover:bg-blue-600 disabled:opacity-50"
+                >
+                  Force Refresh
                 </button>
               </div>
 

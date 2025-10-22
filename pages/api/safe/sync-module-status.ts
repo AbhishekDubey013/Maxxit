@@ -11,8 +11,9 @@ const RPC_URLS: { [chainId: number]: string } = {
   8453: process.env.BASE_RPC_URL || 'https://mainnet.base.org',
 };
 
-// Use the NEW V2 module with profit calculation fix
-const MODULE_ADDRESS = process.env.TRADING_MODULE_ADDRESS || '0x2218dD82E2bbFe759BDe741Fa419Bb8A9F658A46';
+// Check both V2 and V3 modules
+const V2_MODULE_ADDRESS = '0x2218dD82E2bbFe759BDe741Fa419Bb8A9F658A46';
+const V3_MODULE_ADDRESS = '0x6ad58921173219A19B7c4b6f54C07A4c040bf8Cb';
 
 const SAFE_ABI = [
   'function isModuleEnabled(address module) external view returns (bool)',
@@ -65,10 +66,29 @@ export default async function handler(
     // Create Safe contract instance
     const safe = new ethers.Contract(safeAddress, SAFE_ABI, provider);
 
-    // Check if module is enabled on-chain
+    // Check both V2 and V3 module status
+    let v2Enabled = false;
+    let v3Enabled = false;
+    let currentModuleAddress = V2_MODULE_ADDRESS;
     let isEnabledOnChain = false;
+
     try {
-      isEnabledOnChain = await safe.isModuleEnabled(MODULE_ADDRESS);
+      v2Enabled = await safe.isModuleEnabled(V2_MODULE_ADDRESS);
+      v3Enabled = await safe.isModuleEnabled(V3_MODULE_ADDRESS);
+      
+      // V3 takes priority if enabled, otherwise use V2
+      if (v3Enabled) {
+        isEnabledOnChain = true;
+        currentModuleAddress = V3_MODULE_ADDRESS;
+        console.log('[SyncModuleStatus] V3 module is enabled - using V3');
+      } else if (v2Enabled) {
+        isEnabledOnChain = true;
+        currentModuleAddress = V2_MODULE_ADDRESS;
+        console.log('[SyncModuleStatus] V2 module is enabled - using V2');
+      } else {
+        isEnabledOnChain = false;
+        console.log('[SyncModuleStatus] No modules are enabled');
+      }
     } catch (error) {
       console.error('[SyncModuleStatus] Error checking module status:', error);
       return res.status(500).json({
@@ -76,7 +96,7 @@ export default async function handler(
       });
     }
 
-    console.log('[SyncModuleStatus] On-chain status:', isEnabledOnChain ? 'Enabled' : 'Disabled');
+    console.log('[SyncModuleStatus] V2:', v2Enabled ? 'Enabled' : 'Disabled', '| V3:', v3Enabled ? 'Enabled' : 'Disabled');
 
     // Find deployment in database
     const deployment = await prisma.agentDeployment.findFirst({
@@ -85,10 +105,17 @@ export default async function handler(
     });
 
     if (!deployment) {
-      return res.status(404).json({
-        error: 'Deployment not found for this Safe address',
+      // No deployment found - return the on-chain status without database update
+      return res.status(200).json({
+        success: true,
         safeAddress,
-        moduleEnabledOnChain: isEnabledOnChain,
+        moduleEnabled: isEnabledOnChain,
+        moduleAddress: currentModuleAddress,
+        v2Enabled,
+        v3Enabled,
+        wasUpdated: false,
+        deployment: null,
+        message: 'No deployment found - returning on-chain status only',
       });
     }
 
@@ -96,12 +123,15 @@ export default async function handler(
 
     // Update database if status differs
     let updated = false;
-    if (deployment.moduleEnabled !== isEnabledOnChain) {
+    if (deployment.moduleEnabled !== isEnabledOnChain || deployment.moduleAddress !== currentModuleAddress) {
       console.log('[SyncModuleStatus] Mismatch detected! Updating database...');
       
       await prisma.agentDeployment.update({
         where: { id: deployment.id },
-        data: { moduleEnabled: isEnabledOnChain },
+        data: { 
+          moduleEnabled: isEnabledOnChain,
+          moduleAddress: currentModuleAddress,
+        },
       });
 
       // Log the sync event
@@ -114,6 +144,10 @@ export default async function handler(
             safeWallet: safeAddress,
             previousStatus: deployment.moduleEnabled,
             newStatus: isEnabledOnChain,
+            previousModuleAddress: deployment.moduleAddress,
+            newModuleAddress: currentModuleAddress,
+            v2Enabled,
+            v3Enabled,
             syncedAt: new Date().toISOString(),
           },
         },
@@ -129,6 +163,9 @@ export default async function handler(
       success: true,
       safeAddress,
       moduleEnabled: isEnabledOnChain,
+      moduleAddress: currentModuleAddress,
+      v2Enabled,
+      v3Enabled,
       wasUpdated: updated,
       deployment: {
         id: deployment.id,
