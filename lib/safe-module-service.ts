@@ -109,10 +109,11 @@ export interface GMXResult {
 export class SafeModuleService {
   private provider: ethers.providers.Provider;
   private executor: ethers.Wallet;
-  private module: ethers.Contract;
-  private chainId: number;
+  public readonly module: ethers.Contract;
+  public readonly chainId: number;
   private static nonceTracker: Map<string, number> = new Map();
   private static nonceLocks: Map<string, Promise<void>> = new Map();
+  private static nonceCounter: Map<string, number> = new Map();
 
   constructor(config: ModuleConfig) {
     this.chainId = config.chainId;
@@ -158,30 +159,22 @@ export class SafeModuleService {
     SafeModuleService.nonceLocks.set(address, lockPromise);
     
     try {
-      // Check if we have a cached nonce
-      let nonce = SafeModuleService.nonceTracker.get(address);
+      // Always fetch fresh nonce from network to avoid issues
+      const networkNonce = await this.provider.getTransactionCount(address, 'latest');
       
-      if (nonce === undefined) {
-        // First time - fetch from network
-        nonce = await this.provider.getTransactionCount(address, 'latest');
-        console.log(`[SafeModule] Initial nonce fetch: ${nonce} for ${address}`);
-      } else {
-        // Increment cached nonce
-        nonce++;
-        console.log(`[SafeModule] Using incremented nonce: ${nonce} for ${address}`);
-        
-        // Sanity check: make sure our nonce isn't behind the network
-        const networkNonce = await this.provider.getTransactionCount(address, 'latest');
-        if (networkNonce > nonce) {
-          console.log(`[SafeModule] Network nonce (${networkNonce}) ahead of cached (${nonce}), using network nonce`);
-          nonce = networkNonce;
-        }
-      }
+      // Track how many times we've used this nonce
+      const currentCount = SafeModuleService.nonceCounter.get(address) || 0;
+      const actualNonce = networkNonce + currentCount;
+      
+      console.log(`[SafeModule] Network nonce: ${networkNonce}, usage count: ${currentCount}, actual nonce: ${actualNonce} for ${address}`);
+      
+      // Increment counter for next time
+      SafeModuleService.nonceCounter.set(address, currentCount + 1);
       
       // Update cached nonce
-      SafeModuleService.nonceTracker.set(address, nonce);
+      SafeModuleService.nonceTracker.set(address, actualNonce);
       
-      return nonce;
+      return actualNonce;
     } finally {
       // Release lock
       SafeModuleService.nonceLocks.delete(address);
@@ -195,11 +188,32 @@ export class SafeModuleService {
   public static resetNonceTracker(address?: string) {
     if (address) {
       SafeModuleService.nonceTracker.delete(address);
-      console.log(`[SafeModule] Reset nonce tracker for ${address}`);
+      SafeModuleService.nonceCounter.delete(address);
+      console.log(`[SafeModule] Reset nonce tracker and counter for ${address}`);
     } else {
       SafeModuleService.nonceTracker.clear();
-      console.log('[SafeModule] Reset all nonce trackers');
+      SafeModuleService.nonceCounter.clear();
+      console.log('[SafeModule] Reset all nonce trackers and counters');
     }
+  }
+
+  /**
+   * Reset singleton instance (useful for testing or configuration changes)
+   */
+  public static resetSingleton() {
+    singletonInstance = null;
+    console.log('[SafeModule] Singleton instance reset');
+  }
+
+  /**
+   * Force refresh nonce from network (bypasses cache)
+   */
+  public async forceRefreshNonce(): Promise<number> {
+    const address = this.executor.address;
+    const networkNonce = await this.provider.getTransactionCount(address, 'latest');
+    SafeModuleService.nonceTracker.set(address, networkNonce);
+    console.log(`[SafeModule] Force refreshed nonce: ${networkNonce} for ${address}`);
+    return networkNonce;
   }
 
   /**
@@ -255,16 +269,56 @@ export class SafeModuleService {
       const nonce = await this.getNextNonce();
       
       // Call module's executeFromModule function (V2 - operation is hardcoded to CALL)
-      const tx = await this.module.executeFromModule(
-        safeAddress,
-        to,
-        value,
-        data,
-        {
-          gasLimit: 1500000,
-          nonce,
+      let tx;
+      try {
+        tx = await this.module.executeFromModule(
+          safeAddress,
+          to,
+          value,
+          data,
+          {
+            gasLimit: 1500000,
+            nonce,
+          }
+        );
+      } catch (error: any) {
+        console.log('[SafeModule] Transaction error caught:', {
+          message: error.message,
+          code: error.code,
+          reason: error.reason,
+          fullError: JSON.stringify(error, null, 2)
+        });
+        
+        // Handle nonce errors by resetting nonce tracker
+        if (error.message && (
+          error.message.includes('nonce too high') || 
+          error.message.includes('nonce too low') ||
+          error.message.includes('invalid nonce') ||
+          error.message.includes('replacement transaction underpriced') ||
+          error.message.includes('nonce') // Catch any nonce-related error
+        )) {
+          console.log('[SafeModule] Nonce error detected, resetting nonce tracker and forcing network refresh');
+          SafeModuleService.resetNonceTracker(this.executor.address);
+          
+          // Force refresh from network instead of using cached nonce
+          const freshNonce = await this.forceRefreshNonce();
+          console.log('[SafeModule] Retrying with fresh nonce:', freshNonce);
+          
+          tx = await this.module.executeFromModule(
+            safeAddress,
+            to,
+            value,
+            data,
+            {
+              gasLimit: 1500000,
+              nonce: freshNonce,
+            }
+          );
+        } else {
+          console.log('[SafeModule] Non-nonce error, re-throwing:', error.message);
+          throw error; // Re-throw if it's not a nonce error
         }
-      );
+      }
 
       console.log('[SafeModule] Transaction sent:', tx.hash, 'with nonce:', nonce);
 
@@ -313,19 +367,62 @@ export class SafeModuleService {
       // Get next nonce to prevent race conditions
       const nonce = await this.getNextNonce();
       
-      const tx = await this.module.executeTrade(
-        params.safeAddress,         // address safe
-        params.fromToken,            // address tokenIn
-        params.toToken,              // address tokenOut
-        params.amountIn,             // uint256 amountIn
-        params.minAmountOut,         // uint256 minAmountOut
-        poolFee,                     // uint24 poolFee
-        params.profitReceiver,       // address profitReceiver
-        {
-          gasLimit: 1000000,
-          nonce,
+      let tx;
+      try {
+        tx = await this.module.executeTrade(
+          params.safeAddress,         // address safe
+          params.fromToken,            // address tokenIn
+          params.toToken,              // address tokenOut
+          params.amountIn,             // uint256 amountIn
+          params.minAmountOut,         // uint256 minAmountOut
+          poolFee,                     // uint24 poolFee
+          params.profitReceiver,       // address profitReceiver
+          {
+            gasLimit: 1000000,
+            nonce,
+          }
+        );
+      } catch (error: any) {
+        console.log('[SafeModule] Transaction error caught:', {
+          message: error.message,
+          code: error.code,
+          reason: error.reason,
+          fullError: JSON.stringify(error, null, 2)
+        });
+        
+        // Handle nonce errors by resetting nonce tracker
+        if (error.message && (
+          error.message.includes('nonce too high') || 
+          error.message.includes('nonce too low') ||
+          error.message.includes('invalid nonce') ||
+          error.message.includes('replacement transaction underpriced') ||
+          error.message.includes('nonce') // Catch any nonce-related error
+        )) {
+          console.log('[SafeModule] Nonce error detected, resetting nonce tracker and forcing network refresh');
+          SafeModuleService.resetNonceTracker(this.executor.address);
+          
+          // Force refresh from network instead of using cached nonce
+          const freshNonce = await this.forceRefreshNonce();
+          console.log('[SafeModule] Retrying with fresh nonce:', freshNonce);
+          
+          tx = await this.module.executeTrade(
+            params.safeAddress,         // address safe
+            params.fromToken,            // address tokenIn
+            params.toToken,              // address tokenOut
+            params.amountIn,             // uint256 amountIn
+            params.minAmountOut,         // uint256 minAmountOut
+            poolFee,                     // uint24 poolFee
+            params.profitReceiver,       // address profitReceiver
+            {
+              gasLimit: 1000000,
+              nonce: freshNonce,
+            }
+          );
+        } else {
+          console.log('[SafeModule] Non-nonce error, re-throwing:', error.message);
+          throw error; // Re-throw if it's not a nonce error
         }
-      );
+      }
 
       console.log('[SafeModule] Transaction sent:', tx.hash, 'with nonce:', nonce);
 
@@ -890,21 +987,35 @@ export class SafeModuleService {
   }
 }
 
-// Factory function
+// Singleton instance to prevent multiple nonce conflicts
+let singletonInstance: SafeModuleService | null = null;
+
+// Factory function with singleton pattern
 export function createSafeModuleService(
   moduleAddress: string,
   chainId: number,
   executorPrivateKey?: string
 ): SafeModuleService {
+  // Return existing singleton if it exists and matches the config
+  if (singletonInstance && 
+      singletonInstance.chainId === chainId &&
+      singletonInstance.module.address === moduleAddress) {
+    console.log('[SafeModule] Using existing singleton instance');
+    return singletonInstance;
+  }
+
   const privateKey = executorPrivateKey || process.env.EXECUTOR_PRIVATE_KEY;
 
   if (!privateKey) {
     throw new Error('EXECUTOR_PRIVATE_KEY is required');
   }
 
-  return new SafeModuleService({
+  console.log('[SafeModule] Creating new singleton instance');
+  singletonInstance = new SafeModuleService({
     moduleAddress,
     chainId,
     executorPrivateKey: privateKey,
   });
+
+  return singletonInstance;
 }

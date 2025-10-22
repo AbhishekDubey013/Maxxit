@@ -54,6 +54,35 @@ export default function DeployAgent() {
     }
   }, [agentId]);
 
+  // Auto-detect connected wallet
+  useEffect(() => {
+    const getConnectedWallet = async () => {
+      if (typeof window.ethereum !== 'undefined') {
+        try {
+          // Check if already connected
+          const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+          if (accounts.length > 0) {
+            setUserWallet(accounts[0]);
+            console.log('[Deploy Agent] Auto-detected wallet:', accounts[0]);
+            return;
+          }
+
+          // Try to connect if not already connected
+          const requestedAccounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+          if (requestedAccounts.length > 0) {
+            setUserWallet(requestedAccounts[0]);
+            console.log('[Deploy Agent] Connected wallet:', requestedAccounts[0]);
+          }
+        } catch (error) {
+          console.error('[Deploy Agent] Failed to connect wallet:', error);
+          // Don't show alert here, let user manually enter if needed
+        }
+      }
+    };
+
+    getConnectedWallet();
+  }, []);
+
   // Validate Safe wallet
   const validateSafe = async () => {
     if (!safeAddress || !/^0x[a-fA-F0-9]{40}$/.test(safeAddress)) {
