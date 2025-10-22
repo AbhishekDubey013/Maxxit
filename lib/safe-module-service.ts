@@ -113,6 +113,7 @@ export class SafeModuleService {
   public readonly chainId: number;
   private static nonceTracker: Map<string, number> = new Map();
   private static nonceLocks: Map<string, Promise<void>> = new Map();
+  private static pendingTransactions: Map<string, Promise<any>> = new Map();
 
   constructor(config: ModuleConfig) {
     this.chainId = config.chainId;
@@ -194,6 +195,14 @@ export class SafeModuleService {
   public static resetSingleton() {
     singletonInstance = null;
     console.log('[SafeModule] Singleton instance reset');
+  }
+
+  /**
+   * Clear all pending transactions (useful for cleanup)
+   */
+  public static clearPendingTransactions() {
+    SafeModuleService.pendingTransactions.clear();
+    console.log('[SafeModule] All pending transactions cleared');
   }
 
   /**
@@ -343,6 +352,15 @@ export class SafeModuleService {
    */
   async executeTrade(params: TradeParams): Promise<TradeResult> {
     try {
+      // Create unique transaction key to prevent duplicates
+      const txKey = `trade_${params.safeAddress}_${params.fromToken}_${params.toToken}_${params.amountIn}`;
+      
+      // Check if transaction is already pending
+      if (SafeModuleService.pendingTransactions.has(txKey)) {
+        console.log('[SafeModule] Trade already pending, waiting for completion');
+        return await SafeModuleService.pendingTransactions.get(txKey);
+      }
+
       console.log('[SafeModule] Executing trade (V2):', {
         safe: params.safeAddress,
         from: params.fromToken,
@@ -351,6 +369,28 @@ export class SafeModuleService {
         profitReceiver: params.profitReceiver,
       });
 
+      // Create pending transaction promise
+      const tradePromise = this.executeTradeTransaction(params);
+      SafeModuleService.pendingTransactions.set(txKey, tradePromise);
+
+      try {
+        const result = await tradePromise;
+        return result;
+      } finally {
+        // Clean up pending transaction
+        SafeModuleService.pendingTransactions.delete(txKey);
+      }
+    } catch (error: any) {
+      console.error('[SafeModule] Execute trade error:', error);
+      return {
+        success: false,
+        error: error.message || 'Trade execution failed',
+      };
+    }
+  }
+
+  private async executeTradeTransaction(params: TradeParams): Promise<TradeResult> {
+    try {
       // V2 contract uses individual parameters, not a struct
       // Default pool fee: 3000 = 0.3% (most common Uniswap V3 tier)
       const poolFee = 3000;
@@ -462,6 +502,15 @@ export class SafeModuleService {
     entryValueUSDC: string; // Original entry value in USDC (6 decimals)
   }): Promise<TradeResult> {
     try {
+      // Create unique transaction key to prevent duplicates
+      const txKey = `close_${params.safeAddress}_${params.tokenIn}_${params.amountIn}`;
+      
+      // Check if transaction is already pending
+      if (SafeModuleService.pendingTransactions.has(txKey)) {
+        console.log('[SafeModule] Close position already pending, waiting for completion');
+        return await SafeModuleService.pendingTransactions.get(txKey);
+      }
+
       console.log('[SafeModule] Closing position (V2):', {
         safe: params.safeAddress,
         token: params.tokenIn,
@@ -470,6 +519,36 @@ export class SafeModuleService {
         profitReceiver: params.profitReceiver,
       });
 
+      // Create pending transaction promise
+      const closePromise = this.executeClosePosition(params);
+      SafeModuleService.pendingTransactions.set(txKey, closePromise);
+
+      try {
+        const result = await closePromise;
+        return result;
+      } finally {
+        // Clean up pending transaction
+        SafeModuleService.pendingTransactions.delete(txKey);
+      }
+    } catch (error: any) {
+      console.error('[SafeModule] Close position error:', error);
+      return {
+        success: false,
+        error: error.message || 'Close position failed',
+      };
+    }
+  }
+
+  private async executeClosePosition(params: {
+    safeAddress: string;
+    tokenIn: string;
+    tokenOut: string;
+    amountIn: string;
+    minAmountOut: string;
+    profitReceiver: string;
+    entryValueUSDC: string;
+  }): Promise<TradeResult> {
+    try {
       // V2 contract closePosition function
       const poolFee = 3000; // 0.3%
 
