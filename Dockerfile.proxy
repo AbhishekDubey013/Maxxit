@@ -7,12 +7,12 @@ RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
 # Copy package files
-COPY package.json ./
+COPY package.json package-lock.json* ./
 
-# Install dependencies with retry logic (skip postinstall scripts)
+# Install dependencies with retry logic
 RUN npm cache clean --force && \
     npm config set registry https://registry.npmjs.org/ && \
-    npm install --no-audit --no-fund --legacy-peer-deps --ignore-scripts
+    npm install --no-audit --no-fund --legacy-peer-deps
 
 # Copy Prisma schema first
 COPY prisma ./prisma
