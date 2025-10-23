@@ -19,7 +19,7 @@ export default function AutomatedAgentSignaturesPage() {
   const [signals, setSignals] = useState<Signal[]>([]);
   const [loading, setLoading] = useState(true);
   const [signing, setSigning] = useState<string | null>(null);
-  const [agentPrivateKey, setAgentPrivateKey] = useState('');
+  const [executorPrivateKey, setExecutorPrivateKey] = useState('');
 
   const fetchSignals = async () => {
     try {
@@ -44,8 +44,8 @@ export default function AutomatedAgentSignaturesPage() {
   }, []);
 
   const handleAutomatedSigning = async (signal: Signal) => {
-    if (!agentPrivateKey) {
-      alert('Please enter the agent private key first');
+    if (!executorPrivateKey) {
+      alert('Please enter the executor private key first');
       return;
     }
 
@@ -59,7 +59,7 @@ export default function AutomatedAgentSignaturesPage() {
         },
         body: JSON.stringify({
           signalId: signal.id,
-          agentPrivateKey: agentPrivateKey
+          executorPrivateKey: executorPrivateKey
         }),
       });
 
@@ -106,28 +106,28 @@ export default function AutomatedAgentSignaturesPage() {
 
         {/* Agent Private Key Input */}
         <div className="bg-white rounded-lg p-6 shadow-sm mb-8">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Agent Private Key</h2>
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Executor Private Key</h2>
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Agent Private Key (for automated signing)
+                Executor Private Key (for signing agreements)
               </label>
               <input
                 type="password"
-                value={agentPrivateKey}
-                onChange={(e) => setAgentPrivateKey(e.target.value)}
-                placeholder="Enter agent private key for automated signing..."
+                value={executorPrivateKey}
+                onChange={(e) => setExecutorPrivateKey(e.target.value)}
+                placeholder="Enter executor private key for signing agreements..."
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
-            <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4">
+            <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
               <div className="flex items-start gap-3">
-                <AlertCircle className="h-5 w-5 text-yellow-600 mt-0.5" />
+                <AlertCircle className="h-5 w-5 text-blue-600 mt-0.5" />
                 <div>
-                  <h3 className="font-medium text-yellow-900 mb-1">Security Notice</h3>
-                  <p className="text-sm text-yellow-800">
-                    This private key will be used to automatically sign trading signals. 
-                    Ensure this is a dedicated agent wallet with limited funds.
+                  <h3 className="font-medium text-blue-900 mb-1">Executor Agreement</h3>
+                  <p className="text-sm text-blue-800">
+                    This private key will be used to sign executor agreements on behalf of agents. 
+                    The executor signs to authorize trade execution for agent signals.
                   </p>
                 </div>
               </div>
@@ -223,7 +223,7 @@ export default function AutomatedAgentSignaturesPage() {
                       
                       <button
                         onClick={() => handleAutomatedSigning(signal)}
-                        disabled={signing === signal.id || !agentPrivateKey}
+                        disabled={signing === signal.id || !executorPrivateKey}
                         className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                       >
                         {signing === signal.id ? (

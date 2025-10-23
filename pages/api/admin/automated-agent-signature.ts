@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { PrismaClient } from '@prisma/client';
-import { createAutomatedAgentSignature, verifyAutomatedAgentSignature, validateAutomatedAgentSignatureData } from '@lib/agent-automated-signing';
+import { createExecutorAgreementSignature, verifyExecutorAgreementSignature, validateAutomatedAgentSignatureData } from '@lib/agent-automated-signing';
 
 const prisma = new PrismaClient();
 
@@ -13,10 +13,10 @@ export default async function handler(
   }
 
   try {
-    const { signalId, agentPrivateKey } = req.body;
+    const { signalId, executorPrivateKey } = req.body;
 
-    if (!signalId || !agentPrivateKey) {
-      return res.status(400).json({ error: 'Signal ID and agent private key are required' });
+    if (!signalId || !executorPrivateKey) {
+      return res.status(400).json({ error: 'Signal ID and executor private key are required' });
     }
 
     // Find the signal
@@ -29,57 +29,57 @@ export default async function handler(
       return res.status(404).json({ error: 'Signal not found' });
     }
 
-    // Create automated agent signature
-    const agentSignature = await createAutomatedAgentSignature(
+    // Create executor agreement signature
+    const executorSignature = await createExecutorAgreementSignature(
       signal.id,
       signal.agentId,
       signal.tokenSymbol,
       signal.side,
       signal.sizeModel?.value?.toString() || '1',
-      agentPrivateKey
+      executorPrivateKey
     );
 
     // Verify the signature
-    const isValid = verifyAutomatedAgentSignature(
-      agentSignature.message,
-      agentSignature.signature,
-      agentSignature.agentWallet
+    const isValid = verifyExecutorAgreementSignature(
+      executorSignature.message,
+      executorSignature.signature,
+      executorSignature.agentWallet
     );
 
     if (!isValid) {
       return res.status(400).json({
         success: false,
-        error: 'Invalid automated agent signature',
+        error: 'Invalid executor agreement signature',
         isValid: false
       });
     }
 
-    // Update the signal with automated agent signature
+    // Update the signal with executor agreement signature
     const updatedSignal = await prisma.signal.update({
       where: { id: signalId },
       data: {
-        agentSignatureMessage: agentSignature.message,
-        agentSignature: agentSignature.signature,
-        agentSignatureTimestamp: agentSignature.timestamp,
-        agentWallet: agentSignature.agentWallet,
-        agentSignatureVerified: true,
-        agentSignatureError: null
+        executorAgreementMessage: executorSignature.message,
+        executorAgreementSignature: executorSignature.signature,
+        executorAgreementTimestamp: executorSignature.timestamp,
+        executorWallet: executorSignature.agentWallet,
+        executorAgreementVerified: true,
+        executorAgreementError: null
       }
     });
 
-    // Log the automated agent signature
+    // Log the executor agreement signature
     await prisma.auditLog.create({
       data: {
-        action: 'AUTOMATED_AGENT_SIGNATURE_CREATED',
+        action: 'EXECUTOR_AGREEMENT_SIGNATURE_CREATED',
         details: {
           signalId,
           agentId: signal.agentId,
-          agentWallet: agentSignature.agentWallet,
+          executorWallet: executorSignature.agentWallet,
           tokenSymbol: signal.tokenSymbol,
           side: signal.side,
-          message: agentSignature.message,
-          signature: agentSignature.signature,
-          timestamp: agentSignature.timestamp,
+          message: executorSignature.message,
+          signature: executorSignature.signature,
+          timestamp: executorSignature.timestamp,
           automated: true
         }
       }
@@ -87,12 +87,12 @@ export default async function handler(
 
     return res.status(200).json({
       success: true,
-      message: 'Automated agent signature created and verified successfully',
+      message: 'Executor agreement signature created and verified successfully',
       signal: {
         id: updatedSignal.id,
-        agentSignatureVerified: updatedSignal.agentSignatureVerified,
-        agentWallet: updatedSignal.agentWallet,
-        agentSignatureTimestamp: updatedSignal.agentSignatureTimestamp
+        executorAgreementVerified: updatedSignal.executorAgreementVerified,
+        executorWallet: updatedSignal.executorWallet,
+        executorAgreementTimestamp: updatedSignal.executorAgreementTimestamp
       }
     });
 
