@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { PrismaClient } from '@prisma/client';
-// import { verifyProofOfIntent, validateProofOfIntentData } from '@lib/proof-of-intent';
+import { verifyProofOfIntent, validateProofOfIntentData } from '@lib/proof-of-intent';
 
 const prisma = new PrismaClient();
 
