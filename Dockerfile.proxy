@@ -9,13 +9,13 @@ WORKDIR /app
 # Copy package files
 COPY package.json package-lock.json* ./
 
+# Copy Prisma schema before npm install (needed for postinstall script)
+COPY prisma ./prisma
+
 # Install dependencies with retry logic
 RUN npm cache clean --force && \
     npm config set registry https://registry.npmjs.org/ && \
     npm install --no-audit --no-fund --legacy-peer-deps
-
-# Copy Prisma schema first
-COPY prisma ./prisma
 
 # Generate Prisma client (with fallback)
 RUN npx prisma generate || echo "Prisma generate failed, continuing..."
