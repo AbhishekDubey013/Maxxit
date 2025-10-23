@@ -1,6 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { PrismaClient } from '@prisma/client';
-import { ExecutorAgreementService } from '@lib/executor-agreement-service';
 
 const prisma = new PrismaClient();
 
@@ -13,7 +12,25 @@ export default async function handler(
   }
 
   try {
-    const signals = await ExecutorAgreementService.getSignalsNeedingExecutorAgreement();
+    // Get signals that need executor agreement
+    const signals = await prisma.signal.findMany({
+      where: {
+        executorAgreementVerified: false,
+        proofVerified: true, // Only signals with verified proof of intent
+      },
+      include: {
+        agent: {
+          select: {
+            id: true,
+            name: true,
+            creatorWallet: true,
+          }
+        }
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
+    });
 
     return res.status(200).json({
       success: true,
