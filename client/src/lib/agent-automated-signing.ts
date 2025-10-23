@@ -12,32 +12,32 @@ export interface AgentSignatureData {
   signature: string;
 }
 
-export const AGENT_AUTOMATED_SIGNATURE_PREFIX = "I hereby authorize this trading signal as an autonomous agent. This signature serves as my automated authorization for signal ID:";
+export const EXECUTOR_AGREEMENT_SIGNATURE_PREFIX = "I hereby agree to execute this trading signal on behalf of the agent. This signature serves as my authorization for signal ID:";
 
 /**
- * Creates an automated agent signature using the agent's private key.
+ * Creates an executor agreement signature using the executor's private key.
  * @param signalId The ID of the signal being executed.
  * @param agentId The ID of the agent.
  * @param tokenSymbol The token being traded.
  * @param side The side of the trade (BUY/SELL).
  * @param amount The amount being traded.
- * @param agentPrivateKey The agent's private key for automated signing.
+ * @param executorPrivateKey The executor's private key for signing.
  * @returns The signed agreement data.
  */
-export async function createAutomatedAgentSignature(
+export async function createExecutorAgreementSignature(
   signalId: string,
   agentId: string,
   tokenSymbol: string,
   side: string,
   amount: string,
-  agentPrivateKey: string
+  executorPrivateKey: string
 ): Promise<AgentSignatureData> {
   const timestamp = new Date();
-  const message = `${AGENT_AUTOMATED_SIGNATURE_PREFIX} ${signalId} for agent ${agentId} trading ${side} ${amount} ${tokenSymbol} at ${timestamp.toISOString()}`;
+  const message = `${EXECUTOR_AGREEMENT_SIGNATURE_PREFIX} ${signalId} for agent ${agentId} trading ${side} ${amount} ${tokenSymbol} at ${timestamp.toISOString()}`;
 
   try {
-    // Create wallet from private key
-    const wallet = new ethers.Wallet(agentPrivateKey);
+    // Create wallet from executor's private key
+    const wallet = new ethers.Wallet(executorPrivateKey);
     
     // Sign the message
     const signature = await wallet.signMessage(message);
@@ -49,33 +49,33 @@ export async function createAutomatedAgentSignature(
       side,
       amount,
       timestamp,
-      agentWallet: wallet.address,
+      agentWallet: wallet.address, // This is actually the executor's wallet
       message,
       signature
     };
   } catch (error: any) {
-    console.error("Automated agent signing failed:", error);
-    throw new Error(`Automated agent signing failed: ${error.message || error}`);
+    console.error("Executor agreement signing failed:", error);
+    throw new Error(`Executor agreement signing failed: ${error.message || error}`);
   }
 }
 
 /**
- * Verifies an automated agent signature against a message and an address.
+ * Verifies an executor agreement signature against a message and an address.
  * @param message The original message that was signed.
  * @param signature The signature to verify.
- * @param agentAddress The expected address of the agent.
+ * @param executorAddress The expected address of the executor.
  * @returns True if the signature is valid for the message and address, false otherwise.
  */
-export function verifyAutomatedAgentSignature(
+export function verifyExecutorAgreementSignature(
   message: string,
   signature: string,
-  agentAddress: string
+  executorAddress: string
 ): boolean {
   try {
     const recoveredAddress = ethers.utils.verifyMessage(message, signature);
-    return recoveredAddress.toLowerCase() === agentAddress.toLowerCase();
+    return recoveredAddress.toLowerCase() === executorAddress.toLowerCase();
   } catch (error) {
-    console.error("Automated agent signature verification failed:", error);
+    console.error("Executor agreement signature verification failed:", error);
     return false;
   }
 }
