@@ -166,23 +166,21 @@ export class TradeExecutor {
         };
       }
 
-      // Signature Verification (Manual Executor OR Automated Agent)
-      const hasManualExecutorAgreement = signal.executorAgreementVerified;
-      const hasAutomatedAgentSignature = signal.agentSignatureVerified;
-      
-      if (!hasManualExecutorAgreement && !hasAutomatedAgentSignature) {
-        return {
-          success: false,
-          error: 'Signature required',
-          reason: 'Signal requires either executor agreement or automated agent signature before execution',
-          executionSummary: {
-            canExecute: false,
-            reason: 'No signature found',
-            executorAgreementRequired: !hasManualExecutorAgreement,
-            automatedAgentSignatureRequired: !hasAutomatedAgentSignature
-          },
-        };
-      }
+    // Signature Verification (Executor Agreement Required)
+    const hasExecutorAgreement = signal.executorAgreementVerified;
+    
+    if (!hasExecutorAgreement) {
+      return {
+        success: false,
+        error: 'Executor agreement required',
+        reason: 'Signal requires executor agreement before execution',
+        executionSummary: {
+          canExecute: false,
+          reason: 'Executor agreement not found',
+          executorAgreementRequired: true
+        },
+      };
+    }
 
       // Route to appropriate venue
       const result = await this.routeToVenue({

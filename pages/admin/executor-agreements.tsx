@@ -70,7 +70,8 @@ export default function ExecutorAgreementsPage() {
             <div>
               <h1 className="text-3xl font-bold text-gray-900">Executor Agreements</h1>
               <p className="mt-2 text-gray-600">
-                Review and sign executor agreements for pending signals
+                Review and sign executor agreements for pending signals. 
+                Agents have already provided proof of intent during creation - you just need to authorize execution.
               </p>
             </div>
             <button
