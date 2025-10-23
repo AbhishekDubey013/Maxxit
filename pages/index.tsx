@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { db } from '@lib/db';
+import { db } from '../client/src/lib/db';
 import { AgentCard } from '@components/AgentCard';
 import { AgentDrawer } from '@components/AgentDrawer';
 import { Bot, TrendingUp, Shield, Zap } from 'lucide-react';

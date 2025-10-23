@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { db } from '@lib/db';
+import { db } from '../client/src/lib/db';
 import type { Agent, AgentDeployment, Position, BillingEvent } from '@shared/schema';
 import { Bot, Rocket, TrendingUp, DollarSign, Plus, Activity, BarChart3, CheckCircle, Pause } from 'lucide-react';
 import { Header } from '@components/Header';

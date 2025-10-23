@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
-import { db } from '@lib/db';
+import { db } from '../client/src/lib/db';
 import { usePrivy } from '@privy-io/react-auth';
 import { Rocket } from 'lucide-react';
 
