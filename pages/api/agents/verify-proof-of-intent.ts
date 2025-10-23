@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { PrismaClient } from '@prisma/client';
-import { verifyProofOfIntent, validateProofOfIntentData } from '@lib/proof-of-intent';
+import { verifyProofOfIntent } from '@lib/proof-of-intent';
 
 const prisma = new PrismaClient();
 
@@ -15,23 +15,9 @@ export default async function handler(
   try {
     const { agentId, message, signature, creatorWallet } = req.body;
 
-    // Validate required fields
     if (!agentId || !message || !signature || !creatorWallet) {
       return res.status(400).json({
-        error: 'Missing required fields: agentId, message, signature, creatorWallet'
-      });
-    }
-
-    console.log(`[VerifyProofOfIntent] Verifying proof for agent: ${agentId}`);
-
-    // Find the agent
-    const agent = await prisma.agent.findUnique({
-      where: { id: agentId }
-    });
-
-    if (!agent) {
-      return res.status(404).json({
-        error: 'Agent not found'
+        error: 'Missing required fields'
       });
     }
 
@@ -43,16 +29,14 @@ export default async function handler(
     );
 
     if (!verificationResult.isValid) {
-      console.log(`[VerifyProofOfIntent] Verification failed: ${verificationResult.error}`);
       return res.status(400).json({
         success: false,
-        error: verificationResult.error,
-        agentId
+        error: verificationResult.error
       });
     }
 
     // Update the agent with proof of intent data
-    const updatedAgent = await prisma.agent.update({
+    await prisma.agent.update({
       where: { id: agentId },
       data: {
         proofOfIntentMessage: message,
@@ -61,13 +45,9 @@ export default async function handler(
       }
     });
 
-    console.log(`[VerifyProofOfIntent] Proof verified and stored for agent: ${agentId}`);
-
     return res.status(200).json({
       success: true,
-      message: 'Proof of intent verified and stored successfully',
-      agentId,
-      verifiedAddress: verificationResult.recoveredAddress
+      message: 'Proof of intent verified and stored successfully'
     });
 
   } catch (error: any) {

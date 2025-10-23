@@ -36,49 +36,48 @@ model CtPost {
 }
 
 model Agent {
-  id                    String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  creatorWallet         String                @map("creator_wallet")
-  profitReceiverAddress String                @map("profit_receiver_address")
-  name                  String
-  venue                 Venue
-  status                AgentStatus           @default(DRAFT)
-  weights               Int[]                 @db.SmallInt
-  apr30d                Float?                @map("apr_30d") @db.Real
-  apr90d                Float?                @map("apr_90d") @db.Real
-  aprSi                 Float?                @map("apr_si") @db.Real
-  sharpe30d             Float?                @map("sharpe_30d") @db.Real
-  // Proof of Intent fields
-  proofOfIntentMessage  String?               @map("proof_of_intent_message")
-  proofOfIntentSignature String?              @map("proof_of_intent_signature")
-  proofOfIntentTimestamp DateTime?            @map("proof_of_intent_timestamp") @db.Timestamptz(6)
-  agentAccounts         AgentAccount[]
-  deployments           AgentDeployment[]
-  impactFactorHistory   ImpactFactorHistory[]
-  pnlSnapshots          PnlSnapshot[]
-  signals               Signal[]
+  id                     String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  creatorWallet          String                @map("creator_wallet")
+  name                   String
+  venue                  Venue
+  status                 AgentStatus           @default(DRAFT)
+  weights                Int[]                 @db.SmallInt
+  apr30d                 Float?                @map("apr_30d") @db.Real
+  apr90d                 Float?                @map("apr_90d") @db.Real
+  aprSi                  Float?                @map("apr_si") @db.Real
+  sharpe30d              Float?                @map("sharpe_30d") @db.Real
+  profitReceiverAddress  String                @map("profit_receiver_address")
+  proofOfIntentMessage   String?               @map("proof_of_intent_message")
+  proofOfIntentSignature String?               @map("proof_of_intent_signature")
+  proofOfIntentTimestamp DateTime?             @map("proof_of_intent_timestamp") @db.Timestamptz(6)
+  agentAccounts          AgentAccount[]
+  deployments            AgentDeployment[]
+  impactFactorHistory    ImpactFactorHistory[]
+  pnlSnapshots           PnlSnapshot[]
+  signals                Signal[]
 
   @@index([status, venue])
   @@map("agents")
 }
 
 model AgentDeployment {
-  id              String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  agentId         String          @map("agent_id") @db.Uuid
-  userWallet      String          @map("user_wallet")
-  safeWallet      String          @map("safe_wallet")
-  moduleAddress   String?         @map("module_address")
-  moduleEnabled   Boolean         @default(false) @map("module_enabled")
-  status          AgentStatus     @default(ACTIVE)
-  subActive       Boolean         @default(true) @map("sub_active")
-  subStartedAt    DateTime        @default(now()) @map("sub_started_at") @db.Timestamptz(6)
-  trialEndsAt     DateTime?       @map("trial_ends_at") @db.Timestamptz(6)
-  nextBillingAt   DateTime?       @map("next_billing_at") @db.Timestamptz(6)
-  agent           Agent           @relation(fields: [agentId], references: [id], onDelete: Cascade)
-  billingEvents   BillingEvent[]
-  pnlSnapshots    PnlSnapshot[]
-  positions       Position[]
-  telegramUsers   TelegramUser[]
-  telegramTrades  TelegramTrade[]
+  id             String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  agentId        String          @map("agent_id") @db.Uuid
+  userWallet     String          @map("user_wallet")
+  safeWallet     String          @map("safe_wallet")
+  status         AgentStatus     @default(ACTIVE)
+  subActive      Boolean         @default(true) @map("sub_active")
+  subStartedAt   DateTime        @default(now()) @map("sub_started_at") @db.Timestamptz(6)
+  trialEndsAt    DateTime?       @map("trial_ends_at") @db.Timestamptz(6)
+  nextBillingAt  DateTime?       @map("next_billing_at") @db.Timestamptz(6)
+  moduleEnabled  Boolean         @default(false) @map("module_enabled")
+  moduleAddress  String?         @map("module_address")
+  agent          Agent           @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  billingEvents  BillingEvent[]
+  pnlSnapshots   PnlSnapshot[]
+  positions      Position[]
+  telegramTrades TelegramTrade[]
+  telegramUsers  TelegramUser[]
 
   @@unique([userWallet, agentId])
   @@index([agentId])
@@ -113,36 +112,27 @@ model MarketIndicators6h {
 
 /// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
 model Signal {
-  id                  String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  agentId             String                @map("agent_id") @db.Uuid
-  tokenSymbol         String                @map("token_symbol")
-  venue               Venue
-  side                String
-  sizeModel           Json                  @map("size_model")
-  riskModel           Json                  @map("risk_model")
-  sourceTweets        String[]              @default([]) @map("source_tweets")
-  createdAt           DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
-  skippedReason       String?               @map("skipped_reason")
-  // Proof of Intent verification
-  proofVerified       Boolean               @default(false) @map("proof_verified")
-  proofVerificationError String?            @map("proof_verification_error")
-  // Executor Agreement (Manual)
-  executorAgreementMessage String?          @map("executor_agreement_message")
-  executorAgreementSignature String?       @map("executor_agreement_signature")
-  executorAgreementTimestamp DateTime?     @map("executor_agreement_timestamp") @db.Timestamptz(6)
-  executorWallet      String?              @map("executor_wallet")
-  executorAgreementVerified Boolean        @default(false) @map("executor_agreement_verified")
-  executorAgreementError String?           @map("executor_agreement_error")
-  // Automated Agent Signature
-  agentSignatureMessage String?            @map("agent_signature_message")
-  agentSignature String?                   @map("agent_signature")
-  agentSignatureTimestamp DateTime?        @map("agent_signature_timestamp") @db.Timestamptz(6)
-  agentWallet         String?              @map("agent_wallet")
-  agentSignatureVerified Boolean           @default(false) @map("agent_signature_verified")
-  agentSignatureError String?              @map("agent_signature_error")
-  impactFactorHistory ImpactFactorHistory[]
-  positions           Position[]
-  agent               Agent                 @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  id                         String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  agentId                    String                @map("agent_id") @db.Uuid
+  tokenSymbol                String                @map("token_symbol")
+  venue                      Venue
+  side                       String
+  sizeModel                  Json                  @map("size_model")
+  riskModel                  Json                  @map("risk_model")
+  sourceTweets               String[]              @default([]) @map("source_tweets")
+  createdAt                  DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  skippedReason              String?               @map("skipped_reason")
+  proofVerificationError     String?               @map("proof_verification_error")
+  proofVerified              Boolean               @default(false) @map("proof_verified")
+  executorAgreementError     String?               @map("executor_agreement_error")
+  executorAgreementMessage   String?               @map("executor_agreement_message")
+  executorAgreementSignature String?               @map("executor_agreement_signature")
+  executorAgreementTimestamp DateTime?             @map("executor_agreement_timestamp") @db.Timestamptz(6)
+  executorAgreementVerified  Boolean               @default(false) @map("executor_agreement_verified")
+  executorWallet             String?               @map("executor_wallet")
+  impactFactorHistory        ImpactFactorHistory[]
+  positions                  Position[]
+  agent                      Agent                 @relation(fields: [agentId], references: [id], onDelete: Cascade)
 
   @@index([agentId, createdAt])
   @@map("signals")
@@ -157,22 +147,22 @@ model Position {
   side                String
   qty                 Decimal               @db.Decimal(20, 8)
   entryPrice          Decimal               @map("entry_price") @db.Decimal(20, 8)
-  entryTxHash         String?               @map("entry_tx_hash")
   stopLoss            Decimal?              @map("stop_loss") @db.Decimal(20, 8)
   takeProfit          Decimal?              @map("take_profit") @db.Decimal(20, 8)
   trailingParams      Json?                 @map("trailing_params")
   openedAt            DateTime              @default(now()) @map("opened_at") @db.Timestamptz(6)
   closedAt            DateTime?             @map("closed_at") @db.Timestamptz(6)
   exitPrice           Decimal?              @map("exit_price") @db.Decimal(20, 8)
-  exitTxHash          String?               @map("exit_tx_hash")
   pnl                 Decimal?              @db.Decimal(20, 8)
-  source              String                @default("auto") // 'auto' or 'telegram'
+  entryTxHash         String?               @map("entry_tx_hash")
+  exitTxHash          String?               @map("exit_tx_hash")
   manualTradeId       String?               @map("manual_trade_id") @db.Uuid
+  source              String                @default("auto")
   billingEvents       BillingEvent[]
   impactFactorHistory ImpactFactorHistory[]
   deployment          AgentDeployment       @relation(fields: [deploymentId], references: [id], onDelete: Cascade)
-  signal              Signal                @relation(fields: [signalId], references: [id], onDelete: Cascade)
   manualTrade         TelegramTrade?        @relation(fields: [manualTradeId], references: [id])
+  signal              Signal                @relation(fields: [signalId], references: [id], onDelete: Cascade)
 
   @@unique([deploymentId, signalId])
   @@index([deploymentId, openedAt])
@@ -181,43 +171,41 @@ model Position {
   @@map("positions")
 }
 
-// New table: Telegram user linking
 model TelegramUser {
-  id              String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  telegramUserId  String            @unique @map("telegram_user_id") // Telegram's user ID
-  telegramUsername String?          @map("telegram_username")
-  firstName       String?           @map("first_name")
-  deploymentId    String            @map("deployment_id") @db.Uuid
-  linkCode        String?           @unique @map("link_code") // One-time code for linking
-  linkedAt        DateTime          @default(now()) @map("linked_at") @db.Timestamptz(6)
-  lastActiveAt    DateTime          @default(now()) @map("last_active_at") @db.Timestamptz(6)
-  isActive        Boolean           @default(true) @map("is_active")
-  deployment      AgentDeployment   @relation(fields: [deploymentId], references: [id], onDelete: Cascade)
-  trades          TelegramTrade[]
+  id               String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  telegramUserId   String          @unique @map("telegram_user_id")
+  telegramUsername String?         @map("telegram_username")
+  firstName        String?         @map("first_name")
+  deploymentId     String          @map("deployment_id") @db.Uuid
+  linkCode         String?         @unique @map("link_code")
+  linkedAt         DateTime        @default(now()) @map("linked_at") @db.Timestamptz(6)
+  lastActiveAt     DateTime        @default(now()) @map("last_active_at") @db.Timestamptz(6)
+  isActive         Boolean         @default(true) @map("is_active")
+  trades           TelegramTrade[]
+  deployment       AgentDeployment @relation(fields: [deploymentId], references: [id], onDelete: Cascade)
 
   @@index([deploymentId])
   @@map("telegram_users")
 }
 
-// New table: Manual trades via Telegram
 model TelegramTrade {
-  id              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  telegramUserId  String        @map("telegram_user_id") @db.Uuid
-  deploymentId    String        @map("deployment_id") @db.Uuid
-  messageId       String        @map("message_id") // Telegram message ID
-  command         String        // Original user command
-  parsedIntent    Json          @map("parsed_intent") // { action, token, amount, etc }
-  confirmed       Boolean       @default(false)
-  confirmedAt     DateTime?     @map("confirmed_at") @db.Timestamptz(6)
-  executed        Boolean       @default(false)
-  executedAt      DateTime?     @map("executed_at") @db.Timestamptz(6)
-  signalId        String?       @map("signal_id") @db.Uuid
-  status          String        @default("pending") // pending, confirmed, executing, executed, failed, cancelled
-  errorMessage    String?       @map("error_message")
-  createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
-  telegramUser    TelegramUser  @relation(fields: [telegramUserId], references: [id], onDelete: Cascade)
-  deployment      AgentDeployment @relation(fields: [deploymentId], references: [id], onDelete: Cascade)
-  positions       Position[]
+  id             String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  telegramUserId String          @map("telegram_user_id") @db.Uuid
+  deploymentId   String          @map("deployment_id") @db.Uuid
+  messageId      String          @map("message_id")
+  command        String
+  parsedIntent   Json            @map("parsed_intent")
+  confirmed      Boolean         @default(false)
+  confirmedAt    DateTime?       @map("confirmed_at") @db.Timestamptz(6)
+  executed       Boolean         @default(false)
+  executedAt     DateTime?       @map("executed_at") @db.Timestamptz(6)
+  signalId       String?         @map("signal_id") @db.Uuid
+  status         String          @default("pending")
+  errorMessage   String?         @map("error_message")
+  createdAt      DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  positions      Position[]
+  deployment     AgentDeployment @relation(fields: [deploymentId], references: [id], onDelete: Cascade)
+  telegramUser   TelegramUser    @relation(fields: [telegramUserId], references: [id], onDelete: Cascade)
 
   @@index([telegramUserId])
   @@index([deploymentId])

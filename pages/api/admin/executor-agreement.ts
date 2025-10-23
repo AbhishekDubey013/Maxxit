@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { PrismaClient } from '@prisma/client';
-import { verifyExecutorAgreement, validateExecutorAgreementData } from '@lib/executor-agreement';
+import { verifyExecutorAgreement } from '@lib/executor-agreement';
 
 const prisma = new PrismaClient();
 
@@ -19,15 +19,9 @@ export default async function handler(
       return res.status(400).json({ error: 'Signal ID and executor agreement are required' });
     }
 
-    // Validate executor agreement data
-    if (!validateExecutorAgreementData(executorAgreement)) {
-      return res.status(400).json({ error: 'Invalid executor agreement data structure' });
-    }
-
     // Find the signal
     const signal = await prisma.signal.findUnique({
-      where: { id: signalId },
-      include: { agent: true }
+      where: { id: signalId }
     });
 
     if (!signal) {
@@ -44,13 +38,12 @@ export default async function handler(
     if (!isValid) {
       return res.status(400).json({
         success: false,
-        error: 'Invalid executor agreement signature',
-        isValid: false
+        error: 'Invalid executor agreement signature'
       });
     }
 
     // Update the signal with executor agreement
-    const updatedSignal = await prisma.signal.update({
+    await prisma.signal.update({
       where: { id: signalId },
       data: {
         executorAgreementMessage: executorAgreement.message,
@@ -62,32 +55,9 @@ export default async function handler(
       }
     });
 
-    // Log the executor agreement
-    await prisma.auditLog.create({
-      data: {
-        action: 'EXECUTOR_AGREEMENT_SIGNED',
-        details: {
-          signalId,
-          agentId: signal.agentId,
-          executorWallet: executorAgreement.executorWallet,
-          tokenSymbol: signal.tokenSymbol,
-          side: signal.side,
-          message: executorAgreement.message,
-          signature: executorAgreement.signature,
-          timestamp: executorAgreement.timestamp
-        }
-      }
-    });
-
     return res.status(200).json({
       success: true,
-      message: 'Executor agreement signed and verified successfully',
-      signal: {
-        id: updatedSignal.id,
-        executorAgreementVerified: updatedSignal.executorAgreementVerified,
-        executorWallet: updatedSignal.executorWallet,
-        executorAgreementTimestamp: updatedSignal.executorAgreementTimestamp
-      }
+      message: 'Executor agreement signed and verified successfully'
     });
 
   } catch (error: any) {
