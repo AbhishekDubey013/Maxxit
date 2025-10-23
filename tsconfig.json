@@ -21,7 +21,7 @@
     "paths": {
       "@/*": ["./client/src/*"],
       "@components/*": ["./components/*"],
-      "@lib/*": ["./lib/*"],
+      "@lib/*": ["./client/src/lib/*"],
       "@shared/*": ["./shared/*"]
     },
     "plugins": [
