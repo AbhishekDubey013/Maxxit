@@ -57,6 +57,10 @@ export const insertAgentSchema = z.object({
   venue: VenueEnum,
   status: AgentStatusEnum.default("DRAFT"),
   weights: z.array(z.number().int().min(0).max(100)).length(8),
+  // Proof of Intent fields (optional for backward compatibility)
+  proofOfIntentMessage: z.string().optional(),
+  proofOfIntentSignature: z.string().optional(),
+  proofOfIntentTimestamp: z.string().datetime().optional(),
 });
 
 export type InsertAgent = z.infer<typeof insertAgentSchema>;
@@ -68,6 +72,10 @@ export interface Agent extends InsertAgent {
   apr90d: number | null;
   aprSi: number | null;
   sharpe30d: number | null;
+  // Proof of Intent fields
+  proofOfIntentMessage: string | null;
+  proofOfIntentSignature: string | null;
+  proofOfIntentTimestamp: string | null;
 }
 
 // AgentDeployment schemas

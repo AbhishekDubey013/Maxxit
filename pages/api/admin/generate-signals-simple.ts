@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { PrismaClient } from '@prisma/client';
 import { createSignalGenerator } from '../../../lib/signal-generator';
+import { ProofVerificationService } from '../../../lib/proof-verification-service';
 
 const prisma = new PrismaClient();
 
@@ -150,6 +151,14 @@ export default async function handler(
             console.log(`[GenerateSignals]    Take Profit: ${tradingSignal.takeProfit.value}%`);
             console.log(`[GenerateSignals]    Reasoning: ${tradingSignal.reasoning.substring(0, 100)}...`);
 
+            // Verify proof of intent before creating signal
+            const proofVerification = await ProofVerificationService.verifyAgentProofOfIntent(agent.id);
+            if (!proofVerification.isValid) {
+              console.log(`[GenerateSignals] ❌ Proof of intent verification failed for agent ${agent.name}: ${proofVerification.error}`);
+              signalsSkipped++;
+              continue;
+            }
+
             // Create signal in database
             const signal = await prisma.signal.create({
               data: {
@@ -171,6 +180,7 @@ export default async function handler(
                   entryPrice: tradingSignal.entryPrice,
                 },
                 sourceTweets: [tweet.tweetId],
+                proofVerified: true, // Mark as verified since we checked proof above
               },
             });
 

@@ -5,9 +5,10 @@ import { z } from 'zod';
 import { insertAgentSchema, VenueEnum } from '@shared/schema';
 import { db } from '@lib/db';
 import { useRouter } from 'next/router';
-import { Check, User, Building2, Sliders, Wallet, Eye, Rocket, Twitter, Search, Plus as PlusIcon, X } from 'lucide-react';
+import { Check, User, Building2, Sliders, Wallet, Eye, Rocket, Twitter, Search, Plus as PlusIcon, X, Shield } from 'lucide-react';
 import { Header } from '@components/Header';
 import { usePrivy } from '@privy-io/react-auth';
+import { createProofOfIntentWithMetaMask } from '@lib/proof-of-intent';
 
 const wizardSchema = insertAgentSchema.extend({
   description: z.string().max(500).optional(),
@@ -47,6 +48,14 @@ export default function CreateAgent() {
   const [showDeployModal, setShowDeployModal] = useState(false);
   const [createdAgentId, setCreatedAgentId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  
+  // Proof of Intent state
+  const [proofOfIntent, setProofOfIntent] = useState<{
+    message: string;
+    signature: string;
+    timestamp: Date;
+  } | null>(null);
+  const [isSigningProof, setIsSigningProof] = useState(false);
   
   // CT Accounts state
   const [ctAccounts, setCtAccounts] = useState<CtAccount[]>([]);
@@ -160,6 +169,45 @@ export default function CreateAgent() {
     setSelectedCtAccounts(newSelected);
   };
 
+  const createProofOfIntent = async () => {
+    if (!authenticated || !user?.wallet?.address) {
+      setError('Please connect your wallet first');
+      return;
+    }
+
+    if (!formData.name) {
+      setError('Please enter an agent name first');
+      return;
+    }
+
+    setIsSigningProof(true);
+    setError(null);
+
+    try {
+      // Generate a temporary agent ID for the proof message
+      const tempAgentId = `temp-${Date.now()}`;
+      
+      const proof = await createProofOfIntentWithMetaMask(
+        tempAgentId,
+        user.wallet.address,
+        formData.name
+      );
+
+      setProofOfIntent({
+        message: proof.message,
+        signature: proof.signature,
+        timestamp: proof.timestamp
+      });
+
+      console.log('✅ Proof of intent created successfully');
+    } catch (error: any) {
+      console.error('❌ Failed to create proof of intent:', error);
+      setError(`Failed to create proof of intent: ${error.message}`);
+    } finally {
+      setIsSigningProof(false);
+    }
+  };
+
   const onSubmit = async (data: WizardFormData) => {
     // Validate all fields before submit
     const isValid = await trigger();
@@ -177,6 +225,13 @@ export default function CreateAgent() {
     if (selectedCtAccounts.size === 0) {
       setError('Please select at least one CT account');
       setStep(4);
+      return;
+    }
+
+    // Validate proof of intent
+    if (!proofOfIntent) {
+      setError('Please create a proof of intent by signing with MetaMask');
+      setStep(6);
       return;
     }
 
@@ -198,6 +253,13 @@ export default function CreateAgent() {
       // Ensure profitReceiverAddress is set (default to creatorWallet if not provided)
       if (!agentData.profitReceiverAddress) {
         agentData.profitReceiverAddress = agentData.creatorWallet;
+      }
+
+      // Add proof of intent data
+      if (proofOfIntent) {
+        agentData.proofOfIntentMessage = proofOfIntent.message;
+        agentData.proofOfIntentSignature = proofOfIntent.signature;
+        agentData.proofOfIntentTimestamp = proofOfIntent.timestamp.toISOString();
       }
       
       console.log('🚀 CREATING AGENT - Step 1: Posting agent data to DB...');
@@ -288,9 +350,12 @@ export default function CreateAgent() {
       const validWallet = await trigger('creatorWallet');
       const validProfit = await trigger('profitReceiverAddress');
       isValid = validWallet && validProfit;
+    } else if (step === 6) {
+      // Proof of intent step - check if proof exists
+      isValid = !!proofOfIntent;
     }
     
-    if (isValid && step < 6) {
+    if (isValid && step < 7) {
       setStep(step + 1);
       setError(null);
     }
@@ -306,7 +371,8 @@ export default function CreateAgent() {
     { number: 3, label: 'Strategy', icon: Sliders },
     { number: 4, label: 'CT Accounts', icon: Twitter },
     { number: 5, label: 'Wallet', icon: Wallet },
-    { number: 6, label: 'Review', icon: Eye },
+    { number: 6, label: 'Proof of Intent', icon: Shield },
+    { number: 7, label: 'Review', icon: Eye },
   ];
 
   return (
@@ -823,8 +889,113 @@ export default function CreateAgent() {
             </div>
           )}
 
-          {/* Step 6: Review & Submit */}
+          {/* Step 6: Proof of Intent */}
           {step === 6 && (
+            <div className="space-y-6">
+              <h2 className="text-2xl font-semibold text-foreground mb-4">
+                Proof of Intent
+              </h2>
+              <p className="text-sm text-muted-foreground mb-6">
+                Sign a message with MetaMask to prove your intent to create and operate this trading agent. 
+                This signature will be used to authenticate all signals generated by your agent.
+              </p>
+
+              {!proofOfIntent ? (
+                <div className="space-y-4">
+                  <div className="p-4 bg-primary/10 border border-primary/20 rounded-md">
+                    <div className="flex items-start gap-3">
+                      <Shield className="h-5 w-5 text-primary mt-0.5" />
+                      <div>
+                        <h3 className="font-medium text-foreground mb-2">Why do I need to sign?</h3>
+                        <ul className="text-sm text-muted-foreground space-y-1">
+                          <li>• Proves you are the legitimate creator of this agent</li>
+                          <li>• Ensures all signals are authorized by you</li>
+                          <li>• Prevents unauthorized signal generation</li>
+                          <li>• Required for agent activation and signal processing</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={createProofOfIntent}
+                    disabled={isSigningProof || !authenticated}
+                    className="w-full px-6 py-3 bg-primary text-primary-foreground rounded-md font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    {isSigningProof ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
+                        Signing with MetaMask...
+                      </>
+                    ) : (
+                      <>
+                        <Shield className="h-4 w-4" />
+                        Sign Proof of Intent
+                      </>
+                    )}
+                  </button>
+
+                  {!authenticated && (
+                    <p className="text-sm text-muted-foreground text-center">
+                      Please connect your wallet first to create a proof of intent.
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="p-4 bg-green-50 border border-green-200 rounded-md">
+                    <div className="flex items-start gap-3">
+                      <Check className="h-5 w-5 text-green-600 mt-0.5" />
+                      <div>
+                        <h3 className="font-medium text-green-800 mb-2">Proof of Intent Created</h3>
+                        <p className="text-sm text-green-700">
+                          Your proof of intent has been successfully created and will be stored with your agent.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="p-3 bg-background border border-border rounded-md">
+                    <h4 className="text-sm font-medium text-foreground mb-2">Signature Details</h4>
+                    <div className="space-y-1 text-xs text-muted-foreground font-mono">
+                      <div>Timestamp: {proofOfIntent.timestamp.toLocaleString()}</div>
+                      <div>Signature: {proofOfIntent.signature.slice(0, 20)}...{proofOfIntent.signature.slice(-20)}</div>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setProofOfIntent(null)}
+                    className="w-full px-4 py-2 bg-secondary text-secondary-foreground rounded-md text-sm font-medium hover:bg-secondary/90 transition-colors"
+                  >
+                    Create New Proof
+                  </button>
+                </div>
+              )}
+
+              <div className="flex gap-4">
+                <button
+                  type="button"
+                  onClick={prevStep}
+                  className="flex-1 px-6 py-3 bg-secondary text-secondary-foreground rounded-md font-semibold hover:bg-secondary/90 transition-colors"
+                >
+                  Back
+                </button>
+                <button
+                  type="button"
+                  onClick={nextStep}
+                  disabled={!proofOfIntent}
+                  className="flex-1 px-6 py-3 bg-primary text-primary-foreground rounded-md font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Step 7: Review & Submit */}
+          {step === 7 && (
             <div className="space-y-6">
               <h2 className="text-2xl font-semibold text-foreground mb-4">
                 Review Your Agent
