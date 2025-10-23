@@ -166,6 +166,20 @@ export class TradeExecutor {
         };
       }
 
+      // Executor Agreement Verification
+      if (!signal.executorAgreementVerified) {
+        return {
+          success: false,
+          error: 'Executor agreement required',
+          reason: 'Signal requires executor agreement before execution',
+          executionSummary: {
+            canExecute: false,
+            reason: 'Executor agreement required',
+            executorAgreementRequired: true
+          },
+        };
+      }
+
       // Route to appropriate venue
       const result = await this.routeToVenue({
         signal,
