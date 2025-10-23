@@ -126,13 +126,20 @@ model Signal {
   // Proof of Intent verification
   proofVerified       Boolean               @default(false) @map("proof_verified")
   proofVerificationError String?            @map("proof_verification_error")
-  // Executor Agreement
+  // Executor Agreement (Manual)
   executorAgreementMessage String?          @map("executor_agreement_message")
   executorAgreementSignature String?       @map("executor_agreement_signature")
   executorAgreementTimestamp DateTime?     @map("executor_agreement_timestamp") @db.Timestamptz(6)
   executorWallet      String?              @map("executor_wallet")
   executorAgreementVerified Boolean        @default(false) @map("executor_agreement_verified")
   executorAgreementError String?           @map("executor_agreement_error")
+  // Automated Agent Signature
+  agentSignatureMessage String?            @map("agent_signature_message")
+  agentSignature String?                   @map("agent_signature")
+  agentSignatureTimestamp DateTime?        @map("agent_signature_timestamp") @db.Timestamptz(6)
+  agentWallet         String?              @map("agent_wallet")
+  agentSignatureVerified Boolean           @default(false) @map("agent_signature_verified")
+  agentSignatureError String?              @map("agent_signature_error")
   impactFactorHistory ImpactFactorHistory[]
   positions           Position[]
   agent               Agent                 @relation(fields: [agentId], references: [id], onDelete: Cascade)

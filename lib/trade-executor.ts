@@ -166,16 +166,20 @@ export class TradeExecutor {
         };
       }
 
-      // Executor Agreement Verification
-      if (!signal.executorAgreementVerified) {
+      // Signature Verification (Manual Executor OR Automated Agent)
+      const hasManualExecutorAgreement = signal.executorAgreementVerified;
+      const hasAutomatedAgentSignature = signal.agentSignatureVerified;
+      
+      if (!hasManualExecutorAgreement && !hasAutomatedAgentSignature) {
         return {
           success: false,
-          error: 'Executor agreement required',
-          reason: 'Signal requires executor agreement before execution',
+          error: 'Signature required',
+          reason: 'Signal requires either executor agreement or automated agent signature before execution',
           executionSummary: {
             canExecute: false,
-            reason: 'Executor agreement required',
-            executorAgreementRequired: true
+            reason: 'No signature found',
+            executorAgreementRequired: !hasManualExecutorAgreement,
+            automatedAgentSignatureRequired: !hasAutomatedAgentSignature
           },
         };
       }
