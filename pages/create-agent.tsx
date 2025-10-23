@@ -8,7 +8,7 @@ import { useRouter } from 'next/router';
 import { Check, User, Building2, Sliders, Wallet, Eye, Rocket, Twitter, Search, Plus as PlusIcon, X, Shield } from 'lucide-react';
 import { Header } from '@components/Header';
 import { usePrivy } from '@privy-io/react-auth';
-import { createProofOfIntentWithMetaMask } from '../lib/proof-of-intent';
+// import { createProofOfIntentWithMetaMask } from '@lib/proof-of-intent';
 
 const wizardSchema = insertAgentSchema.extend({
   description: z.string().max(500).optional(),
