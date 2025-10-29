@@ -117,7 +117,6 @@ export default function DeployAgent() {
       console.log('[DeploySafe] Step 1/2: Deploying Safe...');
 
       // STEP 1: Deploy Safe using Safe SDK v5
-      // Safe SDK v5 uses predictSafeAddress and deploySafe with provider
       const safeVersion = '1.4.1';
       const chainId = await provider.getNetwork().then(n => n.chainId);
       
@@ -126,7 +125,7 @@ export default function DeployAgent() {
         threshold: 1,
       };
 
-      // Deploy Safe
+      // Initialize Safe SDK to get predicted address
       const safeSdk = await Safe.init({
         provider: window.ethereum,
         signer: userWallet,
@@ -138,28 +137,43 @@ export default function DeployAgent() {
         }
       });
 
-      // Deploy the Safe
-      const deploymentTransaction = await safeSdk.createSafeDeploymentTransaction();
+      const predictedAddress = await safeSdk.getAddress();
+      console.log('[DeploySafe] Predicted Safe address:', predictedAddress);
+
+      // Check if Safe is already deployed
+      const safeCode = await provider.getCode(predictedAddress);
+      const isDeployed = safeCode !== '0x';
+
+      let deployedSafeAddress = predictedAddress;
+
+      if (isDeployed) {
+        console.log('[DeploySafe] ℹ️ Safe already deployed at this address');
+        console.log('[DeploySafe] Skipping deployment, using existing Safe');
+      } else {
+        console.log('[DeploySafe] Safe not deployed yet, deploying now...');
+        
+        // Deploy the Safe
+        const deploymentTransaction = await safeSdk.createSafeDeploymentTransaction();
+        
+        // Add from address to the transaction
+        const txWithFrom = {
+          ...deploymentTransaction,
+          from: userWallet,
+        };
+        
+        console.log('[DeploySafe] Sending deployment transaction...');
+        
+        // Send via ethers provider
+        const tx = await signer.sendTransaction(txWithFrom);
+        
+        console.log('[DeploySafe] Deployment TX:', tx.hash);
+        
+        // Wait for deployment
+        const receipt = await tx.wait();
+        console.log('[DeploySafe] Deployment confirmed!');
+      }
       
-      // Add from address to the transaction
-      const txWithFrom = {
-        ...deploymentTransaction,
-        from: userWallet,
-      };
-      
-      console.log('[DeploySafe] Sending deployment transaction...');
-      
-      // Send via ethers provider
-      const tx = await signer.sendTransaction(txWithFrom);
-      
-      console.log('[DeploySafe] Deployment TX:', tx.hash);
-      
-      // Wait for deployment
-      const receipt = await tx.wait();
-      console.log('[DeploySafe] Deployment confirmed!');
-      
-      const deployedSafeAddress = await safeSdk.getAddress();
-      console.log('[DeploySafe] ✅ Safe deployed at:', deployedSafeAddress);
+      console.log('[DeploySafe] ✅ Safe address:', deployedSafeAddress);
 
       // Wait a moment for deployment to settle
       await new Promise(resolve => setTimeout(resolve, 2000));
@@ -173,60 +187,84 @@ export default function DeployAgent() {
         safeAddress: deployedSafeAddress,
       });
 
+      // Check if module is already enabled
+      const isModuleAlreadyEnabled = await connectedSafeSdk.isModuleEnabled(moduleAddress);
+      console.log('[DeploySafe] Module already enabled:', isModuleAlreadyEnabled);
+
       // Prepare USDC approval data
       const USDC_ADDRESS = '0xaf88d065e77c8cC2239327C5EDb3A432268e5831'; // Arbitrum USDC
       const UNISWAP_V3_ROUTER = '0xE592427A0AEce92De3Edee1F18E0157C05861564';
-      const ERC20_ABI = ['function approve(address spender, uint256 amount) external returns (bool)'];
+      const ERC20_ABI = ['function approve(address spender, uint256 amount) external returns (bool)', 'function allowance(address owner, address spender) view returns (uint256)'];
       const usdcInterface = new ethers.utils.Interface(ERC20_ABI);
-      const approveData = usdcInterface.encodeFunctionData('approve', [
-        UNISWAP_V3_ROUTER,
-        ethers.constants.MaxUint256
-      ]);
-
-      // Get enable module data
-      const SAFE_ABI = ['function enableModule(address module) external'];
-      const safeInterface = new ethers.utils.Interface(SAFE_ABI);
-      const enableModuleData = safeInterface.encodeFunctionData('enableModule', [moduleAddress]);
-
-      console.log('[DeploySafe] Batching module enable + USDC approval into ONE transaction...');
-
-      // BATCH: Enable module + Approve USDC using MultiSend
-      const batchedTx = await connectedSafeSdk.createTransaction({
-        transactions: [
-          {
-            to: deployedSafeAddress, // Call enableModule on the Safe itself
-            value: '0',
-            data: enableModuleData,
-          },
-          {
-            to: USDC_ADDRESS,
-            value: '0',
-            data: approveData,
-          }
-        ]
-      });
-
-      console.log('[DeploySafe] Executing batched transaction (module + approval)...');
       
-      // Execute the batched transaction
-      const txResponse = await connectedSafeSdk.executeTransaction(batchedTx);
-      
-      console.log('[DeploySafe] Batched transaction sent');
-      console.log('[DeploySafe] Transaction hash:', txResponse.hash);
-      
-      // Wait for confirmation
-      const batchReceipt = await provider.waitForTransaction(txResponse.hash);
-      console.log('[DeploySafe] ✅ Batched transaction confirmed! Block:', batchReceipt.blockNumber);
+      // Check if USDC is already approved
+      const usdc = new ethers.Contract(USDC_ADDRESS, ERC20_ABI, provider);
+      const currentAllowance = await usdc.allowance(deployedSafeAddress, UNISWAP_V3_ROUTER);
+      const isAlreadyApproved = currentAllowance.gt(ethers.utils.parseUnits('1000000', 6)); // > 1M USDC means approved
+      console.log('[DeploySafe] USDC already approved:', isAlreadyApproved);
 
-      // Verify module is enabled
-      const isModuleEnabled = await connectedSafeSdk.isModuleEnabled(moduleAddress);
-      console.log('[DeploySafe] Module enabled:', isModuleEnabled);
+      const transactions = [];
 
-      if (!isModuleEnabled) {
-        throw new Error('Module enable failed. Please try again.');
+      // Add module enable if needed
+      if (!isModuleAlreadyEnabled) {
+        const SAFE_ABI = ['function enableModule(address module) external'];
+        const safeInterface = new ethers.utils.Interface(SAFE_ABI);
+        const enableModuleData = safeInterface.encodeFunctionData('enableModule', [moduleAddress]);
+        
+        transactions.push({
+          to: deployedSafeAddress,
+          value: '0',
+          data: enableModuleData,
+        });
       }
 
-      console.log('[DeploySafe] ✅ Module enabled + USDC approved for Uniswap Router');
+      // Add USDC approval if needed
+      if (!isAlreadyApproved) {
+        const approveData = usdcInterface.encodeFunctionData('approve', [
+          UNISWAP_V3_ROUTER,
+          ethers.constants.MaxUint256
+        ]);
+        
+        transactions.push({
+          to: USDC_ADDRESS,
+          value: '0',
+          data: approveData,
+        });
+      }
+
+      if (transactions.length === 0) {
+        console.log('[DeploySafe] ✅ Everything already configured!');
+        console.log('[DeploySafe] Module enabled + USDC approved');
+      } else {
+        console.log(`[DeploySafe] Batching ${transactions.length} operation(s)...`);
+
+        // BATCH: Execute needed operations
+        const batchedTx = await connectedSafeSdk.createTransaction({
+          transactions
+        });
+
+        console.log('[DeploySafe] Executing batched transaction...');
+        
+        // Execute the batched transaction
+        const txResponse = await connectedSafeSdk.executeTransaction(batchedTx);
+        
+        console.log('[DeploySafe] Transaction sent:', txResponse.hash);
+        
+        // Wait for confirmation
+        const batchReceipt = await provider.waitForTransaction(txResponse.hash);
+        console.log('[DeploySafe] ✅ Transaction confirmed! Block:', batchReceipt.blockNumber);
+
+        // Verify module is enabled
+        const isModuleEnabled = await connectedSafeSdk.isModuleEnabled(moduleAddress);
+        console.log('[DeploySafe] Module enabled:', isModuleEnabled);
+
+        if (!isModuleEnabled && !isModuleAlreadyEnabled) {
+          throw new Error('Module enable failed. Please try again.');
+        }
+
+        console.log('[DeploySafe] ✅ Setup complete!');
+      }
+      
       console.log('[DeploySafe] ⚠️  Capital will be auto-initialized when Safe is funded & first trade executes');
 
       // Update state
