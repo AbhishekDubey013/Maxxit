@@ -18,19 +18,26 @@ export default async function handler(
   try {
     console.log('[DeleteTestTweets] Starting cleanup...');
     
-    // Delete ALL test tweets
+    // Delete ALL fake tweets:
+    // 1. Test tweets: test_*
+    // 2. Mock tweets: contain underscores (format: timestamp_uuid_number)
+    // Real Twitter IDs are numeric only (e.g., "1983520353801691336")
+    
     const result = await prisma.ctPost.deleteMany({
       where: {
-        tweetId: { startsWith: 'test_' }
+        OR: [
+          { tweetId: { startsWith: 'test_' } },
+          { tweetId: { contains: '_' } }  // Catches mock tweets with underscores
+        ]
       }
     });
     
-    console.log(`[DeleteTestTweets] Deleted ${result.count} test tweet(s)`);
+    console.log(`[DeleteTestTweets] Deleted ${result.count} fake tweet(s)`);
     
     return res.status(200).json({
       success: true,
       deleted: result.count,
-      message: `Deleted ${result.count} test tweet(s)`
+      message: `Deleted ${result.count} fake tweet(s) (test + mock)`
     });
     
   } catch (error: any) {
