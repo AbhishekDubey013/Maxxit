@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Header } from '@components/Header';
 import GMXSetupButton from '@components/GMXSetupButton';
+import { SPOTSetupButton } from '@components/SPOTSetupButton';
 import { 
   Wallet, 
   Activity, 
@@ -266,15 +267,10 @@ export default function MyDeployments() {
                           onSetupComplete={() => fetchDeployments()}
                         />
                       ) : (
-                        <a
-                          href={`https://app.safe.global/home?safe=arb1:${deployment.safeWallet}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:bg-primary/90"
-                        >
-                          <Settings className="w-4 h-4" />
-                          Enable Module on Safe
-                        </a>
+                        <SPOTSetupButton 
+                          safeAddress={deployment.safeWallet}
+                          onSetupComplete={() => fetchDeployments()}
+                        />
                       )}
                     </div>
                   )}
