@@ -282,6 +282,8 @@ export default function DeployAgent() {
         });
         // After validation succeeds, check module status
         checkModuleStatus();
+        // Also try to auto-initialize capital if Safe has USDC
+        tryAutoInitializeCapital();
       } else {
         setValidationStatus({
           checking: false,
@@ -373,6 +375,38 @@ export default function DeployAgent() {
         needsEnabling: false,
         error: error.message || 'Failed to check module status',
       });
+    }
+  };
+
+  // Auto-initialize capital if Safe has USDC balance
+  const tryAutoInitializeCapital = async () => {
+    if (!safeAddress) return;
+
+    try {
+      console.log('[AutoInit] Checking if capital needs initialization...');
+      
+      const response = await fetch('/api/safe/auto-initialize-capital', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ safeAddress }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        if (data.alreadyInitialized) {
+          console.log('[AutoInit] Capital already initialized:', data.capital, 'USDC');
+        } else if (data.initialized) {
+          console.log('[AutoInit] ✅ Capital initialized:', data.capital, 'USDC');
+          console.log('[AutoInit] Transaction:', data.txHash);
+        }
+      } else {
+        // Not an error - Safe might just not have USDC yet
+        console.log('[AutoInit]', data.error || 'Capital not initialized');
+      }
+    } catch (error: any) {
+      // Silent fail - this is just a helper, not critical
+      console.log('[AutoInit] Error (non-critical):', error.message);
     }
   };
 
