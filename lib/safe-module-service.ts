@@ -159,16 +159,30 @@ export class SafeModuleService {
     SafeModuleService.nonceLocks.set(address, lockPromise);
     
     try {
-      // Always fetch fresh nonce from network to avoid issues
-      const networkNonce = await this.provider.getTransactionCount(address, 'latest');
+      // Get cached nonce first
+      let cachedNonce = SafeModuleService.nonceTracker.get(address);
       
-      // Use network nonce directly - no counter to avoid conflicts
-      console.log(`[SafeModule] Using fresh network nonce: ${networkNonce} for ${address}`);
+      // If no cached nonce or it's stale, fetch from network
+      if (cachedNonce === undefined) {
+        const networkNonce = await this.provider.getTransactionCount(address, 'latest');
+        cachedNonce = networkNonce;
+        console.log(`[SafeModule] Fresh network nonce: ${networkNonce} for ${address}`);
+      } else {
+        // Verify cached nonce is still valid
+        const networkNonce = await this.provider.getTransactionCount(address, 'latest');
+        if (networkNonce > cachedNonce) {
+          console.log(`[SafeModule] Cached nonce stale (${cachedNonce}), using network nonce: ${networkNonce}`);
+          cachedNonce = networkNonce;
+        } else {
+          console.log(`[SafeModule] Using cached nonce: ${cachedNonce} (network: ${networkNonce})`);
+        }
+      }
       
-      // Update cached nonce
-      SafeModuleService.nonceTracker.set(address, networkNonce);
+      // Increment and store for next call
+      const nonceToUse = cachedNonce;
+      SafeModuleService.nonceTracker.set(address, cachedNonce + 1);
       
-      return networkNonce;
+      return nonceToUse;
     } finally {
       // Release lock
       SafeModuleService.nonceLocks.delete(address);
@@ -409,7 +423,7 @@ export class SafeModuleService {
           poolFee,                     // uint24 poolFee
           params.profitReceiver,       // address profitReceiver
           {
-            gasLimit: 500000, // Reduced for Arbitrum's low gas costs
+            gasLimit: 300000, // Optimized for Arbitrum (typical: ~200k)
             nonce,
           }
         );
@@ -445,7 +459,7 @@ export class SafeModuleService {
             poolFee,                     // uint24 poolFee
             params.profitReceiver,       // address profitReceiver
             {
-              gasLimit: 500000, // Reduced for Arbitrum's low gas costs
+              gasLimit: 300000, // Optimized for Arbitrum (typical: ~200k)
               nonce: freshNonce,
             }
           );
@@ -565,7 +579,7 @@ export class SafeModuleService {
         params.profitReceiver,       // address agentOwner
         params.entryValueUSDC,       // uint256 entryValueUSDC
         {
-          gasLimit: 300000, // Simple function, needs less gas
+          gasLimit: 250000, // Optimized for Arbitrum close operations
           nonce,
         }
       );
