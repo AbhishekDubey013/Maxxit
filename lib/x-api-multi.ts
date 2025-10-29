@@ -61,7 +61,11 @@ export class GameApiClient {
 
       console.log(`[GAME API] Fetching ${maxResults} tweets from: ${cleanUsername} via proxy`);
 
-      const response = await fetch(url);
+      const response = await fetch(url, {
+        headers: {
+          'X-API-Key': this.apiKey,
+        },
+      });
 
       if (!response.ok) {
         const errorText = await response.text();
