@@ -3,7 +3,7 @@
  * Shows users exactly what permissions they're granting when enabling the trading module
  */
 
-import { Shield, Lock, Unlock, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
+import { Shield, Lock, Unlock, AlertTriangle, CheckCircle, XCircle, Info } from 'lucide-react';
 
 interface ModuleSecurityDisclosureProps {
   moduleAddress: string;
@@ -94,6 +94,15 @@ export function ModuleSecurityDisclosure({
             <div className="flex items-start gap-3 p-3 bg-green-500/10 border border-green-500/20 rounded-lg">
               <CheckCircle className="h-5 w-5 text-green-500 mt-0.5 flex-shrink-0" />
               <div>
+                <p className="text-sm font-medium text-foreground">Approve Uniswap V3 Router</p>
+                <p className="text-xs text-muted-foreground">
+                  Automatically approves Uniswap Router to swap your USDC (standard for DEX trading)
+                </p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3 p-3 bg-green-500/10 border border-green-500/20 rounded-lg">
+              <CheckCircle className="h-5 w-5 text-green-500 mt-0.5 flex-shrink-0" />
+              <div>
                 <p className="text-sm font-medium text-foreground">Charge trading fees</p>
                 <p className="text-xs text-muted-foreground">
                   Deduct small fees (0.2 USDC per trade) and profit share (20% of gains)
@@ -144,6 +153,21 @@ export function ModuleSecurityDisclosure({
                 <p className="text-xs text-muted-foreground">
                   Cannot modify your Safe's module configuration
                 </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Process Explanation */}
+        <div className="mb-6 p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+          <div className="flex items-start gap-3">
+            <Info className="h-5 w-5 text-blue-500 mt-0.5 flex-shrink-0" />
+            <div>
+              <h4 className="font-semibold text-foreground mb-2">What Happens Next:</h4>
+              <div className="text-sm text-muted-foreground space-y-2">
+                <p><strong>Transaction 1:</strong> Deploy your Safe wallet</p>
+                <p><strong>Transaction 2:</strong> Batch enable module + approve USDC for trading (MultiSend)</p>
+                <p className="text-xs pt-2 text-blue-600">✨ Just 2 MetaMask signatures - all automated, no Safe UI needed!</p>
               </div>
             </div>
           </div>
