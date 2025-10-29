@@ -9,7 +9,7 @@ export default async function handler(
   }
 
   try {
-    const moduleAddress = process.env.TRADING_MODULE_ADDRESS || '0x2218dD82E2bbFe759BDe741Fa419Bb8A9F658A46';
+    const moduleAddress = process.env.TRADING_MODULE_ADDRESS || '0x6ad58921173219A19B7c4b6f54C07A4c040bf8Cb';
     const fallbackAddress = '0x74437d894C8E8A5ACf371E10919c688ae79E89FA';
     
     return res.status(200).json({

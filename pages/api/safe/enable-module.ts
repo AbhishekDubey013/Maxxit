@@ -19,7 +19,7 @@ const SAFE_TX_SERVICE_URLS: { [chainId: number]: string } = {
   8453: 'https://safe-transaction-base.safe.global',
 };
 
-const MODULE_ADDRESS = process.env.TRADING_MODULE_ADDRESS || '0x2218dD82E2bbFe759BDe741Fa419Bb8A9F658A46';
+const MODULE_ADDRESS = process.env.TRADING_MODULE_ADDRESS || '0x6ad58921173219A19B7c4b6f54C07A4c040bf8Cb';
 const EXECUTOR_PRIVATE_KEY = process.env.EXECUTOR_PRIVATE_KEY;
 
 // Safe contract ABI (minimal - just what we need)

@@ -19,7 +19,7 @@ const RPC_URLS: { [chainId: number]: string } = {
   8453: process.env.BASE_RPC_URL || 'https://mainnet.base.org',
 };
 
-const MODULE_ADDRESS = process.env.TRADING_MODULE_ADDRESS || '0x2218dD82E2bbFe759BDe741Fa419Bb8A9F658A46';
+const MODULE_ADDRESS = process.env.TRADING_MODULE_ADDRESS || '0x6ad58921173219A19B7c4b6f54C07A4c040bf8Cb';
 
 const SAFE_ABI = [
   'function isModuleEnabled(address module) external view returns (bool)',
