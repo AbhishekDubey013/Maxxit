@@ -409,7 +409,7 @@ export class SafeModuleService {
           poolFee,                     // uint24 poolFee
           params.profitReceiver,       // address profitReceiver
           {
-            gasLimit: 1000000,
+            gasLimit: 500000, // Reduced for Arbitrum's low gas costs
             nonce,
           }
         );
@@ -445,7 +445,7 @@ export class SafeModuleService {
             poolFee,                     // uint24 poolFee
             params.profitReceiver,       // address profitReceiver
             {
-              gasLimit: 1000000,
+              gasLimit: 500000, // Reduced for Arbitrum's low gas costs
               nonce: freshNonce,
             }
           );
@@ -565,7 +565,7 @@ export class SafeModuleService {
         params.profitReceiver,       // address agentOwner
         params.entryValueUSDC,       // uint256 entryValueUSDC
         {
-          gasLimit: 1000000,
+          gasLimit: 300000, // Simple function, needs less gas
           nonce,
         }
       );
