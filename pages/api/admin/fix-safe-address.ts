@@ -14,7 +14,7 @@ export default async function handler(
   try {
     const deploymentId = '35c4f2d1-318c-420a-b3b0-abbd8bf847ff';
     const correctSafeAddress = '0x9A85f7140776477F1A79Ea29b7A32495636f5e20';
-    const correctModuleAddress = '0x74437d894C8E8A5ACf371E10919c688ae79E89FA';
+    const correctModuleAddress = '0x6ad58921173219A19B7c4b6f54C07A4c040bf8Cb';
 
     const updated = await prisma.agentDeployment.update({
       where: { id: deploymentId },

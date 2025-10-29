@@ -428,7 +428,7 @@ export class TradeExecutor {
       });
 
       // Use Safe Module Service for gasless execution
-      const moduleAddress = process.env.TRADING_MODULE_ADDRESS || process.env.MODULE_ADDRESS || '0x74437d894C8E8A5ACf371E10919c688ae79E89FA';
+      const moduleAddress = process.env.TRADING_MODULE_ADDRESS || process.env.MODULE_ADDRESS || '0x6ad58921173219A19B7c4b6f54C07A4c040bf8Cb';
       const executorPrivateKey = process.env.EXECUTOR_PRIVATE_KEY;
       
       if (!executorPrivateKey) {
