@@ -10,27 +10,31 @@ WORKDIR /app
 # Copy package files
 COPY package.json package-lock.json* ./
 
-# Install dependencies
-RUN npm ci
+# Install all dependencies (needed for build)
+RUN npm ci && npm cache clean --force
 
 # Copy source code
 COPY . .
 
-# Generate Prisma client with a dummy DATABASE_URL
+# Set build-time environment variables
 ENV DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy"
+ENV SKIP_ENV_VALIDATION=true
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV NODE_ENV=production
+
+# Generate Prisma client
 RUN npx prisma generate
 
-# Build the application (Next.js doesn't need real DB connection)
-RUN npm run build
+# Build the application with increased memory
+RUN NODE_OPTIONS="--max-old-space-size=4096" npm run build
 
-# Clear the dummy DATABASE_URL
+# Remove dummy DATABASE_URL
 ENV DATABASE_URL=""
 
 # Expose port
 EXPOSE 3000
 
-# Set environment variables
-ENV NODE_ENV=production
+# Set runtime environment variables
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
 
