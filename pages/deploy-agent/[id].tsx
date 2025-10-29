@@ -164,37 +164,70 @@ export default function DeployAgent() {
       // Wait a moment for deployment to settle
       await new Promise(resolve => setTimeout(resolve, 2000));
 
-      console.log('[DeploySafe] Step 2/2: Enabling module...');
+      console.log('[DeploySafe] Step 2/2: Enabling module + Setting up approvals (BATCHED)...');
 
-      // STEP 2: Now connect to the deployed Safe and enable module
+      // STEP 2: Connect to the deployed Safe
       const connectedSafeSdk = await Safe.init({
         provider: window.ethereum,
         signer: userWallet,
         safeAddress: deployedSafeAddress,
       });
 
-      // Create enable module transaction
-      const enableModuleTx = await connectedSafeSdk.createEnableModuleTx(moduleAddress);
+      // Prepare USDC approval data
+      const USDC_ADDRESS = '0xaf88d065e77c8cC2239327C5EDb3A432268e5831'; // Arbitrum USDC
+      const UNISWAP_V3_ROUTER = '0xE592427A0AEce92De3Edee1F18E0157C05861564';
+      const ERC20_ABI = ['function approve(address spender, uint256 amount) external returns (bool)'];
+      const usdcInterface = new ethers.utils.Interface(ERC20_ABI);
+      const approveData = usdcInterface.encodeFunctionData('approve', [
+        UNISWAP_V3_ROUTER,
+        ethers.constants.MaxUint256
+      ]);
+
+      // Get enable module data
+      const SAFE_ABI = ['function enableModule(address module) external'];
+      const safeInterface = new ethers.utils.Interface(SAFE_ABI);
+      const enableModuleData = safeInterface.encodeFunctionData('enableModule', [moduleAddress]);
+
+      console.log('[DeploySafe] Batching module enable + USDC approval into ONE transaction...');
+
+      // BATCH: Enable module + Approve USDC using MultiSend
+      const batchedTx = await connectedSafeSdk.createTransaction({
+        transactions: [
+          {
+            to: deployedSafeAddress, // Call enableModule on the Safe itself
+            value: '0',
+            data: enableModuleData,
+          },
+          {
+            to: USDC_ADDRESS,
+            value: '0',
+            data: approveData,
+          }
+        ]
+      });
+
+      console.log('[DeploySafe] Executing batched transaction (module + approval)...');
       
-      console.log('[DeploySafe] Executing module enable transaction...');
+      // Execute the batched transaction
+      const txResponse = await connectedSafeSdk.executeTransaction(batchedTx);
       
-      // Execute the transaction - Safe SDK handles the signature and submission
-      const txResponse = await connectedSafeSdk.executeTransaction(enableModuleTx);
-      
-      console.log('[DeploySafe] Module enable transaction sent');
+      console.log('[DeploySafe] Batched transaction sent');
       console.log('[DeploySafe] Transaction hash:', txResponse.hash);
       
-      // Wait for confirmation using ethers provider
-      const enableReceipt = await provider.waitForTransaction(txResponse.hash);
-      console.log('[DeploySafe] Module enable transaction confirmed! Block:', enableReceipt.blockNumber);
+      // Wait for confirmation
+      const batchReceipt = await provider.waitForTransaction(txResponse.hash);
+      console.log('[DeploySafe] ✅ Batched transaction confirmed! Block:', batchReceipt.blockNumber);
 
       // Verify module is enabled
       const isModuleEnabled = await connectedSafeSdk.isModuleEnabled(moduleAddress);
       console.log('[DeploySafe] Module enabled:', isModuleEnabled);
 
       if (!isModuleEnabled) {
-        throw new Error('Module enable transaction succeeded but module not enabled. Please try enabling manually.');
+        throw new Error('Module enable failed. Please try again.');
       }
+
+      console.log('[DeploySafe] ✅ Module enabled + USDC approved for Uniswap Router');
+      console.log('[DeploySafe] ⚠️  Capital will be auto-initialized when Safe is funded & first trade executes');
 
       // Update state
       setSafeAddress(deployedSafeAddress);
@@ -557,7 +590,7 @@ export default function DeployAgent() {
                     {deployingSafe ? (
                       <>
                         <Loader2 className="h-4 w-4 animate-spin" />
-                        Creating Safe... (Step 1/2)
+                        Creating Safe & Setting Up... (2 txns)
                       </>
                     ) : (
                       <>
