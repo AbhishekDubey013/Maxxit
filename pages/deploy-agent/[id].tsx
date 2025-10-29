@@ -232,9 +232,12 @@ export default function DeployAgent() {
         });
       }
 
-      if (transactions.length === 0) {
+      if (transactions.length === 0 && isDeployed) {
         console.log('[DeploySafe] ✅ Everything already configured!');
-        console.log('[DeploySafe] Module enabled + USDC approved');
+        console.log('[DeploySafe] Safe exists, module enabled, USDC approved');
+      } else if (transactions.length === 0 && !isDeployed) {
+        // This shouldn't happen but just in case
+        console.log('[DeploySafe] ✅ New Safe ready!');
       } else {
         console.log(`[DeploySafe] Batching ${transactions.length} operation(s)...`);
 
