@@ -11,7 +11,7 @@ import { ethers } from 'ethers';
 const prisma = new PrismaClient();
 
 const SEPOLIA_RPC = process.env.SEPOLIA_RPC_URL || 'https://ethereum-sepolia.publicnode.com';
-const MODULE_ADDRESS = process.env.TRADING_MODULE_ADDRESS || '0x2218dD82E2bbFe759BDe741Fa419Bb8A9F658A46';
+const MODULE_ADDRESS = process.env.TRADING_MODULE_ADDRESS || '0x6ad58921173219A19B7c4b6f54C07A4c040bf8Cb';
 
 const SAFE_ABI = [
   'function isModuleEnabled(address module) external view returns (bool)',
