@@ -16,11 +16,15 @@ RUN npm ci
 # Copy source code
 COPY . .
 
-# Generate Prisma client
+# Generate Prisma client with a dummy DATABASE_URL
+ENV DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy"
 RUN npx prisma generate
 
-# Build the application
+# Build the application (Next.js doesn't need real DB connection)
 RUN npm run build
+
+# Clear the dummy DATABASE_URL
+ENV DATABASE_URL=""
 
 # Expose port
 EXPOSE 3000
