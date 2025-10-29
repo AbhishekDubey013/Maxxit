@@ -10,10 +10,13 @@ WORKDIR /app
 # Copy package files
 COPY package.json package-lock.json* ./
 
+# Copy Prisma schema before npm install (needed for postinstall hook)
+COPY prisma ./prisma
+
 # Install all dependencies (needed for build)
 RUN npm ci --legacy-peer-deps && npm cache clean --force
 
-# Copy source code
+# Copy rest of source code
 COPY . .
 
 # Set build-time environment variables
