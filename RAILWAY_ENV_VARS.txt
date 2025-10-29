@@ -1,0 +1,24 @@
+# Railway Environment Variables
+# Copy these to Railway Dashboard → Service → Variables tab
+
+# === REQUIRED ===
+
+DATABASE_URL=postgresql://postgres:password@postgres.railway.internal:5432/railway
+ARBITRUM_RPC=https://arb1.arbitrum.io/rpc
+EXECUTOR_PRIVATE_KEY=0x... (your executor wallet private key - KEEP SECRET!)
+TRADING_MODULE_ADDRESS=0x6ad58921173219A19B7c4b6f54C07A4c040bf8Cb
+
+# === OPTIONAL ===
+
+GAME_API_KEY=... (if using GAME SDK for Twitter)
+GAME_API_URL=https://your-python-proxy.railway.app
+NODE_ENV=production
+MODULE_ADDRESS=0x6ad58921173219A19B7c4b6f54C07A4c040bf8Cb
+
+# === NOTES ===
+
+# DATABASE_URL: Automatically set by Railway if you add PostgreSQL database
+# EXECUTOR_PRIVATE_KEY: Fund this wallet with ~0.01 ETH on Arbitrum for gas
+# TRADING_MODULE_ADDRESS: V3 module deployed on Arbitrum
+# GAME_API_URL: Optional - only if you have separate Python proxy service
+
