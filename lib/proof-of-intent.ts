@@ -83,6 +83,20 @@ export async function createProofOfIntentWithMetaMask(
   const message = generateProofOfIntentMessage(agentId, creatorWallet, agentName, timestamp);
 
   try {
+    // First, request account access if not already connected
+    const accounts = await window.ethereum.request({
+      method: 'eth_requestAccounts',
+    });
+
+    if (!accounts || accounts.length === 0) {
+      throw new Error('No accounts found. Please connect your wallet.');
+    }
+
+    const connectedAddress = accounts[0];
+    if (connectedAddress.toLowerCase() !== creatorWallet.toLowerCase()) {
+      throw new Error(`Connected wallet (${connectedAddress}) does not match expected wallet (${creatorWallet})`);
+    }
+
     // Request signature from MetaMask
     const signature = await window.ethereum.request({
       method: 'personal_sign',
@@ -97,7 +111,13 @@ export async function createProofOfIntentWithMetaMask(
       creatorWallet
     };
   } catch (error: any) {
-    throw new Error(`Failed to create proof of intent: ${error.message}`);
+    if (error.code === 4001) {
+      throw new Error('User rejected the signature request');
+    } else if (error.code === -32002) {
+      throw new Error('Signature request is already pending. Please check MetaMask.');
+    } else {
+      throw new Error(`Failed to create proof of intent: ${error.message}`);
+    }
   }
 }
 

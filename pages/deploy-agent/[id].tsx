@@ -1,6 +1,9 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
-import { Check, AlertCircle, Loader2, Rocket, Shield, Wallet, Zap } from "lucide-react";
+import { Check, AlertCircle, Loader2, Rocket, Shield, Wallet, Zap, Sparkles } from "lucide-react";
+import Safe from '@safe-global/protocol-kit';
+import { ethers } from 'ethers';
+import { ModuleSecurityDisclosure } from '@components/ModuleSecurityDisclosure';
 
 // Extend Window interface for MetaMask
 declare global {
@@ -17,6 +20,7 @@ export default function DeployAgent() {
   const [userWallet, setUserWallet] = useState("");
   const [agentName, setAgentName] = useState("");
   const [agentVenue, setAgentVenue] = useState("");
+  const [hasExistingSafe, setHasExistingSafe] = useState(false);
   const [validationStatus, setValidationStatus] = useState<{
     checking: boolean;
     valid: boolean;
@@ -31,10 +35,12 @@ export default function DeployAgent() {
   }>({ checking: false, enabled: false, needsEnabling: false });
   const [enablingModule, setEnablingModule] = useState(false);
   const [showInstructions, setShowInstructions] = useState(false);
-  const [moduleAddress, setModuleAddress] = useState('0xa87f82433294cE8A3C8f08Ec5D2825e946C0c0FE');
+  const [moduleAddress, setModuleAddress] = useState('0x6ad58921173219A19B7c4b6f54C07A4c040bf8Cb'); // V3 module
   const [transactionData, setTransactionData] = useState('');
   const [deploying, setDeploying] = useState(false);
+  const [deployingSafe, setDeployingSafe] = useState(false);
   const [deployError, setDeployError] = useState("");
+  const [showSecurityDisclosure, setShowSecurityDisclosure] = useState(false);
 
   // Fetch agent details
   useEffect(() => {
@@ -82,6 +88,136 @@ export default function DeployAgent() {
 
     getConnectedWallet();
   }, []);
+
+  // Show security disclosure before deployment
+  const showSecurityReview = () => {
+    if (!userWallet) {
+      setDeployError('Please connect your wallet first');
+      return;
+    }
+    setShowSecurityDisclosure(true);
+  };
+
+  // Deploy Safe with module enabled (2-step but automated)
+  const deployNewSafeWithModule = async () => {
+    setShowSecurityDisclosure(false);
+
+    setDeployingSafe(true);
+    setDeployError('');
+
+    try {
+      console.log('[DeploySafe] Starting Safe deployment...');
+      console.log('[DeploySafe] Module address:', moduleAddress);
+      
+      // Connect to MetaMask
+      const provider = new ethers.providers.Web3Provider(window.ethereum);
+      await provider.send('eth_requestAccounts', []);
+      const signer = provider.getSigner();
+
+      console.log('[DeploySafe] Step 1/2: Deploying Safe...');
+
+      // STEP 1: Deploy Safe using Safe SDK v5
+      // Safe SDK v5 uses predictSafeAddress and deploySafe with provider
+      const safeVersion = '1.4.1';
+      const chainId = await provider.getNetwork().then(n => n.chainId);
+      
+      const safeAccountConfig = {
+        owners: [userWallet],
+        threshold: 1,
+      };
+
+      // Deploy Safe
+      const safeSdk = await Safe.init({
+        provider: window.ethereum,
+        signer: userWallet,
+        predictedSafe: {
+          safeAccountConfig,
+          safeDeploymentConfig: {
+            safeVersion,
+          }
+        }
+      });
+
+      // Deploy the Safe
+      const deploymentTransaction = await safeSdk.createSafeDeploymentTransaction();
+      
+      // Add from address to the transaction
+      const txWithFrom = {
+        ...deploymentTransaction,
+        from: userWallet,
+      };
+      
+      console.log('[DeploySafe] Sending deployment transaction...');
+      
+      // Send via ethers provider
+      const tx = await signer.sendTransaction(txWithFrom);
+      
+      console.log('[DeploySafe] Deployment TX:', tx.hash);
+      
+      // Wait for deployment
+      const receipt = await tx.wait();
+      console.log('[DeploySafe] Deployment confirmed!');
+      
+      const deployedSafeAddress = await safeSdk.getAddress();
+      console.log('[DeploySafe] ✅ Safe deployed at:', deployedSafeAddress);
+
+      // Wait a moment for deployment to settle
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      console.log('[DeploySafe] Step 2/2: Enabling module...');
+
+      // STEP 2: Now connect to the deployed Safe and enable module
+      const connectedSafeSdk = await Safe.init({
+        provider: window.ethereum,
+        signer: userWallet,
+        safeAddress: deployedSafeAddress,
+      });
+
+      // Create enable module transaction
+      const enableModuleTx = await connectedSafeSdk.createEnableModuleTx(moduleAddress);
+      
+      console.log('[DeploySafe] Executing module enable transaction...');
+      
+      // Execute the transaction - Safe SDK handles the signature and submission
+      const txResponse = await connectedSafeSdk.executeTransaction(enableModuleTx);
+      
+      console.log('[DeploySafe] Module enable transaction sent');
+      console.log('[DeploySafe] Transaction hash:', txResponse.hash);
+      
+      // Wait for confirmation using ethers provider
+      const enableReceipt = await provider.waitForTransaction(txResponse.hash);
+      console.log('[DeploySafe] Module enable transaction confirmed! Block:', enableReceipt.blockNumber);
+
+      // Verify module is enabled
+      const isModuleEnabled = await connectedSafeSdk.isModuleEnabled(moduleAddress);
+      console.log('[DeploySafe] Module enabled:', isModuleEnabled);
+
+      if (!isModuleEnabled) {
+        throw new Error('Module enable transaction succeeded but module not enabled. Please try enabling manually.');
+      }
+
+      // Update state
+      setSafeAddress(deployedSafeAddress);
+      setValidationStatus({
+        checking: false,
+        valid: true,
+      });
+      setModuleStatus({
+        checking: false,
+        enabled: true,
+        needsEnabling: false,
+      });
+      setHasExistingSafe(false);
+
+      console.log('[DeploySafe] ✅ Safe deployed successfully with module enabled!');
+
+    } catch (error: any) {
+      console.error('[DeploySafe] Error:', error);
+      setDeployError(error.message || 'Failed to deploy Safe with module');
+    } finally {
+      setDeployingSafe(false);
+    }
+  };
 
   // Validate Safe wallet
   const validateSafe = async () => {
@@ -265,9 +401,9 @@ export default function DeployAgent() {
     setDeployError('');
 
     try {
-      // Use the new V3 module enablement API
+      // Use the same API endpoint as the immediate module enabling
       const chainId = 42161; // Arbitrum One
-      const response = await fetch('/api/admin/enable-v3-module', {
+      const response = await fetch('/api/safe/enable-module', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ safeAddress, chainId }),
@@ -276,7 +412,7 @@ export default function DeployAgent() {
       const data = await response.json();
 
       if (data.success && data.alreadyEnabled) {
-        // V3 module already enabled, just update status
+        // Module already enabled, just update status
         await checkModuleStatus();
         setEnablingModule(false);
         return;
@@ -285,28 +421,28 @@ export default function DeployAgent() {
       if (data.success && data.transactionData) {
         // Store module address and transaction data
         const moduleAddr = data.moduleAddress || '0x6ad58921173219A19B7c4b6f54C07A4c040bf8Cb';
-        const txData = data.transactionData.data || '';
+        const txData = data.transactionData || '';
         setModuleAddress(moduleAddr);
         setTransactionData(txData);
       
         // Copy transaction data to clipboard
-      try {
-        await navigator.clipboard.writeText(txData);
-        console.log('[EnableModule] Transaction data copied to clipboard');
-      } catch (e) {
-        console.log('[EnableModule] Clipboard copy failed, but continuing...');
-      }
+        try {
+          await navigator.clipboard.writeText(txData);
+          console.log('[EnableModule] Transaction data copied to clipboard');
+        } catch (e) {
+          console.log('[EnableModule] Clipboard copy failed, but continuing...');
+        }
 
-      // Open Safe Transaction Builder
-      const chainPrefix = 'arb1'; // Arbitrum One
-      const txBuilderAppUrl = 'https://apps-portal.safe.global/tx-builder';
-      const safeUrl = `https://app.safe.global/apps/open?safe=${chainPrefix}:${safeAddress}&appUrl=${encodeURIComponent(txBuilderAppUrl)}`;
-      
-      const safeWindow = window.open(safeUrl, '_blank');
-      
-      if (!safeWindow) {
-        throw new Error('Please allow pop-ups to open Safe Transaction Builder');
-      }
+        // Open Safe Transaction Builder
+        const chainPrefix = 'arb1'; // Arbitrum One
+        const txBuilderAppUrl = 'https://apps-portal.safe.global/tx-builder';
+        const safeUrl = `https://app.safe.global/apps/open?safe=${chainPrefix}:${safeAddress}&appUrl=${encodeURIComponent(txBuilderAppUrl)}`;
+        
+        const safeWindow = window.open(safeUrl, '_blank');
+        
+        if (!safeWindow) {
+          throw new Error('Please allow pop-ups to open Safe Transaction Builder');
+        }
 
         // Show instructions panel
         setShowInstructions(true);
@@ -392,39 +528,123 @@ export default function DeployAgent() {
             </p>
           </div>
 
-          {/* Safe Wallet */}
+          {/* Safe Wallet - New or Existing */}
           <div>
             <label className="block text-sm font-medium mb-2 flex items-center gap-2">
               <Shield className="h-4 w-4" />
-              Safe Wallet Address *
+              Safe Wallet Setup *
             </label>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={safeAddress}
-                onChange={(e) => {
-                  setSafeAddress(e.target.value);
-                  setValidationStatus({ checking: false, valid: false });
-                }}
-                placeholder="0x..."
-                className="flex-1 px-4 py-2 bg-background border border-border rounded-md text-foreground font-mono text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-              />
-              <button
-                type="button"
-                onClick={validateSafe}
-                disabled={validationStatus.checking || !safeAddress}
-                className="px-4 py-2 bg-primary text-primary-foreground rounded-md font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {validationStatus.checking ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  "Validate"
+
+            {/* Choice: Create New or Use Existing */}
+            {!safeAddress && (
+              <div className="space-y-3 mb-4">
+                <div className="p-4 bg-gradient-to-br from-primary/10 to-primary/5 border-2 border-primary/30 rounded-lg">
+                  <div className="flex items-start gap-3 mb-3">
+                    <Sparkles className="h-5 w-5 text-primary mt-0.5" />
+                    <div>
+                      <h3 className="font-semibold text-foreground">⚡ One-Click Deploy (Recommended)</h3>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Create a new Safe account with trading module enabled in a single transaction
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={showSecurityReview}
+                    disabled={deployingSafe || !userWallet}
+                    className="w-full px-4 py-3 bg-primary text-primary-foreground rounded-md font-semibold hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    {deployingSafe ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Creating Safe... (Step 1/2)
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="h-4 w-4" />
+                        Create Safe + Enable Module
+                      </>
+                    )}
+                  </button>
+                  {!userWallet && (
+                    <p className="text-xs text-amber-600 mt-2 text-center">
+                      Please connect your wallet first
+                    </p>
+                  )}
+                </div>
+
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-border"></div>
+                  </div>
+                  <div className="relative flex justify-center text-xs">
+                    <span className="px-2 bg-card text-muted-foreground">OR</span>
+                  </div>
+                </div>
+
+                <div className="p-4 bg-background border border-border rounded-lg">
+                  <div className="flex items-start gap-3 mb-3">
+                    <Wallet className="h-5 w-5 text-muted-foreground mt-0.5" />
+                    <div>
+                      <h3 className="font-medium text-foreground">Use Existing Safe</h3>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Already have a Safe? Enter your Safe address below
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setHasExistingSafe(true)}
+                    className="w-full px-4 py-2 bg-secondary text-secondary-foreground rounded-md font-medium hover:bg-secondary/90"
+                  >
+                    I Have an Existing Safe
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Existing Safe Input */}
+            {(hasExistingSafe || safeAddress) && (
+              <>
+                <div className="flex gap-2 mb-2">
+                  <input
+                    type="text"
+                    value={safeAddress}
+                    onChange={(e) => {
+                      setSafeAddress(e.target.value);
+                      setValidationStatus({ checking: false, valid: false });
+                    }}
+                    placeholder="0x..."
+                    className="flex-1 px-4 py-2 bg-background border border-border rounded-md text-foreground font-mono text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                  <button
+                    type="button"
+                    onClick={validateSafe}
+                    disabled={validationStatus.checking || !safeAddress}
+                    className="px-4 py-2 bg-primary text-primary-foreground rounded-md font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {validationStatus.checking ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      "Validate"
+                    )}
+                  </button>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Your Safe multisig wallet on Arbitrum One that will hold your USDC
+                </p>
+                {hasExistingSafe && !safeAddress && (
+                  <button
+                    type="button"
+                    onClick={() => setHasExistingSafe(false)}
+                    className="text-xs text-primary hover:underline mt-2"
+                  >
+                    ← Back to creation options
+                  </button>
                 )}
-              </button>
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Your Safe multisig wallet on Arbitrum One that will hold your USDC
-            </p>
+              </>
+            )}
+
             <div className="mt-2 p-2 bg-primary/10 border border-primary/20 rounded-md">
               <p className="text-xs text-primary font-medium">
                 ✨ Gasless Trading: You only need USDC - we cover all gas fees!
@@ -669,7 +889,7 @@ export default function DeployAgent() {
                   ) : (
                     <>
                       <Shield className="h-4 w-4" />
-                      Enable V3 Module
+                      Enable Module
                     </>
                   )}
                 </button>
@@ -696,7 +916,7 @@ export default function DeployAgent() {
               {showInstructions && (
                 <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg">
                   <div className="flex items-start justify-between mb-3">
-                    <h4 className="font-semibold text-blue-900 dark:text-blue-100">📋 V3 Module Setup Instructions</h4>
+                    <h4 className="font-semibold text-blue-900 dark:text-blue-100">📋 Module Setup Instructions</h4>
                     <button
                       onClick={() => setShowInstructions(false)}
                       className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200"
@@ -868,6 +1088,14 @@ export default function DeployAgent() {
           </button>
         </div>
       </div>
+
+      {/* Security Disclosure Modal */}
+      <ModuleSecurityDisclosure
+        moduleAddress={moduleAddress}
+        isOpen={showSecurityDisclosure}
+        onConfirm={deployNewSafeWithModule}
+        onCancel={() => setShowSecurityDisclosure(false)}
+      />
     </div>
   );
 }
