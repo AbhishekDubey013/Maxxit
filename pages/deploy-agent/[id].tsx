@@ -45,6 +45,7 @@ export default function DeployAgent() {
     message: string;
     nextSteps?: any;
   } | null>(null);
+  const [setupInProgress, setSetupInProgress] = useState(false);
   const [showSecurityDisclosure, setShowSecurityDisclosure] = useState(false);
 
   // Fetch agent details
@@ -506,6 +507,139 @@ export default function DeployAgent() {
       console.error('[EnableModuleGMX] Error:', error);
       setDeployError(error.message);
       setEnablingModule(false);
+    }
+  };
+
+  // Setup existing Safe: Enable module + Approve USDC (batched)
+  const setupExistingSafe = async () => {
+    if (!safeAddress || !userWallet) {
+      setDeployError('Safe address and wallet required');
+      return;
+    }
+
+    setSetupInProgress(true);
+    setDeployError('');
+    setValidationError(null);
+
+    try {
+      console.log('[SetupExistingSafe] Starting setup for:', safeAddress);
+      
+      // Connect to MetaMask
+      const provider = new ethers.providers.Web3Provider(window.ethereum);
+      await provider.send('eth_requestAccounts', []);
+      const signer = provider.getSigner();
+      const chainId = await provider.getNetwork().then(n => n.chainId);
+
+      // Connect to the existing Safe
+      const connectedSafeSdk = await Safe.init({
+        provider: window.ethereum,
+        signer: userWallet,
+        safeAddress: safeAddress,
+      });
+
+      console.log('[SetupExistingSafe] Connected to Safe');
+
+      // Check if module is already enabled
+      const isModuleAlreadyEnabled = await connectedSafeSdk.isModuleEnabled(moduleAddress);
+      console.log('[SetupExistingSafe] Module already enabled:', isModuleAlreadyEnabled);
+
+      // Prepare USDC approval data
+      const USDC_ADDRESS = chainId === 42161 
+        ? '0xaf88d065e77c8cC2239327C5EDb3A432268e5831' // Arbitrum
+        : '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238'; // Sepolia
+      
+      const UNISWAP_V3_ROUTER = '0xE592427A0AEce92De3Edee1F18E0157C05861564';
+      const ERC20_ABI = ['function approve(address spender, uint256 amount) external returns (bool)', 'function allowance(address owner, address spender) view returns (uint256)'];
+      const usdcInterface = new ethers.utils.Interface(ERC20_ABI);
+      
+      // Check if USDC is already approved
+      const usdc = new ethers.Contract(USDC_ADDRESS, ERC20_ABI, provider);
+      const currentAllowance = await usdc.allowance(safeAddress, UNISWAP_V3_ROUTER);
+      const isAlreadyApproved = currentAllowance.gt(ethers.utils.parseUnits('1000000', 6)); // > 1M USDC
+      console.log('[SetupExistingSafe] USDC already approved:', isAlreadyApproved);
+
+      const transactions = [];
+
+      // Add module enable if needed
+      if (!isModuleAlreadyEnabled) {
+        const SAFE_ABI = ['function enableModule(address module) external'];
+        const safeInterface = new ethers.utils.Interface(SAFE_ABI);
+        const enableModuleData = safeInterface.encodeFunctionData('enableModule', [moduleAddress]);
+        
+        transactions.push({
+          to: safeAddress,
+          value: '0',
+          data: enableModuleData,
+        });
+        console.log('[SetupExistingSafe] Added enableModule to batch');
+      }
+
+      // Add USDC approval if needed
+      if (!isAlreadyApproved) {
+        const approveData = usdcInterface.encodeFunctionData('approve', [
+          UNISWAP_V3_ROUTER,
+          ethers.constants.MaxUint256
+        ]);
+        
+        transactions.push({
+          to: USDC_ADDRESS,
+          value: '0',
+          data: approveData,
+        });
+        console.log('[SetupExistingSafe] Added USDC approval to batch');
+      }
+
+      if (transactions.length === 0) {
+        console.log('[SetupExistingSafe] ✅ Everything already configured!');
+        setModuleStatus({
+          checking: false,
+          enabled: true,
+          needsEnabling: false,
+        });
+        setValidationError(null);
+      } else {
+        console.log(`[SetupExistingSafe] Batching ${transactions.length} operation(s)...`);
+
+        // BATCH: Execute needed operations in a single transaction
+        const batchedTx = await connectedSafeSdk.createTransaction({
+          transactions
+        });
+
+        console.log('[SetupExistingSafe] Executing batched transaction...');
+        
+        // Execute the batched transaction
+        const txResponse = await connectedSafeSdk.executeTransaction(batchedTx);
+        
+        console.log('[SetupExistingSafe] Transaction sent:', txResponse.hash);
+        
+        // Wait for confirmation
+        const batchReceipt = await provider.waitForTransaction(txResponse.hash);
+        console.log('[SetupExistingSafe] ✅ Transaction confirmed! Block:', batchReceipt.blockNumber);
+
+        // Verify module is enabled
+        const isModuleEnabled = await connectedSafeSdk.isModuleEnabled(moduleAddress);
+        console.log('[SetupExistingSafe] Module enabled:', isModuleEnabled);
+
+        if (!isModuleEnabled && !isModuleAlreadyEnabled) {
+          throw new Error('Module enable failed. Please try again.');
+        }
+
+        console.log('[SetupExistingSafe] ✅ Setup complete!');
+        
+        // Update state
+        setModuleStatus({
+          checking: false,
+          enabled: true,
+          needsEnabling: false,
+        });
+        setValidationError(null);
+      }
+
+    } catch (error: any) {
+      console.error('[SetupExistingSafe] Error:', error);
+      setDeployError(error.message || 'Failed to setup Safe');
+    } finally {
+      setSetupInProgress(false);
     }
   };
 
@@ -1156,48 +1290,45 @@ export default function DeployAgent() {
             </div>
           )}
 
-          {/* Validation Errors with Instructions */}
+          {/* Validation Errors with Automated Setup */}
           {validationError && (
             <div className="p-4 bg-yellow-500/10 border-2 border-yellow-500/30 rounded-lg">
-              <div className="flex items-start gap-3 mb-3">
+              <div className="flex items-start gap-3">
                 <AlertCircle className="h-5 w-5 text-yellow-600 mt-0.5" />
                 <div className="flex-1">
                   <h3 className="font-semibold text-foreground mb-1">
-                    {validationError.type === 'MODULE_NOT_ENABLED' ? '⚠️ Module Not Enabled' : '⚠️ USDC Not Approved'}
+                    ⚙️ Safe Setup Required
                   </h3>
                   <p className="text-sm text-muted-foreground mb-3">
-                    {validationError.message}
+                    Your Safe needs to be configured for trading:
+                  </p>
+                  <ul className="text-sm text-muted-foreground space-y-1 mb-4 ml-4 list-disc">
+                    {validationError.type === 'MODULE_NOT_ENABLED' && (
+                      <li>Enable trading module</li>
+                    )}
+                    <li>Approve USDC for trading</li>
+                  </ul>
+                  <p className="text-xs text-muted-foreground mb-3">
+                    ℹ️ Both operations will be batched in a single Safe transaction
                   </p>
                   
-                  {validationError.nextSteps?.instructions && (
-                    <>
-                      <p className="text-sm font-medium text-foreground mb-2">Follow these steps:</p>
-                      <ol className="text-sm text-muted-foreground space-y-1 mb-4 ml-4 list-decimal">
-                        {validationError.nextSteps.instructions.map((step: string, idx: number) => (
-                          <li key={idx}>{step}</li>
-                        ))}
-                      </ol>
-                    </>
-                  )}
-                  
-                  <div className="flex gap-2">
-                    {validationError.nextSteps?.safeAppUrl && (
-                      <button
-                        onClick={() => window.open(validationError.nextSteps.safeAppUrl, '_blank')}
-                        className="px-4 py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 transition-colors text-sm font-medium flex items-center gap-2"
-                      >
-                        <ExternalLink className="h-4 w-4" />
-                        {validationError.type === 'MODULE_NOT_ENABLED' ? 'Open Safe' : 'Open Safe Apps'}
-                      </button>
+                  <button
+                    onClick={setupExistingSafe}
+                    disabled={setupInProgress}
+                    className="w-full px-4 py-3 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors text-sm font-medium flex items-center justify-center gap-2"
+                  >
+                    {setupInProgress ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Setting up Safe...
+                      </>
+                    ) : (
+                      <>
+                        <Zap className="h-4 w-4" />
+                        Enable Module & Approve USDC
+                      </>
                     )}
-                    <button
-                      onClick={handleDeploy}
-                      disabled={deploying}
-                      className="px-4 py-2 border border-yellow-600 text-yellow-700 dark:text-yellow-500 rounded-md hover:bg-yellow-500/10 transition-colors text-sm font-medium"
-                    >
-                      {deploying ? 'Checking...' : 'Check Again'}
-                    </button>
-                  </div>
+                  </button>
                 </div>
               </div>
             </div>
