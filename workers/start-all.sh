@@ -8,6 +8,12 @@ set +e
 echo "🚀 Starting Maxxit - Web App + Workers"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
+# CRITICAL: Ensure Prisma client is fresh (Railway cache workaround)
+echo "🔧 Regenerating Prisma Client..."
+npx prisma generate || echo "⚠️  Prisma generate failed, using existing client"
+echo "✅ Prisma client ready"
+echo ""
+
 # Start Next.js web server in the background
 echo "🌐 Starting Next.js web server on port ${PORT:-3000}..."
 npm start &
