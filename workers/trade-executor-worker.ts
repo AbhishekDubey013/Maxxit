@@ -10,32 +10,36 @@ const prisma = new PrismaClient();
 
 export async function executeTradesForSignals() {
   console.log('[TradeWorker] Starting trade execution...');
+  console.log('[TradeWorker] Timestamp:', new Date().toISOString());
 
   try {
     // Fetch all pending signals (signals without positions = not yet executed)
-    const pendingSignals = await prisma.signal.findMany({
+    console.log('[TradeWorker] Querying for pending signals...');
+    console.log('[TradeWorker] Criteria: no positions, not skipped, agent ACTIVE, deployment ACTIVE with module enabled');
+    
+    const pendingSignals = await prisma.signals.findMany({
       where: {
         positions: {
           none: {}, // No positions created yet
         },
-        skippedReason: null, // Not skipped
-        agent: {
+        skipped_reason: null, // Not skipped
+        agents: {
           status: 'ACTIVE',
-          deployments: {
+          agent_deployments: {
             some: {
               status: 'ACTIVE',
-              moduleEnabled: true, // CRITICAL: Only execute on deployments with module enabled
+              module_enabled: true, // CRITICAL: Only execute on deployments with module enabled
             },
           },
         },
       },
       include: {
-        agent: {
+        agents: {
           include: {
-            deployments: {
+            agent_deployments: {
               where: { 
                 status: 'ACTIVE',
-                moduleEnabled: true, // CRITICAL: Only fetch deployments with module enabled
+                module_enabled: true, // CRITICAL: Only fetch deployments with module enabled
               },
               take: 1,
             },
@@ -43,12 +47,53 @@ export async function executeTradesForSignals() {
         },
       },
       orderBy: {
-        createdAt: 'asc',
+        created_at: 'asc',
       },
       take: 20, // Process 20 signals per run
     });
 
     console.log(`[TradeWorker] Found ${pendingSignals.length} pending signals`);
+    
+    if (pendingSignals.length > 0) {
+      console.log('[TradeWorker] Signal details:');
+      pendingSignals.forEach(s => {
+        console.log(`[TradeWorker]   - ${s.id.substring(0, 8)}... (${s.agents?.name}): ${s.token_symbol} ${s.side}, created ${s.created_at}`);
+        console.log(`[TradeWorker]     Deployments: ${s.agents?.agent_deployments?.length || 0}`);
+        if (s.agents?.agent_deployments && s.agents.agent_deployments.length > 0) {
+          s.agents.agent_deployments.forEach(d => {
+            console.log(`[TradeWorker]       Safe: ${d.safe_wallet}, Module: ${d.module_enabled}`);
+          });
+        }
+      });
+    } else {
+      console.log('[TradeWorker] No pending signals found. Checking why...');
+      
+      // Debug: Check if any signals exist without positions
+      const allSignalsWithoutPositions = await prisma.signals.findMany({
+        where: {
+          positions: { none: {} },
+        },
+        select: {
+          id: true,
+          token_symbol: true,
+          skipped_reason: true,
+          agents: {
+            select: {
+              name: true,
+              status: true,
+            },
+          },
+        },
+        take: 5,
+      });
+      
+      console.log(`[TradeWorker] DEBUG: Signals without positions (any status): ${allSignalsWithoutPositions.length}`);
+      if (allSignalsWithoutPositions.length > 0) {
+        allSignalsWithoutPositions.forEach(s => {
+          console.log(`[TradeWorker]   - ${s.id.substring(0, 8)}... (${s.agents?.name}): ${s.token_symbol}, agent_status=${s.agents?.status}, skipped=${!!s.skipped_reason}`);
+        });
+      }
+    }
 
     let successCount = 0;
     let failureCount = 0;
@@ -56,7 +101,9 @@ export async function executeTradesForSignals() {
     // Execute each signal
     for (const signal of pendingSignals) {
       try {
-        console.log(`[TradeWorker] Executing signal ${signal.id} (${signal.tokenSymbol} ${signal.side})...`);
+        console.log(`[TradeWorker] Executing signal ${signal.id} (${signal.token_symbol} ${signal.side})...`);
+        console.log(`[TradeWorker]   Agent: ${signal.agents?.name}`);
+        console.log(`[TradeWorker]   Deployment Safe: ${signal.agents?.agent_deployments?.[0]?.safe_wallet}`);
 
         // Call the trade execution API
         const apiBaseUrl = process.env.API_BASE_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
