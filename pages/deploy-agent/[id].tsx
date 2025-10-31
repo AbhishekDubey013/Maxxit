@@ -199,15 +199,14 @@ export default function DeployAgent() {
 
       // Prepare USDC approval data
       const USDC_ADDRESS = '0xaf88d065e77c8cC2239327C5EDb3A432268e5831'; // Arbitrum USDC
-      const UNISWAP_V3_ROUTER = '0xE592427A0AEce92De3Edee1F18E0157C05861564';
       const ERC20_ABI = ['function approve(address spender, uint256 amount) external returns (bool)', 'function allowance(address owner, address spender) view returns (uint256)'];
       const usdcInterface = new ethers.utils.Interface(ERC20_ABI);
       
-      // Check if USDC is already approved
+      // Check if USDC is already approved FOR THE MODULE
       const usdc = new ethers.Contract(USDC_ADDRESS, ERC20_ABI, provider);
-      const currentAllowance = await usdc.allowance(deployedSafeAddress, UNISWAP_V3_ROUTER);
+      const currentAllowance = await usdc.allowance(deployedSafeAddress, moduleAddress);
       const isAlreadyApproved = currentAllowance.gt(ethers.utils.parseUnits('1000000', 6)); // > 1M USDC means approved
-      console.log('[DeploySafe] USDC already approved:', isAlreadyApproved);
+      console.log('[DeploySafe] USDC already approved for module:', isAlreadyApproved, 'Allowance:', currentAllowance.toString());
 
       const transactions = [];
 
@@ -224,10 +223,10 @@ export default function DeployAgent() {
         });
       }
 
-      // Add USDC approval if needed
+      // Add USDC approval if needed (approve FOR THE MODULE)
       if (!isAlreadyApproved) {
         const approveData = usdcInterface.encodeFunctionData('approve', [
-          UNISWAP_V3_ROUTER,
+          moduleAddress,  // Approve for MODULE, not Uniswap
           ethers.constants.MaxUint256
         ]);
         
@@ -547,15 +546,14 @@ export default function DeployAgent() {
         ? '0xaf88d065e77c8cC2239327C5EDb3A432268e5831' // Arbitrum
         : '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238'; // Sepolia
       
-      const UNISWAP_V3_ROUTER = '0xE592427A0AEce92De3Edee1F18E0157C05861564';
       const ERC20_ABI = ['function approve(address spender, uint256 amount) external returns (bool)', 'function allowance(address owner, address spender) view returns (uint256)'];
       const usdcInterface = new ethers.utils.Interface(ERC20_ABI);
       
-      // Check if USDC is already approved
+      // Check if USDC is already approved FOR THE MODULE
       const usdc = new ethers.Contract(USDC_ADDRESS, ERC20_ABI, provider);
-      const currentAllowance = await usdc.allowance(safeAddress, UNISWAP_V3_ROUTER);
+      const currentAllowance = await usdc.allowance(safeAddress, moduleAddress);
       const isAlreadyApproved = currentAllowance.gt(ethers.utils.parseUnits('1000000', 6)); // > 1M USDC
-      console.log('[SetupExistingSafe] USDC already approved:', isAlreadyApproved);
+      console.log('[SetupExistingSafe] USDC already approved for module:', isAlreadyApproved, 'Allowance:', currentAllowance.toString());
 
       const transactions = [];
 
@@ -573,10 +571,10 @@ export default function DeployAgent() {
         console.log('[SetupExistingSafe] Added enableModule to batch');
       }
 
-      // Add USDC approval if needed
+      // Add USDC approval if needed (approve FOR THE MODULE)
       if (!isAlreadyApproved) {
         const approveData = usdcInterface.encodeFunctionData('approve', [
-          UNISWAP_V3_ROUTER,
+          moduleAddress,  // Approve for MODULE, not Uniswap
           ethers.constants.MaxUint256
         ]);
         
@@ -585,7 +583,7 @@ export default function DeployAgent() {
           value: '0',
           data: approveData,
         });
-        console.log('[SetupExistingSafe] Added USDC approval to batch');
+        console.log('[SetupExistingSafe] Added USDC approval for module to batch');
       }
 
       if (transactions.length === 0) {
