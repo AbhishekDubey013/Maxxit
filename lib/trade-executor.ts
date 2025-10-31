@@ -452,10 +452,10 @@ export class TradeExecutor {
         };
       }
       
-      // AUTO-SETUP: Ensure Safe is fully configured (one-time operations)
-      console.log('[TradeExecutor] 🔧 Running auto-setup checks...');
+      // AUTO-SETUP: V3 Module has tokens pre-whitelisted and Safe already approved USDC
+      // So we only need to initialize capital if not done yet
+      console.log('[TradeExecutor] 🔧 Checking capital initialization...');
       
-      // Step 1: Initialize capital tracking (if not already done)
       try {
         const stats = await moduleService.getSafeStats(ctx.deployment.safe_wallet);
         if (!stats.initialized) {
@@ -464,60 +464,18 @@ export class TradeExecutor {
           if (initResult.success) {
             console.log('[TradeExecutor] ✅ Capital initialized:', initResult.txHash);
           } else {
-            console.warn('[TradeExecutor] ⚠️  Capital init failed (might be racing):', initResult.error);
+            console.warn('[TradeExecutor] ⚠️  Capital init failed:', initResult.error);
+            // This might fail if racing with another process, but capital tracking will work anyway
           }
         } else {
-          console.log('[TradeExecutor] ✅ Capital already initialized');
+          console.log('[TradeExecutor] ✅ Capital already initialized (initial: ' + stats.initialCapitalUSDC + ' USDC)');
         }
       } catch (error: any) {
         console.warn('[TradeExecutor] ⚠️  Could not check/init capital:', error.message);
-        // Continue anyway - might be a transient issue
+        // Continue anyway - capital initialization is optional (module will auto-initialize on first trade)
       }
       
-      // Step 2: Ensure token is whitelisted
-      console.log('[TradeExecutor] 📋 Checking token whitelist for', ctx.signal.token_symbol);
-      try {
-        const isWhitelisted = await moduleService.checkTokenWhitelist(
-          ctx.deployment.safe_wallet,
-          tokenRegistry.token_address
-        );
-        
-        if (!isWhitelisted) {
-          console.log('[TradeExecutor] 📋 Token not whitelisted - whitelisting now...');
-          const whitelistResult = await moduleService.setTokenWhitelist(
-            ctx.deployment.safe_wallet,
-            tokenRegistry.token_address,
-            true
-          );
-          if (whitelistResult.success) {
-            console.log('[TradeExecutor] ✅ Token whitelisted:', whitelistResult.txHash);
-          } else {
-            console.warn('[TradeExecutor] ⚠️  Whitelist failed:', whitelistResult.error);
-          }
-        } else {
-          console.log('[TradeExecutor] ✅ Token already whitelisted');
-        }
-      } catch (error: any) {
-        console.warn('[TradeExecutor] ⚠️  Could not check/whitelist token:', error.message);
-        // Continue anyway
-      }
-      
-      // Step 3: Ensure USDC is approved to router
-      console.log('[TradeExecutor] 📋 Ensuring USDC approval...');
-      const approvalResult = await moduleService.approveTokenForDex(
-        ctx.deployment.safe_wallet,
-        usdcAddress,
-        routerAddress
-      );
-      
-      if (!approvalResult.success) {
-        console.warn('[TradeExecutor] ⚠️  Approval failed, but continuing (might already be approved)');
-        // Don't fail here - approval might already exist
-      } else {
-        console.log('[TradeExecutor] ✅ USDC approved:', approvalResult.txHash);
-      }
-      
-      console.log('[TradeExecutor] 🎉 Auto-setup complete!');
+      console.log('[TradeExecutor] 🎉 Ready to execute trade!');
       
       // Execute trade through module (gasless!) with proof of agreement
       const result = await moduleService.executeTrade({
