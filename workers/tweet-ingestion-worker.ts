@@ -20,7 +20,7 @@ async function ingestTweets() {
 
   try {
     // Get all CT accounts
-    const accounts = await prisma.ctAccount.findMany();
+    const accounts = await prisma.ct_accounts.findMany();
 
     if (accounts.length === 0) {
       console.log('⚠️  No CT accounts found in database');
@@ -33,7 +33,7 @@ async function ingestTweets() {
     const results = [];
 
     for (const account of accounts) {
-      console.log(`[${account.xUsername}] Processing...`);
+      console.log(`[${account.x_username}] Processing...`);
       
       let tweets: Array<{ tweetId: string; tweetText: string; tweetCreatedAt: Date }> = [];
       
@@ -41,17 +41,17 @@ async function ingestTweets() {
       if (xApiClient) {
         try {
           // Get the last tweet we've seen for this account
-          const lastTweet = await prisma.ctPost.findFirst({
-            where: { ctAccountId: account.id },
-            orderBy: { tweetCreatedAt: 'desc' },
+          const lastTweet = await prisma.ct_posts.findFirst({
+            where: { ct_account_id: account.id },
+            orderBy: { tweet_created_at: 'desc' },
           });
 
-          console.log(`[${account.xUsername}] Fetching tweets from X API...`);
+          console.log(`[${account.x_username}] Fetching tweets from X API...`);
           if (lastTweet) {
-            console.log(`[${account.xUsername}] Last seen: ${lastTweet.tweetId}`);
+            console.log(`[${account.x_username}] Last seen: ${lastTweet.tweet_id}`);
           }
 
-          const xTweets = await xApiClient.getUserTweets(account.xUsername, {
+          const xTweets = await xApiClient.getUserTweets(account.x_username, {
             maxResults: 15, // Optimized: reduced from 50 (most users don't tweet that much)
             sinceId: lastTweet?.tweetId,
           });
@@ -62,12 +62,12 @@ async function ingestTweets() {
             tweetCreatedAt: new Date(tweet.created_at),
           }));
 
-          console.log(`[${account.xUsername}] ✅ Fetched ${tweets.length} tweets from X API`);
+          console.log(`[${account.x_username}] ✅ Fetched ${tweets.length} tweets from X API`);
         } catch (error: any) {
-          console.error(`[${account.xUsername}] ❌ X API error:`, error.message);
+          console.error(`[${account.x_username}] ❌ X API error:`, error.message);
           
           // Fall back to mock tweets on error
-          console.log(`[${account.xUsername}] Using mock tweets as fallback...`);
+          console.log(`[${account.x_username}] Using mock tweets as fallback...`);
           tweets = [
             {
               tweetId: `${Date.now()}_${account.id}_1`,
@@ -83,7 +83,7 @@ async function ingestTweets() {
         }
       } else {
         // Use mock data if X API is not configured
-        console.log(`[${account.xUsername}] ⚠️  No X API configured, using mock tweets`);
+        console.log(`[${account.x_username}] ⚠️  No X API configured, using mock tweets`);
         tweets = [
           {
             tweetId: `${Date.now()}_${account.id}_1`,
@@ -110,20 +110,20 @@ async function ingestTweets() {
       for (const tweet of tweets) {
         try {
           // Classify tweet using LLM
-          console.log(`[${account.xUsername}] Classifying tweet: "${tweet.tweetText.substring(0, 50)}..."`);
+          console.log(`[${account.x_username}] Classifying tweet: "${tweet.tweetText.substring(0, 50)}..."`);
           const classification = await classifyTweet(tweet.tweetText);
           
-          console.log(`[${account.xUsername}] → Signal: ${classification.isSignalCandidate}, Tokens: ${classification.extractedTokens.join(', ') || 'none'}, Sentiment: ${classification.sentiment}`);
+          console.log(`[${account.x_username}] → Signal: ${classification.isSignalCandidate}, Tokens: ${classification.extractedTokens.join(', ') || 'none'}, Sentiment: ${classification.sentiment}`);
           
           // Create post with classification
-          await prisma.ctPost.create({
+          await prisma.ct_posts.create({
             data: {
-              ctAccountId: account.id,
-              tweetId: tweet.tweetId,
-              tweetText: tweet.tweetText,
-              tweetCreatedAt: tweet.tweetCreatedAt,
-              isSignalCandidate: classification.isSignalCandidate,
-              extractedTokens: classification.extractedTokens,
+              ct_account_id: account.id,
+              tweet_id: tweet.tweetId,
+              tweet_text: tweet.tweetText,
+              tweet_created_at: tweet.tweetCreatedAt,
+              is_signal_candidate: classification.isSignalCandidate,
+              extracted_tokens: classification.extractedTokens,
             },
           });
           createdCount++;
@@ -132,26 +132,26 @@ async function ingestTweets() {
             // Duplicate tweet, skip
             skippedCount++;
           } else {
-            console.error(`[${account.xUsername}] Error creating post:`, error.message);
+            console.error(`[${account.x_username}] Error creating post:`, error.message);
           }
         }
       }
 
       // Update last seen timestamp
-      await prisma.ctAccount.update({
+      await prisma.ct_accounts.update({
         where: { id: account.id },
-        data: { lastSeenAt: new Date() },
+        data: { last_seen_at: new Date() },
       });
 
       results.push({
         accountId: account.id,
-        username: account.xUsername,
+        username: account.x_username,
         fetched: tweets.length,
         created: createdCount,
         skipped: skippedCount,
       });
 
-      console.log(`[${account.xUsername}] ✅ ${createdCount} created, ${skippedCount} skipped\n`);
+      console.log(`[${account.x_username}] ✅ ${createdCount} created, ${skippedCount} skipped\n`);
     }
 
     // Summary
