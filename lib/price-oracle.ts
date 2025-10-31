@@ -30,14 +30,14 @@ async function getTokenAddress(tokenSymbol: string): Promise<string | null> {
   const now = Date.now();
   if (now - cacheLastUpdated > CACHE_TTL) {
     try {
-      const tokens = await prisma.tokenRegistry.findMany({
+      const tokens = await prisma.token_registry.findMany({
         where: { chain: 'arbitrum-one' },
-        select: { tokenSymbol: true, tokenAddress: true }
+        select: { token_symbol: true, token_address: true }
       });
       
       tokenCache = {};
       for (const token of tokens) {
-        tokenCache[token.tokenSymbol] = token.tokenAddress;
+        tokenCache[token.token_symbol] = token.token_address;
       }
       tokenCache['USDC'] = USDC_ADDRESS; // Always include USDC
       cacheLastUpdated = now;
