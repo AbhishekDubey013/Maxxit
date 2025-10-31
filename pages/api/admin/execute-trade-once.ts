@@ -76,9 +76,9 @@ export default async function handler(
     // Check venue status for min size/slippage
     const venueStatus = await prisma.venues_status.findUnique({
       where: {
-        venue_tokenSymbol: {
+        venue_token_symbol: {
           venue: signal.venue,
-          tokenSymbol: signal.token_symbol,
+          token_symbol: signal.token_symbol,
         },
       },
     });
