@@ -321,21 +321,24 @@ export default function DeployAgent() {
       
       const data = await response.json();
 
-      if (data.valid && data.readiness?.ready) {
+      if (data.valid) {
+        // Safe exists and is valid - set as valid regardless of USDC balance
         setValidationStatus({
           checking: false,
           valid: true,
           balances: data.balances,
         });
-        // After validation succeeds, check module status
+        // ALWAYS check module status (regardless of USDC balance)
         checkModuleStatus();
-        // Also try to auto-initialize capital if Safe has USDC
-        tryAutoInitializeCapital();
+        // Try to auto-initialize capital if Safe has USDC
+        if (data.readiness?.ready) {
+          tryAutoInitializeCapital();
+        }
       } else {
         setValidationStatus({
           checking: false,
           valid: false,
-          error: data.readiness?.warnings?.join(", ") || data.error || "Safe wallet not ready for trading",
+          error: data.error || "Safe wallet not found or invalid",
         });
       }
     } catch (error: any) {
