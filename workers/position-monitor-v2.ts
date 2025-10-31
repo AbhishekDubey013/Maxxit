@@ -25,7 +25,7 @@ interface PositionWithTrailing {
   takeProfit: number | null;
   highestPrice?: number; // Track for trailing stop
   lowestPrice?: number; // Track for trailing short
-  trailingParams: any;
+  trailing_params: any;
 }
 
 export async function monitorPositions() {
@@ -35,25 +35,25 @@ export async function monitorPositions() {
 
   try {
     // Fetch all open positions
-    const openPositions = await prisma.position.findMany({
+    const openPositions = await prisma.positions.findMany({
       where: {
-        closedAt: null, // Only open positions
+        closed_at: null, // Only open positions
       },
       include: {
-        signal: {
+        signals: {
           select: {
-            tokenSymbol: true,
+            token_symbol: true,
             side: true,
-            riskModel: true,
+            risk_model: true,
           },
         },
-        deployment: {
+        agent_deployments: {
           include: {
-            agent: {
+            agents: {
               select: {
                 id: true,
                 name: true,
-                profitReceiverAddress: true,
+                profit_receiver_address: true,
               },
             },
           },
@@ -72,10 +72,10 @@ export async function monitorPositions() {
 
     for (const position of openPositions) {
       try {
-        const symbol = position.tokenSymbol;
+        const symbol = position.token_symbol;
         const side = position.side;
         const venue = position.venue; // SPOT, GMX, HYPERLIQUID
-        const entryPrice = parseFloat(position.entryPrice?.toString() || '0');
+        const entryPrice = parseFloat(position.entry_price?.toString() || '0');
         
         if (entryPrice === 0) {
           console.log(`⚠️  ${symbol}: Entry price not set, skipping`);
@@ -120,9 +120,9 @@ export async function monitorPositions() {
         console.log(`   P&L: $${pnlUSD.toFixed(2)} (${pnlPercent.toFixed(2)}%)`);
 
         // Get stop loss and take profit from signal risk model
-        const riskModel = position.signal.riskModel as any;
-        let stopLoss = position.stopLoss ? parseFloat(position.stopLoss.toString()) : null;
-        let takeProfit = position.takeProfit ? parseFloat(position.takeProfit.toString()) : null;
+        const riskModel = position.signals?.risk_model as any;
+        let stopLoss = position.stop_loss ? parseFloat(position.stop_loss.toString()) : null;
+        let takeProfit = position.take_profit ? parseFloat(position.take_profit.toString()) : null;
 
         // If not set on position, try to get from signal
         if (!stopLoss && riskModel?.stopLoss) {
@@ -133,7 +133,7 @@ export async function monitorPositions() {
         }
 
         // Check trailing stop loss
-        const trailingParams = position.trailingParams as any;
+        const trailingParams = position.trailing_params as any;
         let shouldClose = false;
         let closeReason = '';
 
@@ -151,10 +151,10 @@ export async function monitorPositions() {
             
             if (newHighest > highestPrice) {
               // Update highest price in DB
-              await prisma.position.update({
+              await prisma.positions.update({
                 where: { id: position.id },
                 data: {
-                  trailingParams: {
+                  trailing_params: {
                     ...trailingParams,
                     highestPrice: newHighest,
                   },
@@ -183,10 +183,10 @@ export async function monitorPositions() {
             
             if (newLowest < lowestPrice) {
               // Update lowest price in DB
-              await prisma.position.update({
+              await prisma.positions.update({
                 where: { id: position.id },
                 data: {
-                  trailingParams: {
+                  trailing_params: {
                     ...trailingParams,
                     lowestPrice: newLowest,
                   },
