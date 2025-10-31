@@ -70,11 +70,13 @@ export class TradeExecutor {
         };
       }
 
-      // Merge signal.agents with deployment data for executeSignalInternal
+      // Merge signal with deployment data, preserving all agent fields
       const signalWithDeployment = {
         ...signal,
-        agents: {
+        agents: signal.agents ? {
           ...signal.agents,
+          agent_deployments: [deployment],
+        } : {
           agent_deployments: [deployment],
         },
       };
