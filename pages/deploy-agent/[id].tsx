@@ -354,55 +354,56 @@ export default function DeployAgent() {
     setValidationError(null);
 
     try {
-      if (!agentId) return;
+      const chainId = 42161; // Arbitrum
 
-      // Check module and USDC approval status via deployment API
-      const deployResponse = await fetch("/api/deployments/create", {
+      // Check module and USDC approval status (read-only, doesn't create deployment)
+      const response = await fetch("/api/safe/check-setup-status", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          agentId,
-          userWallet,
-          safeWallet: safeAddress,
+          safeAddress,
+          chainId,
         }),
       });
 
-      if (!deployResponse.ok) {
-        const errorData = await deployResponse.json();
-        
-        // Handle validation errors - show setup button
-        if (errorData.error === 'MODULE_NOT_ENABLED' || errorData.error === 'USDC_NOT_APPROVED') {
-          console.log('[CheckModule] Setup required:', errorData.error);
-          setValidationError({
-            type: errorData.error,
-            message: errorData.message,
-            nextSteps: errorData.nextSteps,
-          });
-          setModuleStatus({
-            checking: false,
-            enabled: false,
-            needsEnabling: true,
-          });
-        } else if (errorData.error === 'Deployment already exists for this user and agent') {
-          // Already deployed - everything is good
-          console.log('[CheckModule] Deployment already exists - Safe is fully configured');
-          setModuleStatus({
-            checking: false,
-            enabled: true,
-            needsEnabling: false,
-          });
-        } else {
-          // Other error
-          setModuleStatus({
-            checking: false,
-            enabled: false,
-            needsEnabling: false,
-            error: errorData.message || errorData.error || 'Failed to check module status',
-          });
-        }
+      const data = await response.json();
+      console.log('[CheckModule] Setup status:', data);
+
+      if (!response.ok) {
+        setModuleStatus({
+          checking: false,
+          enabled: false,
+          needsEnabling: false,
+          error: data.error || 'Failed to check module status',
+        });
+        return;
+      }
+
+      if (data.needsSetup) {
+        // Setup required - show setup button
+        const errorType = !data.moduleEnabled ? 'MODULE_NOT_ENABLED' : 'USDC_NOT_APPROVED';
+        setValidationError({
+          type: errorType,
+          message: !data.moduleEnabled 
+            ? 'Trading module is not enabled on this Safe wallet'
+            : 'USDC approval required for trading',
+          nextSteps: {
+            action: errorType,
+            instructions: [
+              '1. Click the button below',
+              '2. Sign the Safe transaction',
+              '3. Wait for confirmation',
+            ],
+          },
+        });
+        setModuleStatus({
+          checking: false,
+          enabled: false,
+          needsEnabling: true,
+        });
       } else {
-        // Deployment created successfully (shouldn't happen during check, but handle it)
-        console.log('[CheckModule] Deployment created during check (unexpected)');
+        // Everything is configured
+        console.log('[CheckModule] Safe is fully configured');
         setModuleStatus({
           checking: false,
           enabled: true,
