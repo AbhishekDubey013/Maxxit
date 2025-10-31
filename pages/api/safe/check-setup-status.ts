@@ -45,18 +45,16 @@ export default async function handler(
 
     console.log('[CheckSetupStatus] Module enabled:', moduleEnabled);
 
-    // Check if USDC is approved
+    // Check if USDC is approved FOR THE MODULE
     const USDC_ADDRESS = chainId === 42161 
       ? '0xaf88d065e77c8cC2239327C5EDb3A432268e5831' // Arbitrum
       : '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238'; // Sepolia
     
-    const UNISWAP_V3_ROUTER = '0xE592427A0AEce92De3Edee1F18E0157C05861564';
-    
     const usdc = new ethers.Contract(USDC_ADDRESS, ERC20_ABI, provider);
-    const allowance = await usdc.allowance(safeAddress, UNISWAP_V3_ROUTER);
+    const allowance = await usdc.allowance(safeAddress, MODULE_ADDRESS);
     const usdcApproved = allowance.gt(0);
 
-    console.log('[CheckSetupStatus] USDC approved:', usdcApproved, 'Allowance:', allowance.toString());
+    console.log('[CheckSetupStatus] USDC approved for module:', usdcApproved, 'Allowance:', allowance.toString());
 
     // Determine what needs to be done
     const needsSetup = !moduleEnabled || !usdcApproved;
