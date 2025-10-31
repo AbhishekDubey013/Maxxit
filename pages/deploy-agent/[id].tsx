@@ -724,6 +724,7 @@ export default function DeployAgent() {
 
       if (!response.ok) {
         const errorData = await response.json();
+        console.error('[HandleDeploy] Deployment failed:', errorData);
         
         // Handle structured validation errors
         if (errorData.error === 'MODULE_NOT_ENABLED' || errorData.error === 'USDC_NOT_APPROVED') {
@@ -732,6 +733,11 @@ export default function DeployAgent() {
             message: errorData.message,
             nextSteps: errorData.nextSteps,
           });
+        } else if (errorData.error === 'Deployment already exists for this user and agent') {
+          // Already deployed - treat as success
+          console.log('[HandleDeploy] Deployment already exists - redirecting to dashboard');
+          router.push("/creator");
+          return;
         } else {
           // Generic error
           setDeployError(errorData.message || errorData.error || "Deployment failed");
