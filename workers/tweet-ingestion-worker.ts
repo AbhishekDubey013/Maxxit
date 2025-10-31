@@ -16,7 +16,9 @@ async function ingestTweets() {
   console.log('  📥 TWEET INGESTION WORKER');
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   console.log(`Started at: ${new Date().toISOString()}`);
-  console.log(`[DEBUG] GAME_API_KEY: ${process.env.GAME_API_KEY ? process.env.GAME_API_KEY.substring(0,10)+'...' : 'NOT SET'}\n`);
+  console.log(`[DEBUG] GAME_API_KEY: ${process.env.GAME_API_KEY ? process.env.GAME_API_KEY.substring(0,10)+'...' : 'NOT SET'}`);
+  console.log(`[DEBUG] Prisma models available:`, Object.keys(prisma).filter(k => !k.startsWith('_') && !k.startsWith('$')).sort());
+  console.log();
 
   try {
     // Get all CT accounts
