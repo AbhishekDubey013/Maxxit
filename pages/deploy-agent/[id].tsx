@@ -347,72 +347,67 @@ export default function DeployAgent() {
     }
   };
 
-  // Check if module is enabled and sync with blockchain
+  // Check if module is enabled and USDC is approved
   const checkModuleStatus = async () => {
     console.log('[CheckModule] Starting module status check...');
     setModuleStatus({ checking: true, enabled: false, needsEnabling: false });
+    setValidationError(null);
 
     try {
-      // First sync with blockchain to ensure database is up to date
-      const chainId = 42161; // Arbitrum One
-      const syncResponse = await fetch('/api/safe/sync-module-status', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ safeAddress, chainId }),
+      if (!agentId) return;
+
+      // Check module and USDC approval status via deployment API
+      const deployResponse = await fetch("/api/deployments/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          agentId,
+          userWallet,
+          safeWallet: safeAddress,
+        }),
       });
 
-      const syncData = await syncResponse.json();
-      console.log('[CheckModule] Sync API response:', syncData);
-
-      if (syncData.success) {
-        // Only consider V3 module as "enabled" - V2 is legacy
-        if (syncData.v3Enabled) {
+      if (!deployResponse.ok) {
+        const errorData = await deployResponse.json();
+        
+        // Handle validation errors - show setup button
+        if (errorData.error === 'MODULE_NOT_ENABLED' || errorData.error === 'USDC_NOT_APPROVED') {
+          console.log('[CheckModule] Setup required:', errorData.error);
+          setValidationError({
+            type: errorData.error,
+            message: errorData.message,
+            nextSteps: errorData.nextSteps,
+          });
+          setModuleStatus({
+            checking: false,
+            enabled: false,
+            needsEnabling: true,
+          });
+        } else if (errorData.error === 'Deployment already exists for this user and agent') {
+          // Already deployed - everything is good
+          console.log('[CheckModule] Deployment already exists - Safe is fully configured');
           setModuleStatus({
             checking: false,
             enabled: true,
             needsEnabling: false,
           });
-          console.log('[CheckModule] V3 module is enabled and synced with blockchain');
         } else {
-          setModuleStatus({
-            checking: false,
-            enabled: false,
-            needsEnabling: true,
-          });
-          console.log('[CheckModule] V3 module needs to be enabled (V2 enabled but V3 required)');
-        }
-      } else {
-        // Sync failed, fall back to old check
-        console.log('[CheckModule] Sync failed, using fallback API');
-        const response = await fetch('/api/safe/enable-module', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ safeAddress }),
-        });
-
-        const data = await response.json();
-
-        if (data.success && data.alreadyEnabled) {
-          // Even in fallback, only consider V3 as enabled
-          setModuleStatus({
-            checking: false,
-            enabled: false, // Always false for fallback since we can't check V3 status
-            needsEnabling: true,
-          });
-        } else if (data.success && data.needsEnabling) {
-          setModuleStatus({
-            checking: false,
-            enabled: false,
-            needsEnabling: true,
-          });
-        } else {
+          // Other error
           setModuleStatus({
             checking: false,
             enabled: false,
             needsEnabling: false,
-            error: data.error || 'Failed to check module status',
+            error: errorData.message || errorData.error || 'Failed to check module status',
           });
         }
+      } else {
+        // Deployment created successfully (shouldn't happen during check, but handle it)
+        console.log('[CheckModule] Deployment created during check (unexpected)');
+        setModuleStatus({
+          checking: false,
+          enabled: true,
+          needsEnabling: false,
+        });
       }
     } catch (error: any) {
       console.error('[CheckModule] Error:', error);
