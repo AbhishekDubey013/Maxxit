@@ -235,7 +235,7 @@ export class SpotAdapter {
       const usdcBalance = await this.safeWallet.getUSDCBalance();
 
       // Get position size
-      const positionSize = (usdcBalance * params.signal.sizeModel.value) / 100;
+      const positionSize = (usdcBalance * params.signal.size_model.value) / 100;
 
       if (positionSize === 0) {
         return {

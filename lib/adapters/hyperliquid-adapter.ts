@@ -277,7 +277,7 @@ export class HyperliquidAdapter {
       const hlBalance = await this.getBalance(params.safeAddress);
 
       // Calculate required amount
-      const requiredCollateral = (usdcBalance * params.signal.sizeModel.value) / 100;
+      const requiredCollateral = (usdcBalance * params.signal.size_model.value) / 100;
 
       // Check if we need to bridge
       const needsBridge = hlBalance.withdrawable < requiredCollateral;
@@ -295,11 +295,11 @@ export class HyperliquidAdapter {
       }
 
       // Check if market exists
-      const marketInfo = await this.getMarketInfo(params.signal.tokenSymbol);
+      const marketInfo = await this.getMarketInfo(params.signal.token_symbol);
       if (!marketInfo) {
         return {
           canExecute: false,
-          reason: `Market not available for ${params.signal.tokenSymbol}`,
+          reason: `Market not available for ${params.signal.token_symbol}`,
           usdcBalance,
           hlBalance,
         };
