@@ -1,8 +1,8 @@
 # Use Node.js 18
 FROM node:18-alpine
 
-# Install system dependencies
-RUN apk add --no-cache libc6-compat
+# Install system dependencies including bash for Railway workers
+RUN apk add --no-cache libc6-compat bash
 
 # Set working directory
 WORKDIR /app
