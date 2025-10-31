@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
-import { Check, AlertCircle, Loader2, Rocket, Shield, Wallet, Zap, Sparkles } from "lucide-react";
+import { Check, AlertCircle, Loader2, Rocket, Shield, Wallet, Zap, Sparkles, ExternalLink } from "lucide-react";
 import Safe from '@safe-global/protocol-kit';
 import { ethers } from 'ethers';
 import { ModuleSecurityDisclosure } from '@components/ModuleSecurityDisclosure';
@@ -40,6 +40,11 @@ export default function DeployAgent() {
   const [deploying, setDeploying] = useState(false);
   const [deployingSafe, setDeployingSafe] = useState(false);
   const [deployError, setDeployError] = useState("");
+  const [validationError, setValidationError] = useState<{
+    type: 'MODULE_NOT_ENABLED' | 'USDC_NOT_APPROVED' | 'OTHER';
+    message: string;
+    nextSteps?: any;
+  } | null>(null);
   const [showSecurityDisclosure, setShowSecurityDisclosure] = useState(false);
 
   // Fetch agent details
@@ -571,6 +576,7 @@ export default function DeployAgent() {
 
     setDeploying(true);
     setDeployError("");
+    setValidationError(null);
 
     try {
       const response = await fetch("/api/deployments/create", {
@@ -584,14 +590,26 @@ export default function DeployAgent() {
       });
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Deployment failed");
+        const errorData = await response.json();
+        
+        // Handle structured validation errors
+        if (errorData.error === 'MODULE_NOT_ENABLED' || errorData.error === 'USDC_NOT_APPROVED') {
+          setValidationError({
+            type: errorData.error,
+            message: errorData.message,
+            nextSteps: errorData.nextSteps,
+          });
+        } else {
+          // Generic error
+          setDeployError(errorData.message || errorData.error || "Deployment failed");
+        }
+        return;
       }
 
       // Success! Redirect to dashboard
       router.push("/creator");
     } catch (error: any) {
-      setDeployError(error.message);
+      setDeployError(error.message || "Failed to deploy agent");
     } finally {
       setDeploying(false);
     }
@@ -1135,6 +1153,53 @@ export default function DeployAgent() {
             <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-md flex items-start gap-3">
               <AlertCircle className="h-4 w-4 text-destructive mt-0.5" />
               <p className="text-sm text-destructive">{deployError}</p>
+            </div>
+          )}
+
+          {/* Validation Errors with Instructions */}
+          {validationError && (
+            <div className="p-4 bg-yellow-500/10 border-2 border-yellow-500/30 rounded-lg">
+              <div className="flex items-start gap-3 mb-3">
+                <AlertCircle className="h-5 w-5 text-yellow-600 mt-0.5" />
+                <div className="flex-1">
+                  <h3 className="font-semibold text-foreground mb-1">
+                    {validationError.type === 'MODULE_NOT_ENABLED' ? '⚠️ Module Not Enabled' : '⚠️ USDC Not Approved'}
+                  </h3>
+                  <p className="text-sm text-muted-foreground mb-3">
+                    {validationError.message}
+                  </p>
+                  
+                  {validationError.nextSteps?.instructions && (
+                    <>
+                      <p className="text-sm font-medium text-foreground mb-2">Follow these steps:</p>
+                      <ol className="text-sm text-muted-foreground space-y-1 mb-4 ml-4 list-decimal">
+                        {validationError.nextSteps.instructions.map((step: string, idx: number) => (
+                          <li key={idx}>{step}</li>
+                        ))}
+                      </ol>
+                    </>
+                  )}
+                  
+                  <div className="flex gap-2">
+                    {validationError.nextSteps?.safeAppUrl && (
+                      <button
+                        onClick={() => window.open(validationError.nextSteps.safeAppUrl, '_blank')}
+                        className="px-4 py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 transition-colors text-sm font-medium flex items-center gap-2"
+                      >
+                        <ExternalLink className="h-4 w-4" />
+                        {validationError.type === 'MODULE_NOT_ENABLED' ? 'Open Safe' : 'Open Safe Apps'}
+                      </button>
+                    )}
+                    <button
+                      onClick={handleDeploy}
+                      disabled={deploying}
+                      className="px-4 py-2 border border-yellow-600 text-yellow-700 dark:text-yellow-500 rounded-md hover:bg-yellow-500/10 transition-colors text-sm font-medium"
+                    >
+                      {deploying ? 'Checking...' : 'Check Again'}
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
 
