@@ -244,29 +244,62 @@ Respond ONLY with the JSON object, no other text.`;
   private fallbackClassification(tweetText: string): ClassificationResult {
     console.log('[LLM Classifier] Using fallback regex-based classification');
     
-    // Extract token symbols
-    const tokenRegex = /\$([A-Z]{2,10})\b/g;
-    const matches = tweetText.match(tokenRegex);
-    const extractedTokens = matches 
-      ? [...new Set(matches.map(token => token.substring(1).toUpperCase()))]
+    // Extract token symbols - Try both with $ prefix and without
+    const dollarTokenRegex = /\$([A-Z]{2,10})\b/g;
+    const plainTokenRegex = /\b(BTC|ETH|SOL|AVAX|ARB|OP|MATIC|LINK|UNI|AAVE|WETH|USDC|USDT|DAI|DOGE|SHIB|PEPE|XRP|ADA|DOT|ATOM|NEAR|FTM|CRV|SNX|MKR|COMP|YFI|SUSHI|CAKE|GMX)\b/gi;
+    
+    // First try with $ prefix
+    let dollarMatches = tweetText.match(dollarTokenRegex);
+    let extractedTokens = dollarMatches 
+      ? [...new Set(dollarMatches.map(token => token.substring(1).toUpperCase()))]
       : [];
+    
+    // If no $ tokens found, try plain token names
+    if (extractedTokens.length === 0) {
+      let plainMatches = tweetText.match(plainTokenRegex);
+      extractedTokens = plainMatches
+        ? [...new Set(plainMatches.map(token => token.toUpperCase()))]
+        : [];
+    }
     
     // Determine sentiment based on keywords
     const lowerText = tweetText.toLowerCase();
-    const bullishKeywords = ['bullish', 'buy', 'long', 'moon', 'pump', 'breakout', 'target', 'accumulate', 'strong', 'rally'];
-    const bearishKeywords = ['bearish', 'sell', 'short', 'dump', 'drop', 'breakdown', 'weak', 'crash'];
+    
+    // Expanded keyword lists
+    const bullishKeywords = [
+      'bullish', 'buy', 'long', 'moon', 'pump', 'breakout', 'target', 
+      'accumulate', 'strong', 'rally', 'up', 'going up', 'reach', 
+      'hit', 'breaking', 'squeeze', 'rocket', 'launching', 'parabolic',
+      'undervalued', 'dip buy', 'entry', 'accumulation'
+    ];
+    
+    const bearishKeywords = [
+      'bearish', 'sell', 'short', 'dump', 'drop', 'breakdown', 'weak', 
+      'crash', 'down', 'falling', 'plunge', 'tank', 'bleeding', 
+      'overvalued', 'exit', 'distribution'
+    ];
+    
+    // Context-aware bullish phrases (even without explicit keywords)
+    const bullishPhrases = [
+      'gonna reach', 'going to reach', 'will reach', 'heading to',
+      'target', 'next stop', 'breakout', 'ready to', 'about to',
+      'looking good', 'extremely bullish', 'very bullish'
+    ];
     
     const hasBullish = bullishKeywords.some(kw => lowerText.includes(kw));
     const hasBearish = bearishKeywords.some(kw => lowerText.includes(kw));
+    const hasBullishPhrase = bullishPhrases.some(phrase => lowerText.includes(phrase));
     
+    // Sentiment determination
     let sentiment: 'bullish' | 'bearish' | 'neutral' = 'neutral';
-    if (hasBullish && !hasBearish) sentiment = 'bullish';
+    if ((hasBullish || hasBullishPhrase) && !hasBearish) sentiment = 'bullish';
     if (hasBearish && !hasBullish) sentiment = 'bearish';
     
     // Check if it's a signal candidate
+    // More lenient: token + (keyword OR bullish phrase)
     const isSignalCandidate = 
       extractedTokens.length > 0 && 
-      (hasBullish || hasBearish);
+      (hasBullish || hasBearish || hasBullishPhrase);
     
     const confidence = isSignalCandidate ? 0.5 : 0.0;
     
@@ -275,7 +308,7 @@ Respond ONLY with the JSON object, no other text.`;
       extractedTokens,
       sentiment,
       confidence,
-      reasoning: 'Fallback regex-based classification',
+      reasoning: 'Fallback regex-based classification (enhanced)',
     };
   }
 }
