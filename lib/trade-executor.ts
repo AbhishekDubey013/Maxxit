@@ -480,6 +480,15 @@ export class TradeExecutor {
       console.log('[TradeExecutor] 🎉 Ready to execute trade!');
       
       // Execute trade through module (gasless!) with proof of agreement
+      // Get profit receiver from deployment's agent (more reliable than signal)
+      const profitReceiver = ctx.deployment.agents?.profit_receiver_address;
+      if (!profitReceiver) {
+        return {
+          success: false,
+          error: 'No profit receiver address found in deployment',
+        };
+      }
+      
       const result = await moduleService.executeTrade({
         safeAddress: ctx.deployment.safe_wallet,
         fromToken: usdcAddress,
@@ -488,7 +497,7 @@ export class TradeExecutor {
         dexRouter: routerAddress,
         swapData: swapTx.data as string,
         minAmountOut,
-        profitReceiver: ctx.signal.agents.profitReceiverAddress,
+        profitReceiver,
         // Add proof of agreement message to transaction data
         proofOfAgreement: `Proof of Agreement: Executor confirms trade execution for signal ${ctx.signal.id} at ${new Date().toISOString()}`,
       });
@@ -631,6 +640,15 @@ export class TradeExecutor {
         balance: usdcBalanceNum,
       });
 
+      // Get profit receiver from deployment's agent
+      const profitReceiverGMX = ctx.deployment.agents?.profit_receiver_address;
+      if (!profitReceiverGMX) {
+        return {
+          success: false,
+          error: 'No profit receiver address found in deployment',
+        };
+      }
+      
       // Open GMX position (will enforce all security limits) with proof of agreement
       const result = await adapter.openGMXPosition({
         safeAddress: ctx.deployment.safe_wallet,
@@ -639,7 +657,7 @@ export class TradeExecutor {
         leverage,
         isLong: ctx.signal.side === 'LONG',
         slippage: 0.5,
-        profitReceiver: ctx.signal.agents?.profitReceiverAddress || ctx.deployment.agent.profit_receiver_address,
+        profitReceiver: profitReceiverGMX,
         // Add proof of agreement message to transaction data
         proofOfAgreement: `Proof of Agreement: Executor confirms trade execution for signal ${ctx.signal.id} at ${new Date().toISOString()}`,
       });
