@@ -915,19 +915,19 @@ export default function DeployAgent() {
             </div>
           )}
 
-          {validationStatus.valid && (
+          {validationStatus.valid && !validationError && !moduleStatus.checking && (
             <div className="p-4 bg-green-500/10 border border-green-500/20 rounded-md">
               <div className="flex items-start gap-3 mb-2">
                 <Check className="h-4 w-4 text-green-500 mt-0.5" />
                 <div>
                   <p className="font-medium text-green-700 dark:text-green-400">
-                    ✨ Safe wallet ready! Gasless trading enabled
+                    ✨ Safe wallet validated successfully
                   </p>
                   {validationStatus.balances && (
                     <div className="text-sm mt-2 space-y-1">
                       <p className="font-semibold">USDC: {validationStatus.balances.usdc?.formatted}</p>
                       <p className="text-xs text-green-600 dark:text-green-500">
-                        Only USDC needed - we cover gas fees!
+                        Checking module and USDC approval status...
                       </p>
                     </div>
                   )}
@@ -948,6 +948,50 @@ export default function DeployAgent() {
             <div className="p-4 bg-muted border border-border rounded-md flex items-start gap-3">
               <Loader2 className="h-4 w-4 animate-spin mt-0.5" />
               <p className="text-sm">Checking trading module status...</p>
+            </div>
+          )}
+
+          {/* Validation Errors with Automated Setup - Show immediately after validation */}
+          {validationError && validationStatus.valid && (
+            <div className="p-4 bg-yellow-500/10 border-2 border-yellow-500/30 rounded-lg">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="h-5 w-5 text-yellow-600 mt-0.5" />
+                <div className="flex-1">
+                  <h3 className="font-semibold text-foreground mb-1">
+                    ⚙️ Safe Setup Required
+                  </h3>
+                  <p className="text-sm text-muted-foreground mb-3">
+                    Your Safe needs to be configured for trading:
+                  </p>
+                  <ul className="text-sm text-muted-foreground space-y-1 mb-4 ml-4 list-disc">
+                    {validationError.type === 'MODULE_NOT_ENABLED' && (
+                      <li>Enable trading module</li>
+                    )}
+                    <li>Approve USDC for trading</li>
+                  </ul>
+                  <p className="text-xs text-muted-foreground mb-3">
+                    ℹ️ Both operations will be batched in a single Safe transaction
+                  </p>
+                  
+                  <button
+                    onClick={setupExistingSafe}
+                    disabled={setupInProgress}
+                    className="w-full px-4 py-3 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors text-sm font-medium flex items-center justify-center gap-2"
+                  >
+                    {setupInProgress ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Setting up Safe...
+                      </>
+                    ) : (
+                      <>
+                        <Zap className="h-4 w-4" />
+                        Enable Module & Approve USDC
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
             </div>
           )}
 
@@ -1282,50 +1326,6 @@ export default function DeployAgent() {
             <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-md flex items-start gap-3">
               <AlertCircle className="h-4 w-4 text-destructive mt-0.5" />
               <p className="text-sm text-destructive">{deployError}</p>
-            </div>
-          )}
-
-          {/* Validation Errors with Automated Setup */}
-          {validationError && (
-            <div className="p-4 bg-yellow-500/10 border-2 border-yellow-500/30 rounded-lg">
-              <div className="flex items-start gap-3">
-                <AlertCircle className="h-5 w-5 text-yellow-600 mt-0.5" />
-                <div className="flex-1">
-                  <h3 className="font-semibold text-foreground mb-1">
-                    ⚙️ Safe Setup Required
-                  </h3>
-                  <p className="text-sm text-muted-foreground mb-3">
-                    Your Safe needs to be configured for trading:
-                  </p>
-                  <ul className="text-sm text-muted-foreground space-y-1 mb-4 ml-4 list-disc">
-                    {validationError.type === 'MODULE_NOT_ENABLED' && (
-                      <li>Enable trading module</li>
-                    )}
-                    <li>Approve USDC for trading</li>
-                  </ul>
-                  <p className="text-xs text-muted-foreground mb-3">
-                    ℹ️ Both operations will be batched in a single Safe transaction
-                  </p>
-                  
-                  <button
-                    onClick={setupExistingSafe}
-                    disabled={setupInProgress}
-                    className="w-full px-4 py-3 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors text-sm font-medium flex items-center justify-center gap-2"
-                  >
-                    {setupInProgress ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        Setting up Safe...
-                      </>
-                    ) : (
-                      <>
-                        <Zap className="h-4 w-4" />
-                        Enable Module & Approve USDC
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
             </div>
           )}
 
