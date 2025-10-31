@@ -41,10 +41,10 @@ export class TradeExecutor {
   async executeSignalForDeployment(signalId: string, deploymentId: string): Promise<ExecutionResult> {
     try {
       // Fetch signal with specific deployment
-      const signal = await prisma.signal.findUnique({
+      const signal = await prisma.signals.findUnique({
         where: { id: signalId },
         include: {
-          agent: true,
+          agents: true,
         },
       });
 
@@ -56,10 +56,10 @@ export class TradeExecutor {
       }
 
       // Fetch specific deployment
-      const deployment = await prisma.agentDeployment.findUnique({
+      const deployment = await prisma.agent_deployments.findUnique({
         where: { id: deploymentId },
         include: {
-          agent: true,
+          agents: true,
         },
       });
 
@@ -70,12 +70,12 @@ export class TradeExecutor {
         };
       }
 
-      // Merge signal.agent with deployment data for executeSignalInternal
+      // Merge signal.agents with deployment data for executeSignalInternal
       const signalWithDeployment = {
         ...signal,
-        agent: {
-          ...signal.agent,
-          deployments: [deployment],
+        agents: {
+          ...signal.agents,
+          agent_deployments: [deployment],
         },
       };
 
@@ -95,14 +95,14 @@ export class TradeExecutor {
   async executeSignal(signalId: string): Promise<ExecutionResult> {
     try {
       // Fetch signal with related data
-      const signal = await prisma.signal.findUnique({
+      const signal = await prisma.signals.findUnique({
         where: { id: signalId },
         include: {
-          agent: {
+          agents: {
             include: {
-              deployments: {
+              agent_deployments: {
                 where: { status: 'ACTIVE' },
-                orderBy: { subStartedAt: 'desc' },
+                orderBy: { sub_started_at: 'desc' },
                 take: 1,
               },
             },
@@ -117,7 +117,7 @@ export class TradeExecutor {
         };
       }
 
-      if (signal.agent.deployments.length === 0) {
+      if (signal.agents.agent_deployments.length === 0) {
         return {
           success: false,
           error: 'No active deployment found for agent',
@@ -139,11 +139,11 @@ export class TradeExecutor {
    */
   private async executeSignalInternal(signal: any): Promise<ExecutionResult> {
     try {
-      const deployment = signal.agent.deployments[0];
+      const deployment = signal.agents.agent_deployments[0];
 
       // Validate Safe wallet
       const chainId = getChainIdForVenue(signal.venue);
-      const safeWallet = createSafeWallet(deployment.safeWallet, chainId);
+      const safeWallet = createSafeWallet(deployment.safe_wallet, chainId);
       
       const validation = await safeWallet.validateSafe();
       if (!validation.valid) {
@@ -202,14 +202,14 @@ export class TradeExecutor {
   }> {
     try {
       // Strip _MANUAL_timestamp suffix if present (from Telegram manual trades)
-      const actualTokenSymbol = signal.tokenSymbol.split('_MANUAL_')[0];
+      const actualTokenSymbol = signal.token_symbol.split('_MANUAL_')[0];
       
       // 1. Check venue availability
-      const venueStatus = await prisma.venueStatus.findUnique({
+      const venueStatus = await prisma.venues_status.findUnique({
         where: {
-          venue_tokenSymbol: {
+          venue_token_symbol: {
             venue: signal.venue,
-            tokenSymbol: actualTokenSymbol,
+            token_symbol: actualTokenSymbol,
           },
         },
       });
@@ -235,7 +235,7 @@ export class TradeExecutor {
       }
 
       // 3. Check position size requirements
-      const sizeModel = signal.sizeModel as any;
+      const sizeModel = signal.size_model as any;
       const requiredCollateral = (usdcBalance * sizeModel.value) / 100;
 
       if (requiredCollateral === 0) {
@@ -252,11 +252,11 @@ export class TradeExecutor {
         const chainId = getChainIdForVenue(signal.venue);
         const chain = chainId === 42161 ? 'arbitrum' : chainId === 8453 ? 'base' : 'sepolia';
         
-        const tokenRegistry = await prisma.tokenRegistry.findUnique({
+        const tokenRegistry = await prisma.token_registry.findUnique({
           where: {
-            chain_tokenSymbol: {
+            chain_token_symbol: {
               chain,
-              tokenSymbol: actualTokenSymbol,
+              token_symbol: actualTokenSymbol,
             },
           },
         });
@@ -314,7 +314,7 @@ export class TradeExecutor {
       // Get execution summary
       const summary = await adapter.getExecutionSummary({
         signal: ctx.signal,
-        safeAddress: ctx.deployment.safeWallet,
+        safeAddress: ctx.deployment.safe_wallet,
       });
 
       if (!summary.canExecute) {
@@ -328,14 +328,14 @@ export class TradeExecutor {
 
       // Get token addresses
       // Strip _MANUAL_timestamp suffix if present (from Telegram manual trades)
-      const actualTokenSymbol = ctx.signal.tokenSymbol.split('_MANUAL_')[0];
+      const actualTokenSymbol = ctx.signal.token_symbol.split('_MANUAL_')[0];
       
       const chain = chainId === 42161 ? 'arbitrum' : chainId === 8453 ? 'base' : 'sepolia';
-      const tokenRegistry = await prisma.tokenRegistry.findUnique({
+      const tokenRegistry = await prisma.token_registry.findUnique({
         where: {
-          chain_tokenSymbol: {
+          chain_token_symbol: {
             chain,
-            tokenSymbol: actualTokenSymbol,
+            token_symbol: actualTokenSymbol,
           },
         },
       });
@@ -349,7 +349,7 @@ export class TradeExecutor {
 
       // Calculate amounts based on size model type
       const usdcBalance = summary.usdcBalance || 0;
-      const sizeModel = ctx.signal.sizeModel as any;
+      const sizeModel = ctx.signal.size_model as any;
       
       let positionSize: number;
       
@@ -404,7 +404,7 @@ export class TradeExecutor {
       // Get quote
       const quote = await adapter.getQuote({
         tokenIn: usdcAddress,
-        tokenOut: tokenRegistry.tokenAddress,
+        tokenOut: tokenRegistry.token_address,
         amountIn: amountIn.toString(),
       });
 
@@ -420,11 +420,11 @@ export class TradeExecutor {
 
       const swapTx = await adapter.buildSwapTx({
         tokenIn: usdcAddress,
-        tokenOut: tokenRegistry.tokenAddress,
+        tokenOut: tokenRegistry.token_address,
         amountIn: amountIn.toString(),
         minAmountOut,
         deadline: Math.floor(Date.now() / 1000) + 1200, // 20 minutes
-        recipient: ctx.deployment.safeWallet,
+        recipient: ctx.deployment.safe_wallet,
       });
 
       // Use Safe Module Service for gasless execution
@@ -457,10 +457,10 @@ export class TradeExecutor {
       
       // Step 1: Initialize capital tracking (if not already done)
       try {
-        const stats = await moduleService.getSafeStats(ctx.deployment.safeWallet);
+        const stats = await moduleService.getSafeStats(ctx.deployment.safe_wallet);
         if (!stats.initialized) {
           console.log('[TradeExecutor] 📋 Capital not initialized - initializing now...');
-          const initResult = await moduleService.initializeCapital(ctx.deployment.safeWallet);
+          const initResult = await moduleService.initializeCapital(ctx.deployment.safe_wallet);
           if (initResult.success) {
             console.log('[TradeExecutor] ✅ Capital initialized:', initResult.txHash);
           } else {
@@ -475,18 +475,18 @@ export class TradeExecutor {
       }
       
       // Step 2: Ensure token is whitelisted
-      console.log('[TradeExecutor] 📋 Checking token whitelist for', ctx.signal.tokenSymbol);
+      console.log('[TradeExecutor] 📋 Checking token whitelist for', ctx.signal.token_symbol);
       try {
         const isWhitelisted = await moduleService.checkTokenWhitelist(
-          ctx.deployment.safeWallet,
-          tokenRegistry.tokenAddress
+          ctx.deployment.safe_wallet,
+          tokenRegistry.token_address
         );
         
         if (!isWhitelisted) {
           console.log('[TradeExecutor] 📋 Token not whitelisted - whitelisting now...');
           const whitelistResult = await moduleService.setTokenWhitelist(
-            ctx.deployment.safeWallet,
-            tokenRegistry.tokenAddress,
+            ctx.deployment.safe_wallet,
+            tokenRegistry.token_address,
             true
           );
           if (whitelistResult.success) {
@@ -505,7 +505,7 @@ export class TradeExecutor {
       // Step 3: Ensure USDC is approved to router
       console.log('[TradeExecutor] 📋 Ensuring USDC approval...');
       const approvalResult = await moduleService.approveTokenForDex(
-        ctx.deployment.safeWallet,
+        ctx.deployment.safe_wallet,
         usdcAddress,
         routerAddress
       );
@@ -521,14 +521,14 @@ export class TradeExecutor {
       
       // Execute trade through module (gasless!) with proof of agreement
       const result = await moduleService.executeTrade({
-        safeAddress: ctx.deployment.safeWallet,
+        safeAddress: ctx.deployment.safe_wallet,
         fromToken: usdcAddress,
-        toToken: tokenRegistry.tokenAddress,
+        toToken: tokenRegistry.token_address,
         amountIn: amountIn.toString(),
         dexRouter: routerAddress,
         swapData: swapTx.data as string,
         minAmountOut,
-        profitReceiver: ctx.signal.agent.profitReceiverAddress,
+        profitReceiver: ctx.signal.agents.profitReceiverAddress,
         // Add proof of agreement message to transaction data
         proofOfAgreement: `Proof of Agreement: Executor confirms trade execution for signal ${ctx.signal.id} at ${new Date().toISOString()}`,
       });
@@ -545,17 +545,17 @@ export class TradeExecutor {
       const actualEntryPrice = actualAmountOut > 0 ? parseFloat(positionSize.toString()) / actualAmountOut : 0;
 
       // Create position record with REAL transaction hash
-      const position = await prisma.position.create({
+      const position = await prisma.positions.create({
         data: {
-          deploymentId: ctx.deployment.id,
-          signalId: ctx.signal.id,
+          deployment_id: ctx.deployment.id,
+          signal_id: ctx.signal.id,
           venue: ctx.signal.venue,
-          tokenSymbol: actualTokenSymbol, // Use actual token symbol (stripped _MANUAL_ suffix)
+          token_symbol: actualTokenSymbol, // Use actual token symbol (stripped _MANUAL_ suffix)
           side: ctx.signal.side,
-          entryPrice: actualEntryPrice,
+          entry_price: actualEntryPrice,
           qty: actualAmountOut,
-          entryTxHash: result.txHash, // ⚡ REAL ON-CHAIN TX HASH
-          trailingParams: {
+          entry_tx_hash: result.txHash, // ⚡ REAL ON-CHAIN TX HASH
+          trailing_params: {
             enabled: true,
             trailingPercent: 1, // 1% trailing stop
             highestPrice: null, // Will be set on first monitor check
@@ -566,7 +566,7 @@ export class TradeExecutor {
       console.log('[TradeExecutor] ✅ SPOT trade executed on-chain!', {
         positionId: position.id,
         txHash: result.txHash,
-        token: ctx.signal.tokenSymbol,
+        token: ctx.signal.token_symbol,
         qty: actualAmountOut,
         entryPrice: actualEntryPrice,
         explorerLink: `https://arbiscan.io/tx/${result.txHash}`,
@@ -616,7 +616,7 @@ export class TradeExecutor {
       );
 
       // Create module service (for fee collection)
-      const moduleAddress = ctx.deployment.moduleAddress || process.env.MODULE_ADDRESS;
+      const moduleAddress = ctx.deployment.module_address || process.env.MODULE_ADDRESS;
       if (!moduleAddress) {
         return {
           success: false,
@@ -638,7 +638,7 @@ export class TradeExecutor {
       );
 
       // Strip _MANUAL_timestamp suffix if present
-      const actualTokenSymbol = ctx.signal.tokenSymbol.split('_MANUAL_')[0];
+      const actualTokenSymbol = ctx.signal.token_symbol.split('_MANUAL_')[0];
 
       // Calculate collateral and leverage
       const sizeModel = ctx.signal.sizeModel as any;
@@ -648,7 +648,7 @@ export class TradeExecutor {
       const usdcAbi = ['function balanceOf(address) view returns (uint256)'];
       const usdcAddress = '0xaf88d065e77c8cC2239327C5EDb3A432268e5831';
       const usdc = new ethers.Contract(usdcAddress, usdcAbi, provider);
-      const usdcBalance = await usdc.balanceOf(ctx.deployment.safeWallet);
+      const usdcBalance = await usdc.balanceOf(ctx.deployment.safe_wallet);
       const usdcBalanceNum = parseFloat(ethers.utils.formatUnits(usdcBalance, 6));
       
       let collateralUSDC: number;
@@ -673,13 +673,13 @@ export class TradeExecutor {
 
       // Open GMX position (will enforce all security limits) with proof of agreement
       const result = await adapter.openGMXPosition({
-        safeAddress: ctx.deployment.safeWallet,
+        safeAddress: ctx.deployment.safe_wallet,
         tokenSymbol: actualTokenSymbol,
         collateralUSDC,
         leverage,
         isLong: ctx.signal.side === 'LONG',
         slippage: 0.5,
-        profitReceiver: ctx.signal.agent?.profitReceiverAddress || ctx.deployment.agent.profitReceiverAddress,
+        profitReceiver: ctx.signal.agents?.profitReceiverAddress || ctx.deployment.agent.profit_receiver_address,
         // Add proof of agreement message to transaction data
         proofOfAgreement: `Proof of Agreement: Executor confirms trade execution for signal ${ctx.signal.id} at ${new Date().toISOString()}`,
       });
@@ -702,17 +702,17 @@ export class TradeExecutor {
       const qty = positionSizeUSD / (entryPrice || 1);
 
       // Create position record
-      const position = await prisma.position.create({
+      const position = await prisma.positions.create({
         data: {
-          deploymentId: ctx.deployment.id,
-          signalId: ctx.signal.id,
+          deployment_id: ctx.deployment.id,
+          signal_id: ctx.signal.id,
           venue: ctx.signal.venue,
-          tokenSymbol: actualTokenSymbol,
+          token_symbol: actualTokenSymbol,
           side: ctx.signal.side,
-          entryPrice: entryPrice,
+          entry_price: entryPrice,
           qty: qty,
-          entryTxHash: result.txHash,
-          trailingParams: {
+          entry_tx_hash: result.txHash,
+          trailing_params: {
             enabled: true,
             trailingPercent: 1, // 1% trailing stop
             highestPrice: null, // Will be set on first monitor check
@@ -754,7 +754,7 @@ export class TradeExecutor {
       // Get execution summary
       const summary = await adapter.getExecutionSummary({
         signal: ctx.signal,
-        safeAddress: ctx.deployment.safeWallet,
+        safeAddress: ctx.deployment.safe_wallet,
       });
 
       if (!summary.canExecute) {
@@ -779,12 +779,12 @@ export class TradeExecutor {
         // Build bridge transaction
         const bridgeTx = await adapter.buildBridgeTx(
           bridgeAmountWei.toString(),
-          ctx.deployment.safeWallet
+          ctx.deployment.safe_wallet
         );
 
         // Create Safe transaction service
         const txService = createSafeTransactionService(
-          ctx.deployment.safeWallet,
+          ctx.deployment.safe_wallet,
           chainId,
           process.env.EXECUTOR_PRIVATE_KEY
         );
@@ -835,12 +835,12 @@ export class TradeExecutor {
    */
   async closePosition(positionId: string): Promise<ExecutionResult> {
     try {
-      const position = await prisma.position.findUnique({
+      const position = await prisma.positions.findUnique({
         where: { id: positionId },
         include: {
-          deployment: {
+          agent_deployments: {
             include: {
-              agent: true,
+              agents: true,
             },
           },
         },
@@ -853,15 +853,15 @@ export class TradeExecutor {
         };
       }
 
-      if (position.closedAt) {
+      if (position.closed_at) {
         return {
           success: false,
-          error: `Position already closed at ${position.closedAt.toISOString()}`,
+          error: `Position already closed at ${position.closed_at.toISOString()}`,
         };
       }
 
       const chainId = getChainIdForVenue(position.venue);
-      const safeWallet = createSafeWallet(position.deployment.safeWallet, chainId);
+      const safeWallet = createSafeWallet(position.agent_deployments.safe_wallet, chainId);
 
       // Route to appropriate venue for closing
       if (position.venue === 'SPOT') {
@@ -900,7 +900,7 @@ export class TradeExecutor {
         where: {
           chain_tokenSymbol: {
             chain,
-            tokenSymbol: position.tokenSymbol,
+            tokenSymbol: position.token_symbol,
           },
         },
       });
@@ -926,17 +926,17 @@ export class TradeExecutor {
         chainId === 42161 ? 'https://arb1.arbitrum.io/rpc' : 'https://mainnet.base.org'
       );
       const tokenContract = new ethers.Contract(
-        tokenRegistry.tokenAddress,
+        tokenRegistry.token_address,
         ['function balanceOf(address) view returns (uint256)'],
         provider
       );
       
-      const actualBalance = await tokenContract.balanceOf(position.deployment.safeWallet);
+      const actualBalance = await tokenContract.balanceOf(position.agent_deployments.safe_wallet);
       
       if (actualBalance.eq(0)) {
         return {
           success: false,
-          error: `No ${position.tokenSymbol} balance in Safe to close`,
+          error: `No ${position.token_symbol} balance in Safe to close`,
         };
       }
       
@@ -946,8 +946,8 @@ export class TradeExecutor {
       
       console.log('[TradeExecutor] Closing position:', {
         positionId: position.id,
-        token: position.tokenSymbol,
-        tokenAddress: tokenRegistry.tokenAddress,
+        token: position.token_symbol,
+        tokenAddress: tokenRegistry.token_address,
         dbQty: position.qty,
         actualQty: actualQty,
         amountWei: tokenAmountWei.toString(),
@@ -955,11 +955,11 @@ export class TradeExecutor {
 
       // Build swap back to USDC (module will handle token approval automatically)
       const swapTx = await adapter.buildCloseSwapTx({
-        tokenIn: tokenRegistry.tokenAddress,
+        tokenIn: tokenRegistry.token_address,
         tokenOut: usdcAddress,
         amountIn: tokenAmountWei.toString(),
         minAmountOut: '0', // TODO: Calculate proper slippage
-        recipient: position.deployment.safeWallet,
+        recipient: position.agent_deployments.safe_wallet,
         deadline: Math.floor(Date.now() / 1000) + 1200,
       });
 
@@ -973,7 +973,7 @@ export class TradeExecutor {
       }
 
       const moduleService = createSafeModuleService(
-        position.deployment.moduleAddress!,
+        position.agent_deployments.moduleAddress!,
         chainId,
         executorPrivateKey
       );
@@ -988,8 +988,8 @@ export class TradeExecutor {
       // Approve ARB (or whatever token) to the Uniswap Router before swapping
       console.log('[TradeExecutor] Approving token to router for closing...');
       const approvalResult = await moduleService.approveTokenForDex(
-        position.deployment.safeWallet,
-        tokenRegistry.tokenAddress,
+        position.agent_deployments.safe_wallet,
+        tokenRegistry.token_address,
         routerAddress
       );
 
@@ -997,15 +997,15 @@ export class TradeExecutor {
         // If approval failed, check if it's already approved
         console.log('[TradeExecutor] Approval transaction failed, checking if already approved...');
         const isApproved = await moduleService.checkTokenApproval(
-          position.deployment.safeWallet,
-          tokenRegistry.tokenAddress,
+          position.agent_deployments.safe_wallet,
+          tokenRegistry.token_address,
           routerAddress
         );
         
         if (!isApproved) {
           return {
             success: false,
-            error: `Token approval failed: ${approvalResult.error}. Please approve ${position.tokenSymbol} manually.`,
+            error: `Token approval failed: ${approvalResult.error}. Please approve ${position.token_symbol} manually.`,
           };
         }
         console.log('[TradeExecutor] Token already approved, proceeding...');
@@ -1016,7 +1016,7 @@ export class TradeExecutor {
       }
 
       // Calculate total entry value in USDC (entryPrice * actualQty)
-      const totalEntryValueUSD = Number(position.entryPrice) * Number(actualQty);
+      const totalEntryValueUSD = Number(position.entry_price) * Number(actualQty);
       const entryValueUSDC = ethers.utils.parseUnits(
         totalEntryValueUSD.toFixed(6), // Format to 6 decimals for USDC
         6
@@ -1024,10 +1024,10 @@ export class TradeExecutor {
 
       // Get current price for exit price recording
       const { getTokenPriceUSD } = await import('../lib/price-oracle');
-      const exitPrice = await getTokenPriceUSD(position.tokenSymbol, chainId);
+      const exitPrice = await getTokenPriceUSD(position.token_symbol, chainId);
       
       // Calculate PnL
-      const entryPrice = parseFloat(position.entryPrice.toString());
+      const entryPrice = parseFloat(position.entry_price.toString());
       let pnl: number;
       if (position.side === 'LONG') {
         pnl = (exitPrice - entryPrice) * actualQty;
@@ -1037,12 +1037,12 @@ export class TradeExecutor {
 
       // Execute close position through module (with profit sharing)
       const result = await moduleService.closePosition({
-        safeAddress: position.deployment.safeWallet,
-        tokenIn: tokenRegistry.tokenAddress,
+        safeAddress: position.agent_deployments.safe_wallet,
+        tokenIn: tokenRegistry.token_address,
         tokenOut: usdcAddress,
         amountIn: tokenAmountWei.toString(),
         minAmountOut: '0',
-        profitReceiver: position.deployment.agent.profitReceiverAddress,
+        profitReceiver: position.agent_deployments.agent.profit_receiver_address,
         entryValueUSDC: entryValueUSDC,
       });
 
@@ -1054,12 +1054,12 @@ export class TradeExecutor {
       }
 
       // Update position as closed with actual exit price and PnL
-      await prisma.position.update({
+      await prisma.positions.update({
         where: { id: position.id },
         data: {
-          closedAt: new Date(),
-          exitPrice: exitPrice,
-          exitTxHash: result.txHash,
+          closed_at: new Date(),
+          exit_price: exitPrice,
+          exit_tx_hash: result.txHash,
           qty: actualQty, // Update to actual closed qty
           pnl: pnl,
         },
@@ -1096,7 +1096,7 @@ export class TradeExecutor {
       );
 
       // Create module service (for profit sharing)
-      const moduleAddress = position.deployment.moduleAddress || process.env.MODULE_ADDRESS;
+      const moduleAddress = position.agent_deployments.moduleAddress || process.env.MODULE_ADDRESS;
       if (!moduleAddress) {
         return {
           success: false,
@@ -1118,7 +1118,7 @@ export class TradeExecutor {
       );
 
       // Get current price
-      const currentPrice = await adapter.getGMXPrice(position.tokenSymbol);
+      const currentPrice = await adapter.getGMXPrice(position.token_symbol);
 
       // Calculate position size in USD (30 decimals)
       const positionSizeUSD = parseFloat(position.qty.toString()) * currentPrice;
@@ -1126,7 +1126,7 @@ export class TradeExecutor {
 
       console.log('[TradeExecutor] Closing GMX position:', {
         positionId: position.id,
-        token: position.tokenSymbol,
+        token: position.token_symbol,
         qty: position.qty.toString(),
         currentPrice,
         positionSizeUSD,
@@ -1134,12 +1134,12 @@ export class TradeExecutor {
 
       // Close position
       const result = await adapter.closeGMXPosition({
-        safeAddress: position.deployment.safeWallet,
-        tokenSymbol: position.tokenSymbol,
+        safeAddress: position.agent_deployments.safe_wallet,
+        tokenSymbol: position.token_symbol,
         sizeDeltaUsd: sizeDeltaUsd.toString(),
         isLong: position.side === 'LONG',
         slippage: 0.5,
-        profitReceiver: position.deployment.agent.profitReceiverAddress,
+        profitReceiver: position.agent_deployments.agent.profit_receiver_address,
       });
 
       if (!result.success) {
@@ -1151,7 +1151,7 @@ export class TradeExecutor {
 
       // Calculate PnL
       const exitPrice = currentPrice;
-      const entryPrice = parseFloat(position.entryPrice.toString());
+      const entryPrice = parseFloat(position.entry_price.toString());
       const qty = parseFloat(position.qty.toString());
       
       let pnl: number;
@@ -1162,12 +1162,12 @@ export class TradeExecutor {
       }
 
       // Update position
-      await prisma.position.update({
+      await prisma.positions.update({
         where: { id: position.id },
         data: {
-          closedAt: new Date(),
-          exitPrice: exitPrice,
-          exitTxHash: result.txHash,
+          closed_at: new Date(),
+          exit_price: exitPrice,
+          exit_tx_hash: result.txHash,
           pnl: pnl,
         },
       });
@@ -1185,13 +1185,13 @@ export class TradeExecutor {
           const usdcAddress = '0xaf88d065e77c8cC2239327C5EDb3A432268e5831'; // Arbitrum USDC
           const profitShareWei = ethers.utils.parseUnits(profitShare.toFixed(6), 6);
           const transferData = usdcInterface.encodeFunctionData('transfer', [
-            position.deployment.agent.profitReceiverAddress,
+            position.agent_deployments.agent.profit_receiver_address,
             profitShareWei,
           ]);
 
           // Execute via module (same as fee collection)
           const profitResult = await moduleService.executeFromModule(
-            position.deployment.safeWallet,
+            position.agent_deployments.safe_wallet,
             usdcAddress, // To: USDC contract
             0, // Value: 0 ETH
             transferData // Data: transfer(agentOwner, profitShare)
@@ -1199,7 +1199,7 @@ export class TradeExecutor {
 
           if (profitResult.success) {
             profitShareTxHash = profitResult.txHash;
-            console.log(`[TradeExecutor] ✅ Profit share distributed: ${profitShare.toFixed(2)} USDC → ${position.deployment.agent.profitReceiverAddress}`);
+            console.log(`[TradeExecutor] ✅ Profit share distributed: ${profitShare.toFixed(2)} USDC → ${position.agent_deployments.agent.profit_receiver_address}`);
             console.log(`[TradeExecutor] TX: ${profitShareTxHash}`);
           } else {
             console.error(`[TradeExecutor] ⚠️ Profit share distribution failed: ${profitResult.error}`);
