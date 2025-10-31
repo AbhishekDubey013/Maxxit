@@ -132,21 +132,43 @@ export async function monitorPositions() {
           takeProfit = riskModel.takeProfit;
         }
 
-        // Check trailing stop loss
+        // Strategy:
+        // 1. 10% Hard Stop Loss (immediate exit if loss >= 10%)
+        // 2. Wait for 3% profit baseline
+        // 3. Activate 1% trailing stop after 3% is reached
+        
         const trailingParams = position.trailing_params as any;
         let shouldClose = false;
         let closeReason = '';
 
-        if (trailingParams?.enabled) {
-          // Implement trailing stop
-          const trailingPercent = trailingParams.trailingPercent || 1; // 1% default - tighter stop
+        // HARD STOP LOSS: Close immediately if loss >= 10%
+        const HARD_STOP_LOSS = 10; // 10% hard stop
+        
+        if (side === 'BUY' || side === 'LONG') {
+          const stopLossPrice = entryPrice * (1 - HARD_STOP_LOSS / 100); // 10% below entry
+          if (currentPrice <= stopLossPrice) {
+            shouldClose = true;
+            closeReason = 'HARD_STOP_LOSS';
+            console.log(`   🔴 HARD STOP LOSS HIT! Entry: $${entryPrice.toFixed(2)}, Current: $${currentPrice.toFixed(2)}, Loss: ${pnlPercent.toFixed(2)}%`);
+          }
+        } else {
+          // SHORT position
+          const stopLossPrice = entryPrice * (1 + HARD_STOP_LOSS / 100); // 10% above entry
+          if (currentPrice >= stopLossPrice) {
+            shouldClose = true;
+            closeReason = 'HARD_STOP_LOSS';
+            console.log(`   🔴 HARD STOP LOSS HIT! Entry: $${entryPrice.toFixed(2)}, Current: $${currentPrice.toFixed(2)}, Loss: ${pnlPercent.toFixed(2)}%`);
+          }
+        }
+
+        // TRAILING STOP LOGIC (only if hard stop not triggered)
+        if (!shouldClose && trailingParams?.enabled) {
+          const trailingPercent = trailingParams.trailingPercent || 1; // 1% trailing
           
           // For LONG positions
           if (side === 'BUY' || side === 'LONG') {
-            // Track highest price - only activate trailing stop if price has gone UP from entry
-            // This prevents immediate exit from fictitious "buffer" price
-            const activationThreshold = entryPrice * 1.03; // Need 3% gain to activate
-            const highestPrice = trailingParams.highestPrice || entryPrice; // Start from entry, not buffered
+            const activationThreshold = entryPrice * 1.03; // Need 3% gain to activate trailing
+            const highestPrice = trailingParams.highestPrice || entryPrice;
             const newHighest = Math.max(highestPrice, currentPrice);
             
             if (newHighest > highestPrice) {
