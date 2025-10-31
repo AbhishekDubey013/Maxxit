@@ -93,14 +93,85 @@ export default async function handler(
 
     // Check module status on-chain before creating deployment
     let moduleEnabled = false;
+    let usdcApproved = false;
+    
     try {
-      const provider = new ethers.providers.JsonRpcProvider(SEPOLIA_RPC);
+      // Get the correct RPC URL for the chain
+      const rpcUrl = chainId === 42161 
+        ? (process.env.ARBITRUM_RPC_URL || 'https://arb1.arbitrum.io/rpc')
+        : SEPOLIA_RPC;
+      
+      const provider = new ethers.providers.JsonRpcProvider(rpcUrl);
       const safe = new ethers.Contract(safeWallet, SAFE_ABI, provider);
       moduleEnabled = await safe.isModuleEnabled(MODULE_ADDRESS);
       console.log('[CreateDeployment] Module enabled on-chain:', moduleEnabled);
+      
+      // Check if USDC is approved for the module
+      const USDC_ADDRESS = chainId === 42161 
+        ? '0xaf88d065e77c8cC2239327C5EDb3A432268e5831' // Arbitrum USDC
+        : '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238'; // Sepolia USDC
+      
+      const ERC20_ABI = ['function allowance(address owner, address spender) external view returns (uint256)'];
+      const usdc = new ethers.Contract(USDC_ADDRESS, ERC20_ABI, provider);
+      const allowance = await usdc.allowance(safeWallet, MODULE_ADDRESS);
+      usdcApproved = allowance.gt(0);
+      console.log('[CreateDeployment] USDC approved:', usdcApproved, 'Allowance:', allowance.toString());
     } catch (error) {
-      console.error('[CreateDeployment] Error checking module status:', error);
-      // Continue with deployment but moduleEnabled will be false
+      console.error('[CreateDeployment] Error checking module/USDC status:', error);
+      // Continue with deployment but moduleEnabled and usdcApproved will be false
+    }
+
+    // Return error if module is not enabled
+    if (!moduleEnabled) {
+      return res.status(400).json({
+        error: 'MODULE_NOT_ENABLED',
+        message: 'Trading module is not enabled on this Safe wallet',
+        safeWallet,
+        moduleAddress: MODULE_ADDRESS,
+        chainId,
+        nextSteps: {
+          action: 'ENABLE_MODULE',
+          instructions: [
+            '1. Visit your Safe wallet',
+            `2. Go to Settings → Modules`,
+            `3. Add module: ${MODULE_ADDRESS}`,
+            '4. Sign the transaction',
+            '5. Return here and try again'
+          ],
+          safeAppUrl: chainId === 42161 
+            ? `https://app.safe.global/home?safe=arb1:${safeWallet}`
+            : `https://app.safe.global/home?safe=sep:${safeWallet}`,
+        },
+      });
+    }
+
+    // Return error if USDC is not approved
+    if (!usdcApproved) {
+      const USDC_ADDRESS = chainId === 42161 
+        ? '0xaf88d065e77c8cC2239327C5EDb3A432268e5831'
+        : '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238';
+      
+      return res.status(400).json({
+        error: 'USDC_NOT_APPROVED',
+        message: 'USDC approval required for trading',
+        safeWallet,
+        moduleAddress: MODULE_ADDRESS,
+        usdcAddress: USDC_ADDRESS,
+        nextSteps: {
+          action: 'APPROVE_USDC',
+          instructions: [
+            '1. Visit your Safe wallet',
+            '2. Go to Apps → Transaction Builder',
+            `3. Approve USDC (${USDC_ADDRESS}) for spender: ${MODULE_ADDRESS}`,
+            '4. Set amount to maximum (or your trading capital)',
+            '5. Sign and execute the transaction',
+            '6. Return here and try again'
+          ],
+          safeAppUrl: chainId === 42161 
+            ? `https://app.safe.global/apps?safe=arb1:${safeWallet}`
+            : `https://app.safe.global/apps?safe=sep:${safeWallet}`,
+        },
+      });
     }
 
     // Create deployment with correct module status and moduleAddress
@@ -110,7 +181,7 @@ export default async function handler(
         userWallet,
         safeWallet,
         moduleAddress: MODULE_ADDRESS, // Save module address
-        moduleEnabled, // Set based on on-chain status
+        moduleEnabled: true, // Only create if enabled
         status: 'ACTIVE',
         subActive: true,
         subStartedAt: new Date(),
