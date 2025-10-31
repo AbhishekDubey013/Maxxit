@@ -32,7 +32,7 @@ export default async function handler(
     console.log(`[ADMIN] Executing trade for signal ${signalId}`);
 
     // Get signal
-    const signal = await prisma.signal.findUnique({
+    const signal = await prisma.signals.findUnique({
       where: { id: signalId },
     });
 
@@ -41,21 +41,21 @@ export default async function handler(
     }
 
     // Check total active deployments (for logging)
-    const allDeployments = await prisma.agentDeployment.findMany({
+    const allDeployments = await prisma.agent_deployments.findMany({
       where: {
-        agentId: signal.agentId,
+        agent_id: signal.agent_id,
         status: 'ACTIVE',
-        subActive: true,
+        sub_active: true,
       },
     });
 
     // Find ACTIVE deployments for this agent with module enabled
-    const deployments = await prisma.agentDeployment.findMany({
+    const deployments = await prisma.agent_deployments.findMany({
       where: {
-        agentId: signal.agentId,
+        agent_id: signal.agent_id,
         status: 'ACTIVE',
-        subActive: true,
-        moduleEnabled: true, // CRITICAL: Only execute on deployments with module enabled
+        sub_active: true,
+        module_enabled: true, // CRITICAL: Only execute on deployments with module enabled
       },
     });
 
@@ -74,20 +74,20 @@ export default async function handler(
     }
 
     // Check venue status for min size/slippage
-    const venueStatus = await prisma.venueStatus.findUnique({
+    const venueStatus = await prisma.venues_status.findUnique({
       where: {
         venue_tokenSymbol: {
           venue: signal.venue,
-          tokenSymbol: signal.tokenSymbol,
+          tokenSymbol: signal.token_symbol,
         },
       },
     });
 
-    const sizeModel: any = signal.sizeModel;
+    const sizeModel: any = signal.size_model;
     const qty = sizeModel.baseSize || 100;
 
     // Check min size constraint
-    if (venueStatus?.minSize && parseFloat(qty.toString()) < parseFloat(venueStatus.minSize.toString())) {
+    if (venueStatus?.min_size && parseFloat(qty.toString()) < parseFloat(venueStatus.min_size.toString())) {
       return res.status(400).json({
         error: 'Position size below venue minimum',
       });
@@ -99,11 +99,11 @@ export default async function handler(
 
     for (const deployment of deployments) {
       // Check for duplicate position (same deployment + signal)
-      const existing = await prisma.position.findUnique({
+      const existing = await prisma.positions.findUnique({
         where: {
-          deploymentId_signalId: {
-            deploymentId: deployment.id,
-            signalId: signal.id,
+          deployment_id_signal_id: {
+            deployment_id: deployment.id,
+            signal_id: signal.id,
           },
         },
       });
@@ -114,14 +114,14 @@ export default async function handler(
       }
 
       // Execute REAL on-chain trade via TradeExecutor for SPECIFIC deployment
-      console.log(`[TRADE] Executing real trade for deployment ${deployment.id} (Safe: ${deployment.safeWallet})`);
+      console.log(`[TRADE] Executing real trade for deployment ${deployment.id} (Safe: ${deployment.safe_wallet})`);
       const result = await executor.executeSignalForDeployment(signal.id, deployment.id);
 
       if (result.success && result.positionId) {
         console.log(`[TRADE] ✅ Trade executed on-chain! Position: ${result.positionId}, TX: ${result.txHash}`);
         
         // Get the created position
-        const position = await prisma.position.findUnique({
+        const position = await prisma.positions.findUnique({
           where: { id: result.positionId }
         });
         
