@@ -6,7 +6,7 @@
   },
   "deploy": {
     "numReplicas": 1,
-    "startCommand": "bash workers/start-railway.sh",
+    "startCommand": "bash workers/start-all.sh",
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 10
   }
