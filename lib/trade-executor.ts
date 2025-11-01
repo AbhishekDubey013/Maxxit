@@ -11,6 +11,7 @@ import { createGMXAdapterSubaccount, GMXAdapterSubaccount } from './adapters/gmx
 import { createHyperliquidAdapter, HyperliquidAdapter } from './adapters/hyperliquid-adapter';
 import { SafeModuleService, createSafeModuleService } from './safe-module-service';
 import { createSafeTransactionService } from './safe-transaction-service';
+import { closeHyperliquidPosition } from './hyperliquid-utils';
 import { ethers } from 'ethers';
 
 const prisma = new PrismaClient();
@@ -143,16 +144,20 @@ export class TradeExecutor {
     try {
       const deployment = signal.agents.agent_deployments[0];
 
-      // Validate Safe wallet
+      // Validate Safe wallet (skip for HYPERLIQUID - uses agent EOA wallet instead)
       const chainId = getChainIdForVenue(signal.venue);
       const safeWallet = createSafeWallet(deployment.safe_wallet, chainId);
       
-      const validation = await safeWallet.validateSafe();
-      if (!validation.valid) {
-        return {
-          success: false,
-          error: `Safe wallet validation failed: ${validation.error}`,
-        };
+      if (signal.venue !== 'HYPERLIQUID') {
+        const validation = await safeWallet.validateSafe();
+        if (!validation.valid) {
+          return {
+            success: false,
+            error: `Safe wallet validation failed: ${validation.error}`,
+          };
+        }
+      } else {
+        console.log('[TradeExecutor] Skipping Safe validation for HYPERLIQUID (uses agent EOA wallet)');
       }
 
       // NOTE: Module auto-initializes on first trade (handled by smart contract)
@@ -224,29 +229,37 @@ export class TradeExecutor {
         };
       }
 
-      // 2. Check USDC balance
-      const usdcBalance = await safeWallet.getUSDCBalance();
+      // 2. Check USDC balance (skip for HYPERLIQUID - balance is on agent wallet on Hyperliquid)
+      let usdcBalance = 0;
       
-      if (usdcBalance === 0) {
-        return {
-          canExecute: false,
-          reason: 'No USDC balance in Safe wallet',
-          usdcBalance,
-          tokenAvailable: true,
-        };
-      }
+      if (signal.venue !== 'HYPERLIQUID') {
+        usdcBalance = await safeWallet.getUSDCBalance();
+        
+        if (usdcBalance === 0) {
+          return {
+            canExecute: false,
+            reason: 'No USDC balance in Safe wallet',
+            usdcBalance,
+            tokenAvailable: true,
+          };
+        }
 
-      // 3. Check position size requirements
-      const sizeModel = signal.size_model as any;
-      const requiredCollateral = (usdcBalance * sizeModel.value) / 100;
+        // 3. Check position size requirements
+        const sizeModel = signal.size_model as any;
+        const requiredCollateral = (usdcBalance * sizeModel.value) / 100;
 
-      if (requiredCollateral === 0) {
-        return {
-          canExecute: false,
-          reason: 'Position size too small',
-          usdcBalance,
-          tokenAvailable: true,
-        };
+        if (requiredCollateral === 0) {
+          return {
+            canExecute: false,
+            reason: 'Position size too small',
+            usdcBalance,
+            tokenAvailable: true,
+          };
+        }
+      } else {
+        // For Hyperliquid, balance validation happens in the adapter
+        console.log('[TradeExecutor] Skipping Safe balance check for HYPERLIQUID (balance on agent wallet)');
+        usdcBalance = 100; // Dummy value to pass validation
       }
 
       // 4. For SPOT, check token registry
@@ -726,78 +739,110 @@ export class TradeExecutor {
    */
   private async executeHyperliquidTrade(ctx: ExecutionContext): Promise<ExecutionResult> {
     try {
-      const adapter = createHyperliquidAdapter(ctx.safeWallet);
-      const chainId = getChainIdForVenue(ctx.signal.venue);
-
-      // Get execution summary
-      const summary = await adapter.getExecutionSummary({
-        signal: ctx.signal,
-        safeAddress: ctx.deployment.safe_wallet,
-      });
-
-      if (!summary.canExecute) {
+      // Get agent private key for Hyperliquid trading
+      const { getAgentPrivateKey } = await import('../pages/api/hyperliquid/register-agent');
+      const agentPrivateKey = await getAgentPrivateKey(ctx.deployment.id);
+      
+      if (!agentPrivateKey) {
         return {
           success: false,
-          error: 'Cannot execute Hyperliquid trade',
-          reason: summary.reason,
-          executionSummary: summary,
+          error: 'Hyperliquid agent wallet not registered. Please run setup first.',
+          reason: 'Agent wallet required for Hyperliquid trading',
         };
       }
 
-      // If bridge is needed, execute bridge transaction
-      if (summary.needsBridge && summary.bridgeAmount) {
-        const bridgeAmountWei = ethers.utils.parseUnits(
-          summary.bridgeAmount.toFixed(6),
-          6
-        );
-
-        // Build bridge approval
-        const approvalTx = await adapter.buildBridgeApprovalTx(bridgeAmountWei.toString());
-
-        // Build bridge transaction
-        const bridgeTx = await adapter.buildBridgeTx(
-          bridgeAmountWei.toString(),
-          ctx.deployment.safe_wallet
-        );
-
-        // Create Safe transaction service
-        const txService = createSafeTransactionService(
-          ctx.deployment.safe_wallet,
-          chainId,
-          process.env.EXECUTOR_PRIVATE_KEY
-        );
-
-        // Submit batch transaction (approval + bridge)
-        const result = await txService.batchTransactions([approvalTx, bridgeTx]);
-
-        if (!result.success) {
-          return {
-            success: false,
-            error: `Bridge failed: ${result.error}`,
-          };
-        }
-
-        console.log('[TradeExecutor] Hyperliquid bridge submitted:', {
-          amount: summary.bridgeAmount,
-          safeTxHash: result.safeTxHash,
-          txHash: result.txHash,
-        });
-
-        // Note: Actual trading on Hyperliquid requires EIP-1271 or dedicated wallet
-        // For now, just record that bridge was initiated
+      // For Hyperliquid, safe_wallet actually stores the user's Hyperliquid wallet address
+      const userHyperliquidWallet = ctx.deployment.safe_wallet;
+      const adapter = createHyperliquidAdapter(ctx.safeWallet, agentPrivateKey, userHyperliquidWallet);
+      
+      console.log('[TradeExecutor] Hyperliquid delegation setup:');
+      console.log(`  User Wallet: ${userHyperliquidWallet}`);
+      console.log(`  Agent will trade on behalf of user`);
+      
+      // Strip _MANUAL_timestamp suffix if present
+      const actualTokenSymbol = ctx.signal.token_symbol.split('_MANUAL_')[0];
+      
+      // Get market info
+      const marketInfo = await adapter.getMarketInfo(actualTokenSymbol);
+      if (!marketInfo) {
         return {
-          success: true,
-          txHash: result.txHash,
-          reason: 'Bridge initiated. Hyperliquid trading requires dedicated wallet setup.',
+          success: false,
+          error: `Market not available for ${actualTokenSymbol}`,
         };
       }
 
-      // If no bridge needed but we have balance, we still need dedicated wallet for trading
+      // Calculate position size
+      const sizeModel = ctx.signal.size_model as any;
+      const leverage = sizeModel.leverage || 1;
+      
+      // Get Hyperliquid balance (user's wallet balance, not agent's)
+      const hlBalance = await adapter.getBalance(userHyperliquidWallet);
+      
+      let collateralUSDC: number;
+      
+      if (sizeModel.type === 'fixed-usdc') {
+        collateralUSDC = sizeModel.value || 0;
+      } else {
+        const percentageToUse = sizeModel.value || 5;
+        collateralUSDC = (hlBalance.withdrawable * percentageToUse) / 100;
+      }
+
+      // Minimum collateral check
+      collateralUSDC = Math.max(collateralUSDC, 10); // Minimum $10 for Hyperliquid
+
+      console.log('[TradeExecutor] Hyperliquid trade:', {
+        token: actualTokenSymbol,
+        collateral: collateralUSDC,
+        leverage,
+        isLong: ctx.signal.side === 'LONG',
+        hlBalance: hlBalance.withdrawable,
+      });
+
+      // Calculate size in coin units
+      const positionSizeUSD = collateralUSDC * leverage;
+      const coinSize = positionSizeUSD / marketInfo.price;
+
+      // Open position
+      const result = await adapter.openPosition({
+        coin: actualTokenSymbol,
+        isBuy: ctx.signal.side === 'LONG',
+        size: coinSize,
+        leverage,
+        slippage: 0.01, // 1% slippage
+      });
+
+      if (!result.success) {
+        return {
+          success: false,
+          error: result.error || 'Hyperliquid order submission failed',
+        };
+      }
+
+      console.log('[TradeExecutor] ✅ Hyperliquid position opened:', result);
+
+      // Create position record
+      const position = await prisma.positions.create({
+        data: {
+          deployment_id: ctx.deployment.id,
+          signal_id: ctx.signal.id,
+          venue: ctx.signal.venue,
+          token_symbol: actualTokenSymbol,
+          side: ctx.signal.side,
+          entry_price: marketInfo.price,
+          qty: coinSize,
+          entry_tx_hash: result.orderId || 'HL-' + Date.now(),
+          trailing_params: {
+            enabled: true,
+            trailingPercent: 1, // 1% trailing stop
+            highestPrice: null,
+          },
+        },
+      });
+
       return {
-        success: false,
-        error: 'Hyperliquid trading requires EIP-1271 signature verification or dedicated trading wallet',
-        reason: 'Direct trading from Safe wallet not yet supported on Hyperliquid',
-        executionSummary: summary,
+        success: true,
+        txHash: result.orderId,
+        positionId: position.id,
       };
     } catch (error: any) {
       console.error('[TradeExecutor] Hyperliquid execution failed:', error);
@@ -846,6 +891,8 @@ export class TradeExecutor {
         return await this.closeSpotPosition(position, safeWallet, chainId);
       } else if (position.venue === 'GMX') {
         return await this.closeGMXPosition(position, safeWallet, chainId);
+      } else if (position.venue === 'HYPERLIQUID') {
+        return await this.closeHyperliquidPositionMethod(position);
       } else {
         return {
           success: false,
@@ -1049,6 +1096,84 @@ export class TradeExecutor {
         positionId: position.id,
       };
     } catch (error: any) {
+      return {
+        success: false,
+        error: error.message,
+      };
+    }
+  }
+
+  /**
+   * Close Hyperliquid position
+   */
+  private async closeHyperliquidPositionMethod(
+    position: any
+  ): Promise<ExecutionResult> {
+    try {
+      console.log('[TradeExecutor] Closing Hyperliquid position:', {
+        positionId: position.id,
+        token: position.token_symbol,
+        side: position.side,
+        venue: position.venue,
+      });
+
+      // Get user's Hyperliquid address from deployment
+      const userHyperliquidAddress = position.agent_deployments.safe_wallet;
+      
+      if (!userHyperliquidAddress) {
+        throw new Error('User Hyperliquid address not found in deployment');
+      }
+
+      // Close position via Hyperliquid service
+      const result = await closeHyperliquidPosition({
+        deploymentId: position.deployment_id,
+        userAddress: userHyperliquidAddress,
+        coin: position.token_symbol,
+        // Don't specify size - will close full position
+      });
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to close position');
+      }
+
+      console.log('[TradeExecutor] Hyperliquid position close result:', result.result);
+
+      // Calculate P&L from Hyperliquid result if available
+      let pnl = 0;
+      if (result.result && result.result.closePx) {
+        const entryPrice = parseFloat(position.entry_price?.toString() || '0');
+        const closePrice = parseFloat(result.result.closePx);
+        const qty = parseFloat(position.qty?.toString() || '0');
+        
+        if (position.side === 'LONG' || position.side === 'BUY') {
+          pnl = (closePrice - entryPrice) * qty;
+        } else {
+          pnl = (entryPrice - closePrice) * qty;
+        }
+      }
+
+      // Update position in database
+      await prisma.positions.update({
+        where: { id: position.id },
+        data: {
+          closed_at: new Date(),
+          exit_price: result.result?.closePx ? parseFloat(result.result.closePx) : null,
+          pnl: pnl,
+        },
+      });
+
+      console.log('[TradeExecutor] ✅ Hyperliquid position closed:', {
+        positionId: position.id,
+        pnl: pnl.toFixed(2) + ' USD',
+        closePrice: result.result?.closePx,
+      });
+
+      return {
+        success: true,
+        positionId: position.id,
+      };
+    } catch (error: any) {
+      console.error('[TradeExecutor] Hyperliquid close error:', error);
       return {
         success: false,
         error: error.message,

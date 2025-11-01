@@ -49,22 +49,32 @@ export default async function handler(
       },
     });
 
-    // Find ACTIVE deployments for this agent with module enabled
+    // Find ACTIVE deployments for this agent
+    // For SPOT/GMX signals: require module_enabled = true
+    // For HYPERLIQUID signals: require hyperliquid_agent_address set (uses agent wallet, not Safe module)
     const deployments = await prisma.agent_deployments.findMany({
       where: {
         agent_id: signal.agent_id,
         status: 'ACTIVE',
         sub_active: true,
-        module_enabled: true, // CRITICAL: Only execute on deployments with module enabled
+        OR: [
+          { module_enabled: true }, // For SPOT/GMX signals (need Safe module)
+          ...(signal.venue === 'HYPERLIQUID' ? [{ hyperliquid_agent_address: { not: null } }] : []), // For HYPERLIQUID signals (need agent wallet)
+        ]
       },
     });
 
-    console.log(`[TRADE] Found ${allDeployments.length} total active deployments, ${deployments.length} with module enabled`);
+    console.log(`[TRADE] Found ${allDeployments.length} total active deployments, ${deployments.length} ready for execution (module enabled or Hyperliquid)`);
 
     if (deployments.length === 0) {
-      const message = allDeployments.length === 0
-        ? 'No active deployments found for this agent'
-        : `${allDeployments.length} active deployments found, but module is not enabled on any. Users must enable the trading module on their Safe first.`;
+      let message: string;
+      if (allDeployments.length === 0) {
+        message = 'No active deployments found for this agent';
+      } else if (signal.venue === 'HYPERLIQUID') {
+        message = `${allDeployments.length} active deployments found for Hyperliquid signal, but none are properly configured.`;
+      } else {
+        message = `${allDeployments.length} active deployments found, but module is not enabled on any. Users must enable the trading module on their Safe first.`;
+      }
       
       return res.status(200).json({
         success: false,

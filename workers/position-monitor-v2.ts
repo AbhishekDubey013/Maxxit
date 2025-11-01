@@ -10,6 +10,7 @@ import { PrismaClient } from '@prisma/client';
 import { getTokenPriceUSD, calculatePnL } from '../lib/price-oracle';
 import { TradeExecutor } from '../lib/trade-executor';
 import { createGMXReader } from '../lib/adapters/gmx-reader';
+import { getHyperliquidMarketPrice, getHyperliquidOpenPositions } from '../lib/hyperliquid-utils';
 import { ethers } from 'ethers';
 
 const prisma = new PrismaClient();
@@ -99,6 +100,16 @@ export async function monitorPositions() {
             }
           } catch (gmxError: any) {
             console.error(`⚠️  ${symbol} (GMX): Failed to get price:`, gmxError.message);
+          }
+        } else if (venue === 'HYPERLIQUID') {
+          // Use Hyperliquid API for real-time prices
+          try {
+            currentPrice = await getHyperliquidMarketPrice(symbol);
+            if (currentPrice) {
+              console.log(`📈 ${symbol} (HYPERLIQUID): $${currentPrice.toFixed(2)} (exchange)`);
+            }
+          } catch (hlError: any) {
+            console.error(`⚠️  ${symbol} (HYPERLIQUID): Failed to get price:`, hlError.message);
           }
         } else {
           // Use Uniswap V3 for SPOT prices

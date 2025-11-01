@@ -35,7 +35,7 @@ export default async function handler(
 
 async function handleGet(agentId: string, req: NextApiRequest, res: NextApiResponse) {
   // Check if agent exists
-  const agent = await prisma.agent.findUnique({
+  const agent = await prisma.agents.findUnique({
     where: { id: agentId },
   });
 
@@ -44,10 +44,10 @@ async function handleGet(agentId: string, req: NextApiRequest, res: NextApiRespo
   }
 
   // Get linked accounts
-  const agentAccounts = await prisma.agentAccount.findMany({
-    where: { agentId },
+  const agentAccounts = await prisma.agent_accounts.findMany({
+    where: { agent_id: agentId },
     include: {
-      ctAccount: true,
+      ct_accounts: true,
     },
   });
 
@@ -59,7 +59,7 @@ async function handlePost(agentId: string, req: NextApiRequest, res: NextApiResp
     const validated = addAccountSchema.parse(req.body);
 
     // Check if agent exists
-    const agent = await prisma.agent.findUnique({
+    const agent = await prisma.agents.findUnique({
       where: { id: agentId },
     });
 
@@ -68,7 +68,7 @@ async function handlePost(agentId: string, req: NextApiRequest, res: NextApiResp
     }
 
     // Check if CT account exists
-    const ctAccount = await prisma.ctAccount.findUnique({
+    const ctAccount = await prisma.ct_accounts.findUnique({
       where: { id: validated.ctAccountId },
     });
 
@@ -77,20 +77,20 @@ async function handlePost(agentId: string, req: NextApiRequest, res: NextApiResp
     }
 
     // Upsert the link (create or ignore if exists)
-    const agentAccount = await prisma.agentAccount.upsert({
+    const agentAccount = await prisma.agent_accounts.upsert({
       where: {
-        agentId_ctAccountId: {
-          agentId,
-          ctAccountId: validated.ctAccountId,
+        agent_id_ct_account_id: {
+          agent_id: agentId,
+          ct_account_id: validated.ctAccountId,
         },
       },
       update: {},
       create: {
-        agentId,
-        ctAccountId: validated.ctAccountId,
+        agent_id: agentId,
+        ct_account_id: validated.ctAccountId,
       },
       include: {
-        ctAccount: true,
+        ct_accounts: true,
       },
     });
 

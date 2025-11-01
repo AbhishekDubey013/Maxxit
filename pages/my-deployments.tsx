@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { Header } from '@components/Header';
 import GMXSetupButton from '@components/GMXSetupButton';
 import { SPOTSetupButton } from '@components/SPOTSetupButton';
+import { HyperliquidSetupButton } from '@components/HyperliquidSetupButton';
+import { HyperliquidAgentModal } from '@components/HyperliquidAgentModal';
 import { 
   Wallet, 
   Activity, 
@@ -43,7 +45,9 @@ export default function MyDeployments() {
   const [deployments, setDeployments] = useState<Deployment[]>([]);
   const [loading, setLoading] = useState(true);
   const [telegramModalOpen, setTelegramModalOpen] = useState(false);
+  const [hyperliquidModalOpen, setHyperliquidModalOpen] = useState(false);
   const [selectedDeploymentId, setSelectedDeploymentId] = useState<string>('');
+  const [selectedAgentName, setSelectedAgentName] = useState<string>('');
   const [linkCode, setLinkCode] = useState<string>('');
   const [botUsername, setBotUsername] = useState<string>('');
   const [generating, setGenerating] = useState(false);
@@ -143,6 +147,12 @@ export default function MyDeployments() {
     navigator.clipboard.writeText(`/link ${linkCode}`);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleSetupHyperliquid = (agentId: string, agentName: string) => {
+    setSelectedDeploymentId(agentId);
+    setSelectedAgentName(agentName);
+    setHyperliquidModalOpen(true);
   };
 
   const copyBotLink = () => {
@@ -247,7 +257,7 @@ export default function MyDeployments() {
                     <div className="pt-4 border-t border-border">
                       <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
                         <Zap className="w-4 h-4" />
-                        {deployment.agent.venue === 'GMX' ? 'GMX Trading Setup' : 'Trading Module Setup'}
+                        {deployment.agent.venue === 'GMX' ? 'GMX Trading Setup' : deployment.agent.venue === 'HYPERLIQUID' ? 'Hyperliquid Trading Setup' : 'Trading Module Setup'}
                       </div>
                       <div className="bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-800 rounded-lg p-3 mb-3">
                         <p className="text-xs text-orange-700 dark:text-orange-300 mb-2">
@@ -258,11 +268,22 @@ export default function MyDeployments() {
                           {deployment.agent.venue === 'GMX' && (
                             <li>• Authorize GMX executor</li>
                           )}
-                          <li>• {deployment.agent.venue === 'GMX' ? 'Sign ONE transaction and you\'re ready!' : 'Then the system will auto-setup on first trade'}</li>
+                          {deployment.agent.venue === 'HYPERLIQUID' && (
+                            <>
+                              <li>• Approve USDC for Hyperliquid bridge</li>
+                              <li>• Register agent wallet for trading</li>
+                            </>
+                          )}
+                          <li>• {deployment.agent.venue === 'GMX' ? 'Sign ONE transaction and you\'re ready!' : deployment.agent.venue === 'HYPERLIQUID' ? 'Sign ONE transaction and bridge USDC to start trading!' : 'Then the system will auto-setup on first trade'}</li>
                         </ul>
                       </div>
                       {deployment.agent.venue === 'GMX' ? (
                         <GMXSetupButton 
+                          safeAddress={deployment.safeWallet}
+                          onSetupComplete={() => fetchDeployments()}
+                        />
+                      ) : deployment.agent.venue === 'HYPERLIQUID' ? (
+                        <HyperliquidSetupButton 
                           safeAddress={deployment.safeWallet}
                           onSetupComplete={() => fetchDeployments()}
                         />
@@ -306,6 +327,14 @@ export default function MyDeployments() {
                       <TrendingUp className="w-4 h-4" />
                       View Agent
                     </a>
+                    <button
+                      onClick={() => handleSetupHyperliquid(deployment.agentId, deployment.agent.name)}
+                      className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-md text-sm font-medium hover:shadow-lg transition-all"
+                      title="Setup Hyperliquid Trading"
+                    >
+                      <Zap className="w-4 h-4" />
+                      <span className="hidden sm:inline">Hyperliquid</span>
+                    </button>
                     <button className="inline-flex items-center justify-center px-4 py-2 border border-input bg-background rounded-md text-sm font-medium hover:bg-accent hover:text-accent-foreground">
                       <Settings className="w-4 h-4" />
                     </button>
@@ -435,6 +464,15 @@ export default function MyDeployments() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Hyperliquid Setup Modal */}
+      {hyperliquidModalOpen && (
+        <HyperliquidAgentModal
+          agentId={selectedDeploymentId}
+          agentName={selectedAgentName}
+          onClose={() => setHyperliquidModalOpen(false)}
+        />
       )}
     </div>
   );
