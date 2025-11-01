@@ -3,6 +3,8 @@
  * Supports: Bearer Token, GAME API, and other alternatives
  */
 
+import { GameTwitterClient } from './game-twitter-client';
+
 interface Tweet {
   id: string;
   text: string;
@@ -161,17 +163,17 @@ export class MultiMethodXApiClient {
       // Proxy not available, continue to next method
     }
 
-    // Try GAME API direct if key is provided
-    if (this.gameApiKey && this.gameApiUrl && this.gameApiUrl !== 'http://localhost:8001') {
-      console.log('[X API] Using GAME API direct');
+    // Try GAME API direct SDK if key is provided
+    if (this.gameApiKey) {
+      console.log('[X API] Using GAME SDK (direct API)');
       try {
-        const gameClient = new GameApiClient(this.gameApiKey, this.gameApiUrl);
+        const gameClient = new GameTwitterClient(this.gameApiKey);
         const tweets = await gameClient.getUserTweets(username, options);
         if (tweets.length > 0) {
           return tweets;
         }
       } catch (error) {
-        console.error('[X API] GAME API failed, trying bearer token method');
+        console.error('[X API] GAME SDK failed, trying bearer token method');
       }
     }
 
