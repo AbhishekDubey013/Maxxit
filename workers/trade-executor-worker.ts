@@ -28,7 +28,10 @@ export async function executeTradesForSignals() {
           agent_deployments: {
             some: {
               status: 'ACTIVE',
-              module_enabled: true, // CRITICAL: Only execute on deployments with module enabled
+              OR: [
+                { module_enabled: true }, // For SPOT/GMX signals (need Safe module)
+                { hyperliquid_agent_address: { not: null } }, // For HYPERLIQUID signals (has agent wallet)
+              ]
             },
           },
         },
@@ -39,7 +42,10 @@ export async function executeTradesForSignals() {
             agent_deployments: {
               where: { 
                 status: 'ACTIVE',
-                module_enabled: true, // CRITICAL: Only fetch deployments with module enabled
+                OR: [
+                  { module_enabled: true }, // For SPOT/GMX signals
+                  { hyperliquid_agent_address: { not: null } }, // For HYPERLIQUID signals
+                ]
               },
               take: 1,
             },

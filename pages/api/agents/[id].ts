@@ -38,7 +38,7 @@ export default async function handler(
 }
 
 async function handleGet(id: string, req: NextApiRequest, res: NextApiResponse) {
-  const agent = await prisma.agent.findUnique({
+  const agent = await prisma.agents.findUnique({
     where: { id },
   });
 
@@ -54,7 +54,7 @@ async function handlePatch(id: string, req: NextApiRequest, res: NextApiResponse
     const validated = updateAgentSchema.parse(req.body);
 
     // Check if agent exists
-    const existing = await prisma.agent.findUnique({
+    const existing = await prisma.agents.findUnique({
       where: { id },
     });
 
@@ -63,7 +63,7 @@ async function handlePatch(id: string, req: NextApiRequest, res: NextApiResponse
     }
 
     // Update agent
-    const agent = await prisma.agent.update({
+    const agent = await prisma.agents.update({
       where: { id },
       data: validated,
     });

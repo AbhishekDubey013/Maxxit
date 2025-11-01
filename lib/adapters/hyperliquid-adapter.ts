@@ -1,6 +1,7 @@
 /**
  * Hyperliquid Perpetuals Adapter
  * Executes leveraged perpetual positions on Hyperliquid
+ * Integrates with Python service for Hyperliquid SDK
  */
 
 import { ethers } from 'ethers';
@@ -27,21 +28,60 @@ export interface HyperliquidPosition {
 
 /**
  * Hyperliquid Adapter for Perpetual Trading
+ * Uses Python service for SDK integration
  */
 export class HyperliquidAdapter {
   private safeWallet: SafeWalletService;
+  private agentPrivateKey?: string;
+  private userWalletAddress?: string;  // User's wallet address on Hyperliquid (for delegation)
 
-  // Hyperliquid Bridge on Arbitrum
-  private static readonly HL_BRIDGE = '0x2Df1c51E09aECF9cacB7bc98cB1742757f163dF7';
+  // Check if using testnet
+  private static readonly IS_TESTNET = process.env.HYPERLIQUID_TESTNET === 'true';
   
-  // Hyperliquid API endpoint
-  private static readonly HL_API = 'https://api.hyperliquid.xyz';
+  // Hyperliquid Bridge addresses
+  private static readonly HL_BRIDGE_MAINNET = '0x2Df1c51E09aECF9cacB7bc98cB1742757f163dF7';
+  private static readonly HL_BRIDGE_TESTNET = '0xAf8912a3245a9E7Fc1881fAD1a07cdbc89905266'; // Testnet bridge
+  private static readonly HL_BRIDGE = HyperliquidAdapter.IS_TESTNET 
+    ? HyperliquidAdapter.HL_BRIDGE_TESTNET 
+    : HyperliquidAdapter.HL_BRIDGE_MAINNET;
+  
+  // Hyperliquid Python Service endpoint
+  private static readonly HL_SERVICE = process.env.HYPERLIQUID_SERVICE_URL || 'http://localhost:5001';
 
-  // USDC on Arbitrum (to bridge)
-  private static readonly USDC = '0xaf88d065e77c8cC2239327C5EDb3A432268e5831';
+  // USDC addresses (Arbitrum Sepolia for testnet, Arbitrum One for mainnet)
+  private static readonly USDC_MAINNET = '0xaf88d065e77c8cC2239327C5EDb3A432268e5831';
+  private static readonly USDC_TESTNET = '0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d'; // Arbitrum Sepolia USDC
+  private static readonly USDC = HyperliquidAdapter.IS_TESTNET 
+    ? HyperliquidAdapter.USDC_TESTNET 
+    : HyperliquidAdapter.USDC_MAINNET;
 
-  constructor(safeWallet: SafeWalletService) {
+  constructor(safeWallet: SafeWalletService, agentPrivateKey?: string, userWalletAddress?: string) {
     this.safeWallet = safeWallet;
+    this.agentPrivateKey = agentPrivateKey;
+    this.userWalletAddress = userWalletAddress;  // Optional: user's wallet on Hyperliquid (for delegation)
+  }
+
+  /**
+   * Call Python service endpoint
+   */
+  private async callService(endpoint: string, data: any): Promise<any> {
+    try {
+      const response = await fetch(`${HyperliquidAdapter.HL_SERVICE}${endpoint}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || `Service error: ${response.statusText}`);
+      }
+
+      return await response.json();
+    } catch (error: any) {
+      console.error(`[Hyperliquid] Service call failed (${endpoint}):`, error);
+      throw error;
+    }
   }
 
   /**
@@ -78,9 +118,7 @@ export class HyperliquidAdapter {
   }
 
   /**
-   * Open position via Hyperliquid API
-   * Note: This requires direct signing, not Safe transactions
-   * For Safe integration, we'd need to implement EIP-1271 signature verification
+   * Open position via Hyperliquid Python service
    */
   async openPosition(params: {
     coin: string;
@@ -88,33 +126,49 @@ export class HyperliquidAdapter {
     size: number;
     leverage: number;
     limitPrice?: number;
-  }): Promise<{ success: boolean; orderId?: string; error?: string }> {
+    slippage?: number;
+  }): Promise<{ success: boolean; orderId?: string; error?: string; result?: any }> {
     try {
-      // Calculate order size
-      const sz = params.size;
-      const limitPx = params.limitPrice || 0; // 0 = market order
+      if (!this.agentPrivateKey) {
+        throw new Error('Agent private key required for Hyperliquid trading');
+      }
 
-      // Build order payload
-      const order = {
+      console.log('[Hyperliquid] Opening position:', {
         coin: params.coin,
-        is_buy: params.isBuy,
-        sz: sz.toString(),
-        limit_px: limitPx.toString(),
-        order_type: { limit: { tif: 'Ioc' } }, // Immediate or Cancel
-        reduce_only: false,
-      };
+        isBuy: params.isBuy,
+        size: params.size,
+        leverage: params.leverage,
+      });
 
-      // TODO: Sign and submit order to Hyperliquid
-      // This requires implementing the Hyperliquid signing mechanism
-      // For now, return placeholder
+      // Call Python service to open position
+      const result = await this.callService('/open-position', {
+        agentPrivateKey: this.agentPrivateKey,
+        coin: params.coin,
+        isBuy: params.isBuy,
+        size: params.size,
+        limitPx: params.limitPrice || null, // null = market order
+        slippage: params.slippage || 0.01, // 1% default
+        reduceOnly: false,
+        // Pass user's wallet address for agent delegation
+        // Agent signs transactions on behalf of the user's Hyperliquid account
+        vaultAddress: this.userWalletAddress,
+      });
 
-      console.log('[Hyperliquid] Would open position:', order);
-
-      return {
-        success: false,
-        error: 'Hyperliquid direct integration requires EIP-1271 signature verification',
-      };
+      if (result.success) {
+        console.log('[Hyperliquid] Position opened successfully:', result.result);
+        return {
+          success: true,
+          orderId: result.result?.statuses?.[0]?.resting?.oid,
+          result: result.result,
+        };
+      } else {
+        return {
+          success: false,
+          error: result.error || 'Failed to open position',
+        };
+      }
     } catch (error: any) {
+      console.error('[Hyperliquid] Open position failed:', error);
       return {
         success: false,
         error: error.message,
@@ -123,23 +177,43 @@ export class HyperliquidAdapter {
   }
 
   /**
-   * Close position
+   * Close position via Hyperliquid Python service
    */
   async closePosition(params: {
     coin: string;
     size: number;
-  }): Promise<{ success: boolean; orderId?: string; error?: string }> {
+    slippage?: number;
+  }): Promise<{ success: boolean; orderId?: string; error?: string; result?: any }> {
     try {
-      // For closing, we submit a reduce-only order in opposite direction
-      // This is a simplified version
-      
-      console.log('[Hyperliquid] Would close position:', params.coin, params.size);
+      if (!this.agentPrivateKey) {
+        throw new Error('Agent private key required for Hyperliquid trading');
+      }
 
-      return {
-        success: false,
-        error: 'Hyperliquid direct integration requires EIP-1271 signature verification',
-      };
+      console.log('[Hyperliquid] Closing position:', params.coin, params.size);
+
+      // Call Python service to close position
+      const result = await this.callService('/close-position', {
+        agentPrivateKey: this.agentPrivateKey,
+        coin: params.coin,
+        size: params.size,
+        slippage: params.slippage || 0.01,
+      });
+
+      if (result.success) {
+        console.log('[Hyperliquid] Position closed successfully:', result.result);
+        return {
+          success: true,
+          orderId: result.result?.statuses?.[0]?.resting?.oid,
+          result: result.result,
+        };
+      } else {
+        return {
+          success: false,
+          error: result.error || 'Failed to close position',
+        };
+      }
     } catch (error: any) {
+      console.error('[Hyperliquid] Close position failed:', error);
       return {
         success: false,
         error: error.message,
@@ -148,34 +222,18 @@ export class HyperliquidAdapter {
   }
 
   /**
-   * Get current positions via API
+   * Get current positions via Python service
    */
   async getPositions(address: string): Promise<HyperliquidPosition[]> {
     try {
-      const response = await fetch(`${HyperliquidAdapter.HL_API}/info`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type: 'clearinghouseState',
-          user: address,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`API error: ${response.statusText}`);
-      }
-
-      const data = await response.json();
+      const result = await this.callService('/positions', { address });
       
-      return data.assetPositions?.map((pos: any) => ({
-        coin: pos.position.coin,
-        szi: pos.position.szi,
-        entryPx: pos.position.entryPx,
-        positionValue: pos.position.positionValue,
-        unrealizedPnl: pos.position.unrealizedPnl,
-        liquidationPx: pos.position.liquidationPx,
-        leverage: pos.position.leverage?.value || '1',
-      })) || [];
+      if (result.success) {
+        return result.positions || [];
+      } else {
+        console.error('[Hyperliquid] Failed to fetch positions:', result.error);
+        return [];
+      }
     } catch (error) {
       console.error('[Hyperliquid] Failed to fetch positions:', error);
       return [];
@@ -183,29 +241,21 @@ export class HyperliquidAdapter {
   }
 
   /**
-   * Get account balance on Hyperliquid
+   * Get account balance on Hyperliquid via Python service
    */
   async getBalance(address: string): Promise<{ withdrawable: number; total: number }> {
     try {
-      const response = await fetch(`${HyperliquidAdapter.HL_API}/info`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type: 'clearinghouseState',
-          user: address,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`API error: ${response.statusText}`);
-      }
-
-      const data = await response.json();
+      const result = await this.callService('/balance', { address });
       
-      return {
-        withdrawable: parseFloat(data.withdrawable || '0'),
-        total: parseFloat(data.marginSummary?.accountValue || '0'),
-      };
+      if (result.success) {
+        return {
+          withdrawable: result.withdrawable || 0,
+          total: result.accountValue || 0,
+        };
+      } else {
+        console.error('[Hyperliquid] Failed to fetch balance:', result.error);
+        return { withdrawable: 0, total: 0 };
+      }
     } catch (error) {
       console.error('[Hyperliquid] Failed to fetch balance:', error);
       return { withdrawable: 0, total: 0 };
@@ -213,42 +263,26 @@ export class HyperliquidAdapter {
   }
 
   /**
-   * Get market info for a token
+   * Get market info for a token via Python service
    */
   async getMarketInfo(coin: string): Promise<{
     price: number;
-    fundingRate: number;
-    openInterest: number;
-    volume24h: number;
+    maxLeverage?: number;
+    szDecimals?: number;
   } | null> {
     try {
-      const response = await fetch(`${HyperliquidAdapter.HL_API}/info`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type: 'metaAndAssetCtxs',
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`API error: ${response.statusText}`);
-      }
-
-      const data = await response.json();
+      const result = await this.callService('/market-info', { coin });
       
-      // Find the specific coin
-      const assetCtx = data[0]?.universe?.find((u: any) => u.name === coin);
-      
-      if (!assetCtx) {
+      if (result.success) {
+        return {
+          price: result.price || 0,
+          maxLeverage: result.maxLeverage,
+          szDecimals: result.szDecimals,
+        };
+      } else {
+        console.error('[Hyperliquid] Failed to fetch market info:', result.error);
         return null;
       }
-
-      return {
-        price: parseFloat(assetCtx.ctx?.markPx || '0'),
-        fundingRate: parseFloat(assetCtx.ctx?.funding || '0'),
-        openInterest: parseFloat(assetCtx.ctx?.openInterest || '0'),
-        volume24h: parseFloat(assetCtx.ctx?.dayNtlVlm || '0'),
-      };
     } catch (error) {
       console.error('[Hyperliquid] Failed to fetch market info:', error);
       return null;
@@ -324,21 +358,29 @@ export class HyperliquidAdapter {
 /**
  * Create Hyperliquid adapter for a Safe wallet
  */
-export function createHyperliquidAdapter(safeWallet: SafeWalletService): HyperliquidAdapter {
-  return new HyperliquidAdapter(safeWallet);
+export function createHyperliquidAdapter(
+  safeWallet: SafeWalletService, 
+  agentPrivateKey?: string,
+  userWalletAddress?: string
+): HyperliquidAdapter {
+  return new HyperliquidAdapter(safeWallet, agentPrivateKey, userWalletAddress);
 }
 
 /**
  * Note on Hyperliquid Integration:
  * 
  * Hyperliquid trading requires signing orders with the wallet's private key.
- * For Safe wallets (multisig), there are two approaches:
+ * For Safe wallets (multisig), we use an "agent wallet" approach:
  * 
- * 1. Agent Wallet: Create a dedicated EOA wallet for each agent that holds small amounts
- *    and is authorized by the Safe via EIP-1271. Users bridge funds to this wallet.
+ * 1. Each Safe deployment has a dedicated agent wallet (EOA)
+ * 2. Users bridge USDC from their Safe to Hyperliquid (via Arbitrum bridge)
+ * 3. The agent wallet executes trades on Hyperliquid on behalf of the user
+ * 4. Profit receiver can collect fees from trades
+ * 5. Users maintain non-custodial control via Safe on Arbitrum L1
  * 
- * 2. Gasless Trading: Use Hyperliquid's gasless trading feature where Safe signs
- *    a message authorizing a relayer to trade on its behalf.
- * 
- * For initial implementation, we'll use approach #1 with small authorized wallets.
+ * Security:
+ * - Agent wallets are generated per-deployment
+ * - Private keys stored encrypted in database
+ * - Trading limits enforced in module
+ * - Users can always withdraw from Hyperliquid directly
  */

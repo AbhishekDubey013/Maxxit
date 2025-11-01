@@ -22,23 +22,27 @@ model agent_accounts {
 }
 
 model agent_deployments {
-  id              String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  agent_id        String            @db.Uuid
-  user_wallet     String
-  safe_wallet     String
-  status          agent_status_t    @default(ACTIVE)
-  sub_active      Boolean           @default(true)
-  sub_started_at  DateTime          @default(now()) @db.Timestamptz(6)
-  trial_ends_at   DateTime?         @db.Timestamptz(6)
-  next_billing_at DateTime?         @db.Timestamptz(6)
-  module_enabled  Boolean           @default(false)
-  module_address  String?
-  agents          agents            @relation(fields: [agent_id], references: [id], onDelete: Cascade)
-  billing_events  billing_events[]
-  pnl_snapshots   pnl_snapshots[]
-  positions       positions[]
-  telegram_trades telegram_trades[]
-  telegram_users  telegram_users[]
+  id                              String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  agent_id                        String            @db.Uuid
+  user_wallet                     String
+  safe_wallet                     String
+  status                          agent_status_t    @default(ACTIVE)
+  sub_active                      Boolean           @default(true)
+  sub_started_at                  DateTime          @default(now()) @db.Timestamptz(6)
+  trial_ends_at                   DateTime?         @db.Timestamptz(6)
+  next_billing_at                 DateTime?         @db.Timestamptz(6)
+  module_enabled                  Boolean           @default(false)
+  module_address                  String?
+  hyperliquid_agent_address       String?           // Unique agent wallet address for Hyperliquid
+  hyperliquid_agent_key_encrypted String?           // Encrypted private key
+  hyperliquid_agent_key_iv        String?           // Encryption IV
+  hyperliquid_agent_key_tag       String?           // Encryption auth tag
+  agents                          agents            @relation(fields: [agent_id], references: [id], onDelete: Cascade)
+  billing_events                  billing_events[]
+  pnl_snapshots                   pnl_snapshots[]
+  positions                       positions[]
+  telegram_trades                 telegram_trades[]
+  telegram_users                  telegram_users[]
 
   @@unique([user_wallet, agent_id])
   @@index([agent_id])

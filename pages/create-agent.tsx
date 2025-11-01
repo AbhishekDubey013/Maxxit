@@ -329,14 +329,20 @@ export default function CreateAgent() {
   };
 
   const handleDeploy = () => {
-    // Navigate to deployment page with Safe wallet setup
-    console.log('Deploy clicked! Agent ID:', createdAgentId);
+    console.log('Deploy clicked! Agent ID:', createdAgentId, 'Venue:', formData.venue);
     if (createdAgentId) {
-      console.log('Navigating to:', `/deploy-agent/${createdAgentId}`);
       // Close modal first
       setShowDeployModal(false);
-      // Use window.location for full page navigation to ensure the route loads
-      window.location.href = `/deploy-agent/${createdAgentId}`;
+      
+      // For Hyperliquid, use the dedicated setup flow
+      if (formData.venue === 'HYPERLIQUID') {
+        console.log('Navigating to Hyperliquid setup:', `/hyperliquid-setup/${createdAgentId}`);
+        window.location.href = `/hyperliquid-setup/${createdAgentId}`;
+      } else {
+        // For other venues (SPOT, GMX), use standard Safe wallet deployment
+        console.log('Navigating to standard deployment:', `/deploy-agent/${createdAgentId}`);
+        window.location.href = `/deploy-agent/${createdAgentId}`;
+      }
     } else {
       console.error('No agent ID available!');
       alert('Error: Agent ID not found. Please try creating the agent again.');
@@ -774,7 +780,7 @@ export default function CreateAgent() {
                                   </span>
                                 )}
                                 <span className="text-xs text-primary font-medium">
-                                  Impact: {account.impactFactor.toFixed(2)}
+                                  Impact: {(account.impactFactor || 0).toFixed(2)}
                                 </span>
                               </div>
                             </div>
@@ -1123,7 +1129,9 @@ export default function CreateAgent() {
                 data-testid="button-deploy-agent"
               >
                 <Rocket className="h-5 w-5" />
-                Deploy Agent & Connect Safe Wallet
+                {formData.venue === 'HYPERLIQUID' 
+                  ? 'Setup Hyperliquid Agent' 
+                  : 'Deploy Agent & Connect Safe Wallet'}
               </button>
               
               <button

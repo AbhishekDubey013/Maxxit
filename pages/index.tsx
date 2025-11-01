@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { db } from '../client/src/lib/db';
 import { AgentCard } from '@components/AgentCard';
 import { AgentDrawer } from '@components/AgentDrawer';
+import { HyperliquidAgentModal } from '@components/HyperliquidAgentModal';
 import { Bot, TrendingUp, Shield, Zap } from 'lucide-react';
 import { Header } from '@components/Header';
 
@@ -21,6 +22,9 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
+  const [hyperliquidModalOpen, setHyperliquidModalOpen] = useState(false);
+  const [hyperliquidAgentId, setHyperliquidAgentId] = useState<string>('');
+  const [hyperliquidAgentName, setHyperliquidAgentName] = useState<string>('');
 
   useEffect(() => {
     async function fetchAgents() {
@@ -207,10 +211,28 @@ export default function Home() {
                 className="animate-in fade-in slide-in-from-bottom duration-500"
                 style={{ animationDelay: `${index * 100}ms` }}
               >
-                <AgentCard
-                  agent={agent}
-                  onClick={() => setSelectedAgent(agent)}
-                />
+                <div className="relative">
+                  <AgentCard
+                    agent={agent}
+                    onClick={() => setSelectedAgent(agent)}
+                  />
+                  {/* Hyperliquid Button Overlay */}
+                  <div className="absolute bottom-4 right-4 z-10">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setHyperliquidAgentId(agent.id);
+                        setHyperliquidAgentName(agent.name);
+                        setHyperliquidModalOpen(true);
+                      }}
+                      className="inline-flex items-center justify-center gap-2 px-3 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg text-sm font-medium hover:shadow-lg transition-all"
+                      title="Setup Hyperliquid Trading"
+                    >
+                      <Zap className="h-4 w-4" />
+                      <span className="hidden sm:inline">Hyperliquid</span>
+                    </button>
+                  </div>
+                </div>
               </div>
             ))}
           </div>
@@ -223,6 +245,15 @@ export default function Home() {
           agentId={selectedAgent.id}
           agentName={selectedAgent.name}
           onClose={() => setSelectedAgent(null)}
+        />
+      )}
+
+      {/* Hyperliquid Setup Modal */}
+      {hyperliquidModalOpen && (
+        <HyperliquidAgentModal
+          agentId={hyperliquidAgentId}
+          agentName={hyperliquidAgentName}
+          onClose={() => setHyperliquidModalOpen(false)}
         />
       )}
     </div>

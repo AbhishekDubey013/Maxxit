@@ -4,27 +4,65 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 const isDevelopment = process.env.NODE_ENV === 'development';
 
-// Map table names to Prisma models
+// Map table names to Prisma models (using snake_case as defined in schema)
 const tableModelMap: Record<string, any> = {
-  'ct_accounts': prisma.ctAccount,
-  'ct_posts': prisma.ctPost,
-  'agents': prisma.agent,
-  'agent_accounts': prisma.agentAccount,
-  'agent_deployments': prisma.agentDeployment,
-  'market_indicators_6h': prisma.marketIndicators6h,
-  'signals': prisma.signal,
-  'positions': prisma.position,
-  'billing_events': prisma.billingEvent,
-  'pnl_snapshots': prisma.pnlSnapshot,
-  'impact_factor_history': prisma.impactFactorHistory,
-  'venue_status': prisma.venueStatus,
-  'token_registry': prisma.tokenRegistry,
-  'audit_logs': prisma.auditLog,
+  'ct_accounts': prisma.ct_accounts,
+  'ct_posts': prisma.ct_posts,
+  'agents': prisma.agents,
+  'agent_accounts': prisma.agent_accounts,
+  'agent_deployments': prisma.agent_deployments,
+  'market_indicators_6h': prisma.market_indicators_6h,
+  'signals': prisma.signals,
+  'positions': prisma.positions,
+  'billing_events': prisma.billing_events,
+  'pnl_snapshots': prisma.pnl_snapshots,
+  'impact_factor_history': prisma.impact_factor_history,
+  'venue_status': prisma.venues_status,
+  'token_registry': prisma.token_registry,
+  'audit_logs': prisma.audit_logs,
 };
 
 // Convert snake_case to camelCase (handles letters and numbers)
 function snakeToCamel(str: string): string {
   return str.replace(/_([a-z0-9])/gi, (_, char) => char.toUpperCase());
+}
+
+// Convert camelCase to snake_case
+function camelToSnake(str: string): string {
+  return str.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
+}
+
+// Convert all keys in an object from camelCase to snake_case
+function convertKeysToSnakeCase(obj: any): any {
+  if (obj === null || obj === undefined) return obj;
+  if (typeof obj !== 'object') return obj;
+  if (Array.isArray(obj)) return obj.map(convertKeysToSnakeCase);
+  
+  const result: any = {};
+  for (const key in obj) {
+    if (obj.hasOwnProperty(key)) {
+      const snakeKey = camelToSnake(key);
+      result[snakeKey] = convertKeysToSnakeCase(obj[key]);
+    }
+  }
+  return result;
+}
+
+// Convert all keys in an object from snake_case to camelCase
+function convertKeysToCamelCase(obj: any): any {
+  if (obj === null || obj === undefined) return obj;
+  if (typeof obj !== 'object') return obj;
+  if (obj instanceof Date) return obj; // Don't convert Date objects
+  if (Array.isArray(obj)) return obj.map(convertKeysToCamelCase);
+  
+  const result: any = {};
+  for (const key in obj) {
+    if (obj.hasOwnProperty(key)) {
+      const camelKey = snakeToCamel(key);
+      result[camelKey] = convertKeysToCamelCase(obj[key]);
+    }
+  }
+  return result;
 }
 
 // Coerce string values to appropriate types
@@ -72,7 +110,7 @@ function parseQuery(query: Record<string, any>) {
     } else if (key === 'order') {
       // Handle order: field.asc or field.desc.nullslast
       const orderParts = values[0].split('.');
-      const field = snakeToCamel(orderParts[0]); // Convert snake_case to camelCase
+      const field = orderParts[0]; // Keep in snake_case for Prisma
       const direction = orderParts[1] === 'desc' ? 'desc' : 'asc';
       options.orderBy = { [field]: direction };
     } else if (key === 'limit') {
@@ -81,28 +119,29 @@ function parseQuery(query: Record<string, any>) {
       options.skip = parseInt(values[0]);
     } else {
       // Collect all filters for this field
-      const camelKey = snakeToCamel(key);
-      if (!fieldFilters[camelKey]) {
-        fieldFilters[camelKey] = [];
+      // Convert camelCase from frontend to snake_case for Prisma
+      const snakeKey = camelToSnake(key);
+      if (!fieldFilters[snakeKey]) {
+        fieldFilters[snakeKey] = [];
       }
       
       for (const val of values) {
         if (typeof val === 'string') {
           if (val.startsWith('eq.')) {
-            fieldFilters[camelKey].push({ op: 'eq', value: coerceValue(val.substring(3)) });
+            fieldFilters[snakeKey].push({ op: 'eq', value: coerceValue(val.substring(3)) });
           } else if (val.startsWith('neq.')) {
-            fieldFilters[camelKey].push({ op: 'neq', value: coerceValue(val.substring(4)) });
+            fieldFilters[snakeKey].push({ op: 'neq', value: coerceValue(val.substring(4)) });
           } else if (val.startsWith('in.(')) {
             const rawValues = val.substring(4, val.length - 1).split(',');
-            fieldFilters[camelKey].push({ op: 'in', value: rawValues.map(coerceValue) });
+            fieldFilters[snakeKey].push({ op: 'in', value: rawValues.map(coerceValue) });
           } else if (val.startsWith('gte.')) {
-            fieldFilters[camelKey].push({ op: 'gte', value: coerceValue(val.substring(4)) });
+            fieldFilters[snakeKey].push({ op: 'gte', value: coerceValue(val.substring(4)) });
           } else if (val.startsWith('lte.')) {
-            fieldFilters[camelKey].push({ op: 'lte', value: coerceValue(val.substring(4)) });
+            fieldFilters[snakeKey].push({ op: 'lte', value: coerceValue(val.substring(4)) });
           } else if (val.startsWith('gt.')) {
-            fieldFilters[camelKey].push({ op: 'gt', value: coerceValue(val.substring(3)) });
+            fieldFilters[snakeKey].push({ op: 'gt', value: coerceValue(val.substring(3)) });
           } else if (val.startsWith('lt.')) {
-            fieldFilters[camelKey].push({ op: 'lt', value: coerceValue(val.substring(3)) });
+            fieldFilters[snakeKey].push({ op: 'lt', value: coerceValue(val.substring(3)) });
           }
         }
       }
@@ -234,13 +273,13 @@ export default async function handler(
           result = [];
           for (const item of req.body) {
             const created = await model.create({
-              data: item,
+              data: convertKeysToSnakeCase(item),
             });
             result.push(created);
           }
         } else {
           result = await model.create({
-            data: req.body,
+            data: convertKeysToSnakeCase(req.body),
           });
         }
         break;
@@ -249,7 +288,7 @@ export default async function handler(
         // For PATCH, update all matching records
         result = await model.updateMany({
           where,
-          data: req.body,
+          data: convertKeysToSnakeCase(req.body),
         });
         break;
 
@@ -268,7 +307,9 @@ export default async function handler(
       console.log(`[DB API] Success in ${duration}ms`);
     }
 
-    return res.status(200).json(result);
+    // Convert response keys back to camelCase for frontend
+    const camelCaseResult = convertKeysToCamelCase(result);
+    return res.status(200).json(camelCaseResult);
   } catch (error: any) {
     const duration = Date.now() - startTime;
     
