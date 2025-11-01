@@ -21,19 +21,19 @@ export async function generateSignals() {
 
   try {
     // Fetch all active agents with their subscribed CT accounts
-    const agents = await prisma.agent.findMany({
+    const agents = await prisma.agents.findMany({
       where: {
         status: 'ACTIVE',
-        deployments: {
+        agent_deployments: {
           some: {
             status: 'ACTIVE',
           },
         },
       },
       include: {
-        agentAccounts: {
+        agent_accounts: {
           include: {
-            ctAccount: true,
+            ct_accounts: true,
           },
         },
       },
@@ -47,7 +47,7 @@ export async function generateSignals() {
     for (const agent of agents) {
       try {
         // Get subscribed CT account IDs
-        const ctAccountIds = agent.agentAccounts.map(aa => aa.ctAccountId);
+        const ctAccountIds = agent.agent_accounts.map(aa => aa.ct_account_id);
 
         if (ctAccountIds.length === 0) {
           console.log(`[SignalWorker] Agent ${agent.id} has no CT account subscriptions, skipping`);
