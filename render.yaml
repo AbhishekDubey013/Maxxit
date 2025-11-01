@@ -1,0 +1,27 @@
+# Render Configuration for Hyperliquid Service
+# Deploy this as a Web Service on Render
+
+services:
+  # Hyperliquid Python Service
+  - type: web
+    name: hyperliquid-service
+    env: python
+    region: oregon # or your preferred region
+    plan: starter # free tier, upgrade to standard for 24/7
+    buildCommand: cd services && pip install -r requirements-hyperliquid.txt
+    startCommand: cd services && python3 hyperliquid-service.py
+    healthCheckPath: /health
+    envVars:
+      - key: HYPERLIQUID_TESTNET
+        value: true # Change to false for mainnet
+      - key: HYPERLIQUID_SERVICE_PORT
+        value: 5001
+      - key: PYTHON_VERSION
+        value: 3.11.0
+    # Auto-deploy from GitHub
+    autoDeploy: true
+    # Dockerfile path (if you want to use Docker instead)
+    # dockerfilePath: ./Dockerfile.hyperliquid
+    # Docker context
+    # dockerContext: ./services
+
