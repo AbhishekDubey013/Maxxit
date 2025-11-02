@@ -3,6 +3,8 @@
  * Supports: Bearer Token, GAME API, and other alternatives
  */
 
+import { GameTwitterClient } from './game-twitter-client';
+
 interface Tweet {
   id: string;
   text: string;
@@ -16,102 +18,6 @@ interface Tweet {
   };
 }
 
-/**
- * GAME API Client for X/Twitter
- * Uses virtuals protocol API with simple API key authentication
- * Based on: https://github.com/abxglia/tweets-fetcher/blob/main/twitter_api.py
- */
-export class GameApiClient {
-  private apiKey: string;
-  private baseUrl: string;
-
-  constructor(apiKey: string, baseUrl?: string) {
-    this.apiKey = apiKey;
-    // Default to local Python proxy server (run with: bash run-twitter-proxy.sh)
-    // Or set GAME_API_URL in .env to a deployed proxy server
-    this.baseUrl = baseUrl || 'http://localhost:8001';
-  }
-
-  /**
-   * Fetch tweets using GAME API via Python proxy
-   * The proxy handles virtuals_tweepy authentication
-   */
-  async getUserTweets(
-    username: string,
-    options: {
-      maxResults?: number;
-      sinceId?: string;
-    } = {}
-  ): Promise<Tweet[]> {
-    try {
-      const cleanUsername = username.replace('@', '');
-      // GAME API requires max_results between 5-100
-      const maxResults = Math.max(5, Math.min(options.maxResults || 10, 100));
-
-      // Python proxy endpoint
-      const params = new URLSearchParams({
-        max_results: maxResults.toString(),
-      });
-
-      if (options.sinceId) {
-        params.append('since_id', options.sinceId);
-      }
-
-      const url = `${this.baseUrl}/tweets/${cleanUsername}?${params}`;
-
-      console.log(`[GAME API] Fetching ${maxResults} tweets from: ${cleanUsername} via proxy`);
-
-      const response = await fetch(url, {
-        headers: {
-          'X-API-Key': this.apiKey,
-        },
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error(`[GAME API Proxy] Error: ${response.status} - ${errorText}`);
-        return [];
-      }
-
-      const data = await response.json();
-      
-      // Transform response to standard format
-      return this.transformResponse(data);
-    } catch (error) {
-      console.error('[GAME API] Error fetching tweets:', error);
-      return [];
-    }
-  }
-
-  /**
-   * Transform GAME API response to standard Tweet format
-   */
-  private transformResponse(data: any): Tweet[] {
-    // Handle different response formats from virtuals API
-    let tweets: any[] = [];
-
-    if (Array.isArray(data)) {
-      tweets = data;
-    } else if (data.tweets && Array.isArray(data.tweets)) {
-      tweets = data.tweets;
-    } else if (data.data && Array.isArray(data.data)) {
-      tweets = data.data;
-    }
-
-    return tweets.map((tweet: any) => ({
-      id: tweet.id || tweet.tweet_id || String(tweet.id),
-      text: tweet.text || tweet.content || '',
-      created_at: tweet.created_at || tweet.timestamp || new Date().toISOString(),
-      author_id: tweet.author_id || tweet.user_id || '',
-      public_metrics: tweet.public_metrics || tweet.metrics || {
-        retweet_count: tweet.retweets || 0,
-        reply_count: tweet.comments || tweet.replies || 0,
-        like_count: tweet.likes || 0,
-        quote_count: tweet.quotes || 0,
-      },
-    }));
-  }
-}
 
 /**
  * Multi-method X API Client
@@ -142,36 +48,18 @@ export class MultiMethodXApiClient {
       sinceId?: string;
     } = {}
   ): Promise<Tweet[]> {
-    // Try GAME API proxy first (check if it's running)
-    try {
-      const proxyUrl = this.gameApiUrl || 'http://localhost:8001';
-      const healthCheck = await fetch(`${proxyUrl}/health`, { 
-        signal: AbortSignal.timeout(1000) 
-      });
-      
-      if (healthCheck.ok) {
-        console.log('[X API] Using GAME API proxy');
-        const gameClient = new GameApiClient(this.gameApiKey || '', proxyUrl);
-        const tweets = await gameClient.getUserTweets(username, options);
-        if (tweets.length > 0) {
-          return tweets;
-        }
-      }
-    } catch (error) {
-      // Proxy not available, continue to next method
-    }
-
-    // Try GAME API direct if key is provided
-    if (this.gameApiKey && this.gameApiUrl && this.gameApiUrl !== 'http://localhost:8001') {
-      console.log('[X API] Using GAME API direct');
+    // Try GAME SDK direct API first (official approach)
+    if (this.gameApiKey) {
+      console.log('[X API] Using GAME SDK (direct API)');
       try {
-        const gameClient = new GameApiClient(this.gameApiKey, this.gameApiUrl);
+        const gameClient = new GameTwitterClient(this.gameApiKey);
         const tweets = await gameClient.getUserTweets(username, options);
         if (tweets.length > 0) {
           return tweets;
         }
+        console.log('[X API] GAME SDK returned 0 tweets, trying fallback...');
       } catch (error) {
-        console.error('[X API] GAME API failed, trying bearer token method');
+        console.error('[X API] GAME SDK failed, trying bearer token method');
       }
     }
 
