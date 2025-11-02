@@ -222,11 +222,15 @@ model signals {
   executor_agreement_timestamp DateTime?               @db.Timestamptz(6)
   executor_agreement_verified  Boolean                 @default(false)
   executor_wallet              String?
+  lunarcrush_score             Float?
+  lunarcrush_reasoning         String?
+  lunarcrush_breakdown         Json?
   impact_factor_history        impact_factor_history[]
   positions                    positions[]
   agents                       agents                  @relation(fields: [agent_id], references: [id], onDelete: Cascade)
 
   @@index([agent_id, created_at])
+  @@index([lunarcrush_score])
 }
 
 model telegram_trades {

@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { PrismaClient } from '@prisma/client';
 import { bucket6hUtc } from '../../../lib/time-utils';
+import { createLunarCrushScorer } from '../../../lib/lunarcrush-score';
 
 const prisma = new PrismaClient();
 
@@ -24,6 +25,12 @@ export default async function handler(
 
   try {
     console.log('[ADMIN] Running signal creation once...');
+
+    // Initialize LunarCrush scorer
+    const lunarCrushScorer = createLunarCrushScorer();
+    if (!lunarCrushScorer) {
+      console.warn('[SIGNAL] LunarCrush API key not configured - using default 5% position size');
+    }
 
     // 1. Get candidate posts (is_signal_candidate=true)
     const candidatePosts = await prisma.ct_posts.findMany({
@@ -103,7 +110,34 @@ export default async function handler(
             continue;
           }
 
-          // Create signal with percentage-based sizing
+          // Get LunarCrush score for dynamic position sizing
+          let positionSizePercentage = 5; // Default 5%
+          let lunarCrushScore = null;
+          let lunarCrushReasoning = null;
+          let lunarCrushBreakdown = null;
+
+          if (lunarCrushScorer) {
+            try {
+              console.log(`[SIGNAL] Fetching LunarCrush score for ${tokenSymbol}...`);
+              const scoreData = await lunarCrushScorer.getTokenScore(tokenSymbol);
+              
+              if (scoreData.tradeable) {
+                positionSizePercentage = scoreData.positionSize; // 0-10%
+                lunarCrushScore = scoreData.score;
+                lunarCrushReasoning = scoreData.reasoning;
+                lunarCrushBreakdown = scoreData.breakdown;
+                
+                console.log(`[SIGNAL] LunarCrush: ${tokenSymbol} score=${scoreData.score.toFixed(3)}, position=${positionSizePercentage.toFixed(2)}%`);
+              } else {
+                console.log(`[SIGNAL] LunarCrush: ${tokenSymbol} score=${scoreData.score.toFixed(3)} - NOT TRADEABLE (score <= 0)`);
+                continue; // Skip this signal if LunarCrush says don't trade
+              }
+            } catch (error: any) {
+              console.warn(`[SIGNAL] LunarCrush error for ${tokenSymbol}:`, error.message, '- using default 5%');
+            }
+          }
+
+          // Create signal with LunarCrush-derived position sizing
           const signal = await prisma.signals.create({
             data: {
               agent_id: agent.id,
@@ -112,7 +146,7 @@ export default async function handler(
               side: 'LONG', // Simplified - would use sentiment analysis
               size_model: {
                 type: 'balance-percentage',
-                value: 5, // Use 5% of wallet balance per trade
+                value: positionSizePercentage, // Dynamic from LunarCrush!
                 impactFactor: post.ct_accounts.impact_factor,
               },
               risk_model: {
@@ -120,11 +154,14 @@ export default async function handler(
                 takeProfit: 0.15,
               },
               source_tweets: [post.tweet_id],
+              lunarcrush_score: lunarCrushScore,
+              lunarcrush_reasoning: lunarCrushReasoning,
+              lunarcrush_breakdown: lunarCrushBreakdown,
             },
           });
 
           signalsCreated.push(signal);
-          console.log(`[SIGNAL] Created signal: ${agent.name} - ${tokenSymbol}`);
+          console.log(`[SIGNAL] Created signal: ${agent.name} - ${tokenSymbol} with ${positionSizePercentage.toFixed(2)}% position size`);
         }
       }
     }
