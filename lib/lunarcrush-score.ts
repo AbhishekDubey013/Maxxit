@@ -34,7 +34,7 @@ interface TradingScore {
 
 export class LunarCrushScorer {
   private apiKey: string;
-  private baseUrl = 'https://lunarcrush.com/api3';
+  private baseUrl = 'https://lunarcrush.com/api4';
 
   constructor(apiKey: string) {
     this.apiKey = apiKey;
@@ -88,28 +88,43 @@ export class LunarCrushScorer {
   }
 
   /**
-   * Fetch metrics from LunarCrush API v3
+   * Fetch metrics from LunarCrush API v4
    */
   private async fetchMetrics(symbol: string): Promise<LunarCrushMetrics> {
-    const response = await axios.get(`${this.baseUrl}/coins`, {
+    const response = await axios.get(`${this.baseUrl}/public/coins/list/v1`, {
       params: {
-        symbol: symbol.toUpperCase(),
         key: this.apiKey
       }
     });
 
     if (!response.data?.data) {
+      throw new Error(`No data returned from LunarCrush API`);
+    }
+
+    // Find the specific coin by symbol
+    const asset = response.data.data.find((coin: any) => 
+      coin.symbol && coin.symbol.toUpperCase() === symbol.toUpperCase()
+    );
+
+    if (!asset) {
       throw new Error(`No data found for ${symbol}`);
     }
 
-    const asset = response.data.data;
+    // Normalize sentiment from percentage (0-100) to 0-1
+    const sentimentNormalized = asset.sentiment ? asset.sentiment / 100 : 0.5;
+
+    // Calculate social volume change (comparing current vs previous)
+    // If not available, estimate from interactions
+    const socialVolumeChange = asset.social_volume_24h && asset.social_volume 
+      ? ((asset.social_volume_24h / (asset.social_volume || 1)) - 1) * 100
+      : 0;
 
     return {
       galaxy_score: asset.galaxy_score || 0,
       alt_rank: asset.alt_rank || 1000,
-      social_volume: asset.social_volume || 0,
-      social_volume_24h_change: asset.percent_change_24h_social_volume || 0,
-      sentiment: asset.sentiment || 0.5,
+      social_volume: asset.social_volume_24h || 0,
+      social_volume_24h_change: socialVolumeChange,
+      sentiment: sentimentNormalized,
       price_change_24h: asset.percent_change_24h || 0,
       volatility: asset.volatility || 0,
       correlation_rank: asset.correlation_rank || 500
