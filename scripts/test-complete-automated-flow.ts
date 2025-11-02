@@ -152,6 +152,17 @@ async function testCompleteFlow(config: TestConfig) {
 
     console.log(`✅ Agent: ${agent.name} (${agent.id})\n`);
 
+    // Delete any existing signals for this agent (cleanup old test runs)
+    const deleted = await prisma.signals.deleteMany({
+      where: {
+        agent_id: agent.id,
+        created_at: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } // Last 24h
+      }
+    });
+    if (deleted.count > 0) {
+      console.log(`🧹 Cleaned up ${deleted.count} old test signal(s)\n`);
+    }
+
     // Process each token
     const signals = [];
     for (const token of classification.extractedTokens) {
@@ -224,21 +235,26 @@ async function testCompleteFlow(config: TestConfig) {
     console.log(`   Visit: https://app.hyperliquid.xyz/API (testnet)`);
     console.log(`   Add: ${agentAddress}\n`);
 
-    const readline = require('readline').createInterface({
-      input: process.stdin,
-      output: process.stdout
-    });
-
-    await new Promise<void>((resolve) => {
-      readline.question('Have you whitelisted this address? (y/n): ', (answer: string) => {
-        readline.close();
-        if (answer.toLowerCase() !== 'y') {
-          console.log('\n❌ Please whitelist the agent address and try again.');
-          process.exit(0);
-        }
-        resolve();
+    // Auto-proceed if SKIP_WHITELIST_CHECK is set
+    if (!process.env.SKIP_WHITELIST_CHECK) {
+      const readline = require('readline').createInterface({
+        input: process.stdin,
+        output: process.stdout
       });
-    });
+
+      await new Promise<void>((resolve) => {
+        readline.question('Have you whitelisted this address? (y/n): ', (answer: string) => {
+          readline.close();
+          if (answer.toLowerCase() !== 'y') {
+            console.log('\n❌ Please whitelist the agent address and try again.');
+            process.exit(0);
+          }
+          resolve();
+        });
+      });
+    } else {
+      console.log('✅ Skipping whitelist check (SKIP_WHITELIST_CHECK=true)\n');
+    }
 
     console.log('');
 
@@ -253,8 +269,10 @@ async function testCompleteFlow(config: TestConfig) {
     const hl = new HyperliquidAdapter(agentAddress, privateKey, true); // testnet
 
     // Get account balance
-    const balance = await hl.getAccountValue();
-    console.log(`💰 Account Balance: $${balance.toFixed(2)}\n`);
+    const balanceInfo = await hl.getBalance(agentAddress);
+    const balance = balanceInfo.withdrawable;
+    console.log(`💰 Account Balance: $${balance.toFixed(2)}`);
+    console.log(`   (Total: $${balanceInfo.total.toFixed(2)}, Withdrawable: $${balanceInfo.withdrawable.toFixed(2)})\n`);
 
     // Execute each signal
     for (const signal of signals) {
@@ -318,12 +336,13 @@ async function testCompleteFlow(config: TestConfig) {
     console.log('  STEP 6: Verify Positions');
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
 
-    const openPositions = await hl.getOpenPositions();
-    console.log(`📊 Open Positions: ${openPositions.length}\n`);
+    const openPositions = await hl.getPositions(agentAddress);
+    const activePositions = openPositions.filter(p => parseFloat(p.szi) !== 0);
+    console.log(`📊 Open Positions: ${activePositions.length}\n`);
 
-    for (const pos of openPositions) {
+    for (const pos of activePositions) {
       console.log(`   ${pos.coin}:`);
-      console.log(`   - Side: ${pos.szi > 0 ? 'LONG' : 'SHORT'}`);
+      console.log(`   - Side: ${parseFloat(pos.szi) > 0 ? 'LONG' : 'SHORT'}`);
       console.log(`   - Size: ${Math.abs(parseFloat(pos.szi))}`);
       console.log(`   - Entry: $${pos.entryPx}`);
       console.log(`   - PnL: $${pos.unrealizedPnl}\n`);
