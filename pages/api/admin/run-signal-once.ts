@@ -26,10 +26,10 @@ export default async function handler(
     console.log('[ADMIN] Running signal creation once...');
 
     // 1. Get candidate posts (is_signal_candidate=true)
-    const candidatePosts = await prisma.ctPost.findMany({
-      where: { isSignalCandidate: true },
-      include: { ctAccount: true },
-      orderBy: { tweetCreatedAt: 'desc' },
+    const candidatePosts = await prisma.ct_posts.findMany({
+      where: { is_signal_candidate: true },
+      include: { ct_accounts: true },
+      orderBy: { tweet_created_at: 'desc' },
       take: 10,
     });
 
@@ -47,36 +47,36 @@ export default async function handler(
 
     for (const post of candidatePosts) {
       // Extract tokens from the post
-      for (const tokenSymbol of post.extractedTokens) {
+      for (const tokenSymbol of post.extracted_tokens) {
         // Skip stablecoins - they are base currency, not trading assets
         if (EXCLUDED_TOKENS.includes(tokenSymbol.toUpperCase())) {
           console.log(`[SIGNAL] Skipping stablecoin ${tokenSymbol} - base currency only`);
           continue;
         }
         // 2. Get latest market indicators for this token
-        const indicators = await prisma.marketIndicators6h.findFirst({
-          where: { tokenSymbol },
-          orderBy: { windowStart: 'desc' },
+        const indicators = await prisma.market_indicators_6h.findFirst({
+          where: { token_symbol: tokenSymbol },
+          orderBy: { window_start: 'desc' },
         });
 
         // 3. Find agents that monitor this CT account
-        const agentLinks = await prisma.agentAccount.findMany({
-          where: { ctAccountId: post.ctAccountId },
-          include: { agent: true },
+        const agentLinks = await prisma.agent_accounts.findMany({
+          where: { ct_account_id: post.ct_account_id },
+          include: { agents: true },
         });
 
         for (const link of agentLinks) {
-          const agent = link.agent;
+          const agent = link.agents;
 
           // Skip non-ACTIVE agents
           if (agent.status !== 'ACTIVE') continue;
 
           // 4. Check venue availability
-          const venueStatus = await prisma.venueStatus.findUnique({
+          const venueStatus = await prisma.venues_status.findUnique({
             where: {
-              venue_tokenSymbol: {
+              venue_token_symbol: {
                 venue: agent.venue,
-                tokenSymbol,
+                token_symbol: tokenSymbol,
               },
             },
           });
@@ -88,11 +88,11 @@ export default async function handler(
 
           // 5. Check for duplicate (same agent, token, 6h bucket)
           const currentBucket = bucket6hUtc(new Date());
-          const existing = await prisma.signal.findFirst({
+          const existing = await prisma.signals.findFirst({
             where: {
-              agentId: agent.id,
-              tokenSymbol,
-              createdAt: {
+              agent_id: agent.id,
+              token_symbol: tokenSymbol,
+              created_at: {
                 gte: currentBucket,
               },
             },
@@ -104,22 +104,22 @@ export default async function handler(
           }
 
           // Create signal with percentage-based sizing
-          const signal = await prisma.signal.create({
+          const signal = await prisma.signals.create({
             data: {
-              agentId: agent.id,
-              tokenSymbol,
+              agent_id: agent.id,
+              token_symbol: tokenSymbol,
               venue: agent.venue,
               side: 'LONG', // Simplified - would use sentiment analysis
-              sizeModel: {
+              size_model: {
                 type: 'balance-percentage',
                 value: 5, // Use 5% of wallet balance per trade
-                impactFactor: post.ctAccount.impactFactor,
+                impactFactor: post.ct_accounts.impact_factor,
               },
-              riskModel: {
+              risk_model: {
                 stopLoss: 0.05,
                 takeProfit: 0.15,
               },
-              sourceTweets: [post.tweetId],
+              source_tweets: [post.tweet_id],
             },
           });
 
