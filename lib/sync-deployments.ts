@@ -22,12 +22,12 @@ export async function syncAllDeployments() {
     const provider = new ethers.providers.JsonRpcProvider(RPC_URL);
     
     // Get all deployments that have a Safe wallet
-    const deployments = await prisma.agentDeployment.findMany({
+    const deployments = await prisma.agent_deployments.findMany({
       where: {
-        safeWallet: { not: '' },
+        safe_wallet: { not: '' },
       },
       include: {
-        agent: true,
+        agents: true,
       },
     });
 
@@ -42,28 +42,28 @@ export async function syncAllDeployments() {
     let updatedCount = 0;
 
     for (const deployment of deployments) {
-      if (!deployment.safeWallet) continue;
+      if (!deployment.safe_wallet) continue;
 
       try {
         // Check on-chain status
-        const safe = new ethers.Contract(deployment.safeWallet, SAFE_ABI, provider);
+        const safe = new ethers.Contract(deployment.safe_wallet, SAFE_ABI, provider);
         const isEnabledOnChain = await safe.isModuleEnabled(MODULE_ADDRESS);
 
         syncedCount++;
 
         // Update if status differs
-        if (deployment.moduleEnabled !== isEnabledOnChain) {
-          console.log(`[SyncDeployments] ${deployment.agent.name}: DB=${deployment.moduleEnabled} OnChain=${isEnabledOnChain} - Updating...`);
+        if (deployment.module_enabled !== isEnabledOnChain) {
+          console.log(`[SyncDeployments] ${deployment.agents.name}: DB=${deployment.module_enabled} OnChain=${isEnabledOnChain} - Updating...`);
           
-          await prisma.agentDeployment.update({
+          await prisma.agent_deployments.update({
             where: { id: deployment.id },
-            data: { moduleEnabled: isEnabledOnChain },
+            data: { module_enabled: isEnabledOnChain },
           });
 
           updatedCount++;
         }
       } catch (error: any) {
-        console.error(`[SyncDeployments] Error checking ${deployment.safeWallet}:`, error.message);
+        console.error(`[SyncDeployments] Error checking ${deployment.safe_wallet}:`, error.message);
       }
     }
 
