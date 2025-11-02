@@ -116,16 +116,20 @@ model ct_accounts {
 }
 
 model ct_posts {
-  id                  String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  ct_account_id       String      @db.Uuid
-  tweet_id            String      @unique
-  tweet_text          String
-  tweet_created_at    DateTime    @db.Timestamptz(6)
-  is_signal_candidate Boolean     @default(false)
-  extracted_tokens    String[]    @default([])
-  ct_accounts         ct_accounts @relation(fields: [ct_account_id], references: [id], onDelete: Cascade)
+  id                     String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ct_account_id          String      @db.Uuid
+  tweet_id               String      @unique
+  tweet_text             String
+  tweet_created_at       DateTime    @db.Timestamptz(6)
+  is_signal_candidate    Boolean?    // null = not processed, true/false = processed
+  extracted_tokens       String[]    @default([])
+  confidence_score       Float?      // 0-1 confidence from LLM
+  signal_type            String?     // 'LONG' | 'SHORT' | null
+  processed_for_signals  Boolean     @default(false)
+  ct_accounts            ct_accounts @relation(fields: [ct_account_id], references: [id], onDelete: Cascade)
 
   @@index([ct_account_id])
+  @@index([is_signal_candidate, processed_for_signals]) // For signal generation query
 }
 
 model impact_factor_history {
@@ -179,12 +183,15 @@ model positions {
   side                  String
   qty                   Decimal                 @db.Decimal(20, 8)
   entry_price           Decimal                 @db.Decimal(20, 8)
+  current_price         Decimal?                @db.Decimal(20, 8) // Real-time tracking
   stop_loss             Decimal?                @db.Decimal(20, 8)
   take_profit           Decimal?                @db.Decimal(20, 8)
   trailing_params       Json?
+  status                String                  @default("OPEN") // 'OPEN' | 'CLOSED'
   opened_at             DateTime                @default(now()) @db.Timestamptz(6)
   closed_at             DateTime?               @db.Timestamptz(6)
   exit_price            Decimal?                @db.Decimal(20, 8)
+  exit_reason           String?                 // Why position was closed
   pnl                   Decimal?                @db.Decimal(20, 8)
   entry_tx_hash         String?
   exit_tx_hash          String?
@@ -200,6 +207,7 @@ model positions {
   @@index([deployment_id, opened_at])
   @@index([signal_id])
   @@index([source])
+  @@index([status]) // For monitoring open positions
 }
 
 /// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
