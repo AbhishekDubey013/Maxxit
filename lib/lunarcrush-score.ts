@@ -34,7 +34,7 @@ interface TradingScore {
 
 export class LunarCrushScorer {
   private apiKey: string;
-  private baseUrl = 'https://api.lunarcrush.com/v2';
+  private baseUrl = 'https://lunarcrush.com/api3';
 
   constructor(apiKey: string) {
     this.apiKey = apiKey;
@@ -88,23 +88,21 @@ export class LunarCrushScorer {
   }
 
   /**
-   * Fetch metrics from LunarCrush API
+   * Fetch metrics from LunarCrush API v3
    */
   private async fetchMetrics(symbol: string): Promise<LunarCrushMetrics> {
-    const response = await axios.get(`${this.baseUrl}`, {
+    const response = await axios.get(`${this.baseUrl}/coins`, {
       params: {
-        data: 'assets',
         symbol: symbol.toUpperCase(),
-        data_points: 1,
         key: this.apiKey
       }
     });
 
-    if (!response.data?.data?.[0]) {
+    if (!response.data?.data) {
       throw new Error(`No data found for ${symbol}`);
     }
 
-    const asset = response.data.data[0];
+    const asset = response.data.data;
 
     return {
       galaxy_score: asset.galaxy_score || 0,
