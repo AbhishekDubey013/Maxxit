@@ -10,16 +10,22 @@ import crypto from 'crypto';
 
 const prisma = new PrismaClient();
 
-// Encryption settings (use proper key management in production!)
-const ENCRYPTION_KEY = process.env.AGENT_WALLET_ENCRYPTION_KEY || 
-  crypto.randomBytes(32).toString('hex'); // 32 bytes for AES-256
-
+// Encryption settings
+const ENCRYPTION_KEY = process.env.AGENT_WALLET_ENCRYPTION_KEY;
 const ENCRYPTION_ALGORITHM = 'aes-256-gcm';
 
+if (!ENCRYPTION_KEY) {
+  console.error('[HyperliquidAgent] CRITICAL: AGENT_WALLET_ENCRYPTION_KEY not set in environment!');
+}
+
 /**
- * Encrypt private key
+ * Encrypt private key using AES-256-GCM
  */
 function encryptPrivateKey(privateKey: string): { encrypted: string; iv: string; tag: string } {
+  if (!ENCRYPTION_KEY) {
+    throw new Error('Encryption key not configured');
+  }
+
   const iv = crypto.randomBytes(16);
   // Hash the encryption key to get consistent 256-bit key
   const key = crypto.createHash('sha256').update(ENCRYPTION_KEY).digest();
@@ -43,9 +49,13 @@ function encryptPrivateKey(privateKey: string): { encrypted: string; iv: string;
 }
 
 /**
- * Decrypt private key
+ * Decrypt private key using AES-256-GCM
  */
 export function decryptPrivateKey(encrypted: string, iv: string, tag: string): string {
+  if (!ENCRYPTION_KEY) {
+    throw new Error('Encryption key not configured');
+  }
+
   // Hash the encryption key to get the 256-bit key (same as encryption)
   const key = crypto.createHash('sha256').update(ENCRYPTION_KEY).digest();
   
@@ -150,37 +160,40 @@ export default async function handler(
 
 /**
  * Get agent private key for a deployment
+ * Each deployment has its own unique encrypted agent key
  */
 export async function getAgentPrivateKey(deploymentId: string): Promise<string | null> {
   try {
     const deployment = await prisma.agent_deployments.findUnique({
       where: { id: deploymentId },
-      include: { agents: true }
+      select: {
+        hyperliquid_agent_key_encrypted: true,
+        hyperliquid_agent_key_iv: true,
+        hyperliquid_agent_key_tag: true,
+        hyperliquid_agent_address: true,
+      }
     });
 
     if (!deployment) {
+      console.warn('[HyperliquidAgent] Deployment not found:', deploymentId);
       return null;
     }
 
-    // Check deployment's unique agent key first
-    if (deployment.hyperliquid_agent_key_encrypted) {
-      console.log('[HyperliquidAgent] Using unique agent key for deployment:', deploymentId);
-      return decryptPrivateKey(
-        deployment.hyperliquid_agent_key_encrypted,
-        deployment.hyperliquid_agent_key_iv!,
-        deployment.hyperliquid_agent_key_tag!
-      );
+    // Check if agent wallet is configured for this deployment
+    if (!deployment.hyperliquid_agent_key_encrypted || 
+        !deployment.hyperliquid_agent_key_iv || 
+        !deployment.hyperliquid_agent_key_tag) {
+      console.warn('[HyperliquidAgent] No agent key configured for deployment:', deploymentId);
+      console.warn('[HyperliquidAgent] Call /api/hyperliquid/generate-agent to create one');
+      return null;
     }
 
-    // Fallback to shared agent key from environment (for backwards compatibility)
-    const sharedAgentKey = process.env.HYPERLIQUID_AGENT_PRIVATE_KEY;
-    if (sharedAgentKey) {
-      console.log('[HyperliquidAgent] Using shared agent key from environment (fallback)');
-      return sharedAgentKey.startsWith('0x') ? sharedAgentKey : `0x${sharedAgentKey}`;
-    }
-
-    console.warn('[HyperliquidAgent] No agent key found for deployment:', deploymentId);
-    return null;
+    console.log('[HyperliquidAgent] Decrypting unique agent key for deployment:', deploymentId);
+    return decryptPrivateKey(
+      deployment.hyperliquid_agent_key_encrypted,
+      deployment.hyperliquid_agent_key_iv,
+      deployment.hyperliquid_agent_key_tag
+    );
   } catch (error) {
     console.error('[HyperliquidAgent] Failed to get agent private key:', error);
     return null;
