@@ -18,10 +18,12 @@ interface LunarCrushMetrics {
 }
 
 interface TradingScore {
-  score: number;                // -1 to 1
-  tradeable: boolean;           // true if score > 0
-  positionSize: number;         // 0-10% of fund
+  score: number;                // -1 to 1 (LunarCrush only)
+  combinedScore: number;        // -1 to 1 (LunarCrush + Tweet Confidence)
+  tradeable: boolean;           // true if combinedScore > 0
+  positionSize: number;         // 0-10% of fund (exponential scaling)
   confidence: number;           // 0-1
+  tweetConfidence: number;      // 0-1 (from LLM filtering)
   breakdown: {
     galaxy: number;             // -1 to 1
     sentiment: number;          // -1 to 1
@@ -42,9 +44,14 @@ export class LunarCrushScorer {
 
   /**
    * Get trading score for a token
+   * @param symbol - Token symbol (e.g., 'BTC', 'ETH')
+   * @param tweetConfidence - Confidence from LLM tweet filtering (0-1), default 0.5
    */
-  async getTokenScore(symbol: string): Promise<TradingScore> {
+  async getTokenScore(symbol: string, tweetConfidence: number = 0.5): Promise<TradingScore> {
     try {
+      // Validate tweet confidence
+      tweetConfidence = Math.max(0, Math.min(1, tweetConfidence));
+
       // Fetch LunarCrush metrics
       const metrics = await this.fetchMetrics(symbol);
 
@@ -57,26 +64,35 @@ export class LunarCrushScorer {
         rank: this.scoreRank(metrics.alt_rank)
       };
 
-      // Calculate weighted composite score
-      const compositeScore = this.calculateCompositeScore(breakdown);
+      // Calculate weighted composite score (LunarCrush only)
+      const lunarCrushScore = this.calculateCompositeScore(breakdown);
 
       // Normalize to -1 to 1
-      const normalizedScore = Math.max(-1, Math.min(1, compositeScore));
+      const normalizedScore = Math.max(-1, Math.min(1, lunarCrushScore));
 
-      // Determine position size (0-10%)
-      const positionSize = this.calculatePositionSize(normalizedScore);
+      // Combine LunarCrush score with tweet confidence
+      // LunarCrush 60% + Tweet Confidence 40%
+      // Convert tweet confidence to -1 to 1 range (assuming 0.5 = neutral)
+      const tweetScoreNormalized = (tweetConfidence - 0.5) * 2; // 0→-1, 0.5→0, 1→1
+      const combinedScore = (normalizedScore * 0.6) + (tweetScoreNormalized * 0.4);
+      const finalScore = Math.max(-1, Math.min(1, combinedScore));
+
+      // Determine position size with EXPONENTIAL scaling (0-10%)
+      const positionSize = this.calculatePositionSize(finalScore, tweetConfidence);
 
       // Calculate confidence
-      const confidence = Math.abs(normalizedScore);
+      const confidence = Math.abs(finalScore);
 
       // Generate reasoning
-      const reasoning = this.generateReasoning(breakdown, normalizedScore);
+      const reasoning = this.generateReasoning(breakdown, finalScore, tweetConfidence);
 
       return {
-        score: normalizedScore,
-        tradeable: normalizedScore > 0,
+        score: normalizedScore,        // LunarCrush only
+        combinedScore: finalScore,     // LunarCrush + Tweet
+        tradeable: finalScore > 0,
         positionSize,
         confidence,
+        tweetConfidence,
         breakdown,
         reasoning
       };
@@ -232,21 +248,57 @@ export class LunarCrushScorer {
   }
 
   /**
-   * Calculate position size based on score
-   * Score 0.0 = 0% (no trade)
-   * Score 0.2 = 2%
-   * Score 0.5 = 5%
-   * Score 1.0 = 10%
+   * Calculate position size with EXPONENTIAL/POLYNOMIAL scaling
+   * Uses quadratic function for more aggressive scaling on strong signals
+   * Also factors in tweet confidence as a multiplier
+   * 
+   * Formula: positionSize = (score^2) * 10 * confidenceMultiplier
+   * 
+   * Examples (with tweet confidence 0.8):
+   * - Score 0.2 → 0.04 → 0.4% × 1.1 = 0.44%
+   * - Score 0.5 → 0.25 → 2.5% × 1.1 = 2.75%
+   * - Score 0.7 → 0.49 → 4.9% × 1.1 = 5.39%
+   * - Score 0.9 → 0.81 → 8.1% × 1.1 = 8.91%
+   * - Score 1.0 → 1.0 → 10% × 1.1 = 10% (capped)
+   * 
+   * Confidence multiplier:
+   * - 0.0-0.3: 0.5x (reduce weak signals)
+   * - 0.3-0.5: 0.7x (slightly reduce uncertain)
+   * - 0.5-0.7: 1.0x (neutral)
+   * - 0.7-0.9: 1.2x (boost confident)
+   * - 0.9-1.0: 1.5x (aggressively boost very confident)
    */
-  private calculatePositionSize(score: number): number {
+  private calculatePositionSize(score: number, tweetConfidence: number): number {
     if (score <= 0) return 0;
-    return Math.min(10, score * 10); // 0 to 10%
+
+    // Quadratic scaling for exponential growth
+    const quadraticScore = Math.pow(score, 2);
+    
+    // Base position size (0-10%)
+    const baseSize = quadraticScore * 10;
+
+    // Calculate confidence multiplier
+    let confidenceMultiplier = 1.0;
+    if (tweetConfidence < 0.3) {
+      confidenceMultiplier = 0.5; // Reduce weak signals
+    } else if (tweetConfidence < 0.5) {
+      confidenceMultiplier = 0.7; // Slightly reduce uncertain
+    } else if (tweetConfidence < 0.7) {
+      confidenceMultiplier = 1.0; // Neutral
+    } else if (tweetConfidence < 0.9) {
+      confidenceMultiplier = 1.2; // Boost confident
+    } else {
+      confidenceMultiplier = 1.5; // Aggressively boost very confident
+    }
+
+    // Apply multiplier and cap at 10%
+    return Math.min(10, baseSize * confidenceMultiplier);
   }
 
   /**
    * Generate human-readable reasoning
    */
-  private generateReasoning(breakdown: any, finalScore: number): string {
+  private generateReasoning(breakdown: any, finalScore: number, tweetConfidence: number): string {
     const reasons: string[] = [];
 
     // Galaxy Score
@@ -271,6 +323,11 @@ export class LunarCrushScorer {
     // Rank
     if (breakdown.rank > 0.6) reasons.push('Top-ranked project');
     else if (breakdown.rank < -0.4) reasons.push('Low market rank');
+
+    // Tweet Confidence
+    if (tweetConfidence >= 0.9) reasons.push('Very high tweet confidence (90%+)');
+    else if (tweetConfidence >= 0.7) reasons.push('High tweet confidence (70%+)');
+    else if (tweetConfidence < 0.3) reasons.push('Low tweet confidence (<30%)');
 
     if (reasons.length === 0) {
       reasons.push('Neutral metrics across the board');
