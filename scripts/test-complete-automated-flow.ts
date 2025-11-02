@@ -53,7 +53,7 @@ async function testCompleteFlow(config: TestConfig) {
       where: {
         OR: [
           { x_username: { contains: config.ctAccountName, mode: 'insensitive' } },
-          { name: { contains: config.ctAccountName, mode: 'insensitive' } }
+          { display_name: { contains: config.ctAccountName, mode: 'insensitive' } }
         ]
       }
     });
@@ -63,13 +63,13 @@ async function testCompleteFlow(config: TestConfig) {
       ctAccount = await prisma.ct_accounts.create({
         data: {
           x_username: config.ctAccountName.toLowerCase(),
-          name: config.ctAccountName,
+          display_name: config.ctAccountName,
           impact_factor: 1.0,
         }
       });
     }
 
-    console.log(`✅ CT Account: ${ctAccount.name} (${ctAccount.id})`);
+    console.log(`✅ CT Account: ${ctAccount.display_name || ctAccount.x_username} (${ctAccount.id})`);
 
     // Create synthetic tweet
     const tweetId = `synthetic_${Date.now()}`;
@@ -97,24 +97,30 @@ async function testCompleteFlow(config: TestConfig) {
     const classification = await classifyTweet(tweet.tweet_text);
 
     console.log(`✅ Classification complete:`);
-    console.log(`   Is Signal: ${classification.isSignal}`);
+    console.log(`   Is Signal: ${classification.isSignalCandidate}`);
     console.log(`   Confidence: ${(classification.confidence * 100).toFixed(1)}%`);
-    console.log(`   Tokens: ${classification.tokens.join(', ')}`);
-    console.log(`   Side: ${classification.side || 'N/A'}\n`);
+    console.log(`   Tokens: ${classification.extractedTokens?.join(', ') || 'None'}`);
+    console.log(`   Sentiment: ${classification.sentiment}`);
+    console.log(`   Reasoning: ${classification.reasoning || 'N/A'}\n`);
+
+    // Map sentiment to side
+    const side = classification.sentiment === 'bullish' ? 'LONG' : 
+                 classification.sentiment === 'bearish' ? 'SHORT' : null;
 
     // Update tweet with classification
     await prisma.ct_posts.update({
       where: { id: tweet.id },
       data: {
-        is_signal_candidate: classification.isSignal,
-        extracted_tokens: classification.tokens,
+        is_signal_candidate: classification.isSignalCandidate,
+        extracted_tokens: classification.extractedTokens || [],
         confidence_score: classification.confidence,
-        signal_type: classification.side,
+        signal_type: side,
       }
     });
 
-    if (!classification.isSignal || classification.tokens.length === 0) {
+    if (!classification.isSignalCandidate || !classification.extractedTokens || classification.extractedTokens.length === 0) {
       console.log('❌ Tweet is not a signal or no tokens extracted. Stopping.');
+      console.log(`   Reason: isSignalCandidate=${classification.isSignalCandidate}, tokens=${classification.extractedTokens?.length || 0}`);
       return;
     }
 
@@ -148,7 +154,7 @@ async function testCompleteFlow(config: TestConfig) {
 
     // Process each token
     const signals = [];
-    for (const token of classification.tokens) {
+    for (const token of classification.extractedTokens) {
       console.log(`📊 Processing token: ${token}`);
 
       // Get LunarCrush score with tweet confidence
@@ -172,7 +178,7 @@ async function testCompleteFlow(config: TestConfig) {
           agent_id: agent.id,
           token_symbol: token,
           venue: 'HYPERLIQUID',
-          side: classification.side || 'LONG',
+          side: side || 'LONG',
           size_model: {
             type: 'balance-percentage',
             value: scoreData.positionSize, // Exponentially scaled!
