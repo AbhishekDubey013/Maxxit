@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { db } from '../client/src/lib/db';
 import { AgentCard } from '@components/AgentCard';
 import { AgentDrawer } from '@components/AgentDrawer';
-import { HyperliquidAgentModal } from '@components/HyperliquidAgentModal';
+import { HyperliquidConnect } from '@components/HyperliquidConnect';
 import { Bot, TrendingUp, Shield, Zap } from 'lucide-react';
 import { Header } from '@components/Header';
 
@@ -250,10 +250,13 @@ export default function Home() {
 
       {/* Hyperliquid Setup Modal */}
       {hyperliquidModalOpen && (
-        <HyperliquidAgentModal
+        <HyperliquidConnect
           agentId={hyperliquidAgentId}
           agentName={hyperliquidAgentName}
           onClose={() => setHyperliquidModalOpen(false)}
+          onSuccess={() => {
+            console.log('Hyperliquid setup complete!');
+          }}
         />
       )}
     </div>

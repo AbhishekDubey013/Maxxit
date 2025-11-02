@@ -333,6 +333,7 @@ model user_hyperliquid_wallets {
   agent_private_key_encrypted  String
   agent_key_iv                 String
   agent_key_tag                String
+  is_approved                  Boolean   @default(false)
   created_at                   DateTime  @default(now()) @db.Timestamptz(6)
   last_used_at                 DateTime? @db.Timestamptz(6)
 
