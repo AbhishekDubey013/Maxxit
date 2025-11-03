@@ -1,14 +1,21 @@
 """
-Twitter API Proxy using GAME API
-Similar to: https://github.com/abxglia/tweets-fetcher/blob/main/twitter_api.py
+Twitter API Proxy using virtuals_tweepy SDK
+Uses GAME Twitter SDK instead of direct REST API calls
 """
 
 from flask import Flask, jsonify, request
 from flask_cors import CORS
-import requests
 import os
 import logging
 from dotenv import load_dotenv
+
+# Import virtuals_tweepy
+try:
+    from virtuals_tweepy import Client
+    from virtuals_tweepy.errors import TweepyException, NotFound, Unauthorized
+except ImportError:
+    print("ERROR: virtuals_tweepy not installed. Install with: pip install virtuals_tweepy")
+    exit(1)
 
 # Load .env from parent directory
 env_path = os.path.join(os.path.dirname(__file__), '..', '.env')
@@ -22,128 +29,131 @@ logger = logging.getLogger(__name__)
 
 # GAME API Configuration
 GAME_API_KEY = os.getenv('GAME_API_KEY', '')
-GAME_API_URL = 'https://api.virtuals.io/api'
+
+# Initialize virtuals_tweepy client
+twitter_client = None
+if GAME_API_KEY:
+    try:
+        twitter_client = Client(game_twitter_access_token=GAME_API_KEY)
+        logger.info(f"✅ virtuals_tweepy Client initialized with key: {GAME_API_KEY[:10]}...")
+    except Exception as e:
+        logger.error(f"❌ Failed to initialize virtuals_tweepy Client: {e}")
+else:
+    logger.warning("⚠️  GAME_API_KEY not set!")
 
 @app.route('/health', methods=['GET'])
 def health():
     """Health check endpoint"""
+    logger.info("Health check requested")
     return jsonify({
-        'status': 'healthy',
-        'service': 'twitter-proxy',
-        'game_api_configured': bool(GAME_API_KEY)
+        "status": "healthy",
+        "service": "twitter-proxy",
+        "game_api_configured": bool(GAME_API_KEY),
+        "client_initialized": twitter_client is not None
     })
 
 @app.route('/tweets/<username>', methods=['GET'])
 def get_tweets(username):
-    """
-    Fetch tweets for a user using GAME API
-    
-    Example: GET /tweets/elonmusk?max_results=10&since_id=123
-    """
+    """Fetch tweets for a given username using virtuals_tweepy SDK"""
+    max_results = request.args.get('max_results', default=10, type=int)
+    since_id = request.args.get('since_id', type=str)
+
+    logger.info(f"Fetching tweets for @{username} (max: {max_results})")
+
+    if not twitter_client:
+        logger.error("Twitter client not initialized - GAME_API_KEY missing")
+        return jsonify({
+            "error": "Twitter client not initialized",
+            "details": "GAME_API_KEY is not configured"
+        }), 500
+
     try:
-        # Clean username
-        clean_username = username.replace('@', '')
+        # Get user ID first
+        clean_username = username.lstrip('@')
+        logger.info(f"Looking up user: {clean_username}")
         
-        # Get query parameters
-        max_results = int(request.args.get('max_results', 10))
-        since_id = request.args.get('since_id')
-        
-        logger.info(f"Fetching tweets for @{clean_username} (max: {max_results})")
-        
-        if not GAME_API_KEY:
-            logger.error("GAME_API_KEY not configured")
+        user_response = twitter_client.get_user(username=clean_username)
+        if not user_response.data:
+            logger.warning(f"User not found: {clean_username}")
             return jsonify({
-                'error': 'GAME API key not configured',
-                'tweets': []
-            }), 500
+                "username": username,
+                "count": 0,
+                "data": [],
+                "error": "User not found"
+            }), 404
         
-        # Call GAME API
-        url = f"{GAME_API_URL}/twitter/user/{clean_username}/tweets"
-        
-        headers = {
-            'Authorization': f'Bearer {GAME_API_KEY}',
-            'Content-Type': 'application/json'
+        user_id = str(user_response.data.id)
+        logger.info(f"Found user ID: {user_id}")
+
+        # Fetch tweets
+        request_params = {
+            'max_results': min(max_results, 100),
+            'tweet_fields': ['created_at', 'author_id', 'text']
         }
-        
-        params = {
-            'max_results': max_results
-        }
-        
         if since_id:
-            params['since_id'] = since_id
+            request_params['since_id'] = since_id
+
+        logger.info(f"Fetching tweets with params: {request_params}")
+        tweets_response = twitter_client.get_users_tweets(user_id, **request_params)
         
-        logger.info(f"Calling GAME API: {url}")
-        response = requests.get(url, headers=headers, params=params, timeout=30)
-        
-        logger.info(f"GAME API response status: {response.status_code}")
-        
-        if response.status_code == 204:
-            # No content - API returned empty
-            logger.warning("GAME API returned 204 No Content")
+        if not tweets_response.data:
+            logger.info(f"No tweets found for user {clean_username}")
             return jsonify({
-                'data': [],
-                'count': 0,
-                'username': clean_username
+                "username": username,
+                "count": 0,
+                "data": []
             })
-        
-        if response.status_code != 200:
-            logger.error(f"GAME API error: {response.status_code} - {response.text}")
-            return jsonify({
-                'error': f'GAME API returned {response.status_code}',
-                'details': response.text,
-                'tweets': []
-            }), response.status_code
-        
-        # Parse response
-        data = response.json()
-        
-        # Handle different response formats
-        if isinstance(data, dict) and 'data' in data:
-            tweets = data['data']
-        elif isinstance(data, list):
-            tweets = data
-        else:
-            tweets = []
-        
-        logger.info(f"Successfully fetched {len(tweets)} tweets")
-        
-        # Normalize tweet format
-        normalized_tweets = []
-        for tweet in tweets:
-            normalized_tweets.append({
-                'id': str(tweet.get('id') or tweet.get('tweet_id', '')),
-                'text': tweet.get('text') or tweet.get('content', ''),
-                'created_at': tweet.get('created_at') or tweet.get('timestamp', ''),
-                'author_id': tweet.get('author_id'),
-                'author_username': clean_username
-            })
-        
+
+        # Format tweets
+        tweets = []
+        for tweet in tweets_response.data:
+            tweet_data = {
+                'id': str(tweet.id),
+                'text': tweet.text,
+                'created_at': str(tweet.created_at) if hasattr(tweet, 'created_at') else None,
+                'author_id': str(tweet.author_id) if hasattr(tweet, 'author_id') else user_id
+            }
+            tweets.append(tweet_data)
+
+        logger.info(f"✅ Successfully fetched {len(tweets)} tweets from virtuals_tweepy SDK")
         return jsonify({
-            'data': normalized_tweets,
-            'count': len(normalized_tweets),
-            'username': clean_username
+            "username": username,
+            "count": len(tweets),
+            "data": tweets
         })
-        
-    except requests.exceptions.Timeout:
-        logger.error("Request to GAME API timed out")
+
+    except NotFound:
+        logger.error(f"User not found: {username}")
         return jsonify({
-            'error': 'Request timeout',
-            'tweets': []
-        }), 504
-        
+            "error": "User not found",
+            "username": username
+        }), 404
+    except Unauthorized:
+        logger.error("Unauthorized - Invalid or expired GAME_API_KEY")
+        return jsonify({
+            "error": "Unauthorized",
+            "details": "Invalid or expired GAME_API_KEY"
+        }), 401
+    except TweepyException as e:
+        logger.error(f"TweepyException: {e}")
+        return jsonify({
+            "error": "Twitter API error",
+            "details": str(e)
+        }), 500
     except Exception as e:
-        logger.error(f"Error fetching tweets: {str(e)}", exc_info=True)
+        logger.error(f"Unexpected error: {e}")
         return jsonify({
-            'error': str(e),
-            'tweets': []
+            "error": "An unexpected error occurred",
+            "details": str(e)
         }), 500
 
 @app.route('/test', methods=['GET'])
-def test():
-    """Test endpoint to verify proxy is working"""
+def test_endpoint():
+    """Test endpoint to verify proxy functionality"""
     return jsonify({
-        'message': 'Twitter proxy is working!',
-        'game_api_key_set': bool(GAME_API_KEY),
+        'message': 'Twitter proxy test endpoint (using virtuals_tweepy SDK)',
+        'game_api_key_configured': bool(GAME_API_KEY),
+        'client_initialized': twitter_client is not None,
         'endpoints': {
             'health': '/health',
             'tweets': '/tweets/<username>?max_results=10&since_id=123'
@@ -160,9 +170,13 @@ if __name__ == '__main__':
     else:
         logger.info(f"✅ GAME_API_KEY configured: {GAME_API_KEY[:10]}...")
     
-    logger.info(f"🚀 Starting Twitter Proxy on http://0.0.0.0:{port}")
+    if not twitter_client:
+        logger.error("❌ Twitter client not initialized!")
+    else:
+        logger.info("✅ virtuals_tweepy Client ready!")
+    
+    logger.info(f"🚀 Starting Twitter Proxy (virtuals_tweepy SDK) on http://0.0.0.0:{port}")
     logger.info(f"   Endpoints:")
     logger.info(f"   - GET /health")
     logger.info(f"   - GET /tweets/<username>?max_results=10")
     app.run(host='0.0.0.0', port=port, debug=False, use_reloader=False)
-
