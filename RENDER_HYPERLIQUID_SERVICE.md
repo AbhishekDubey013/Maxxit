@@ -16,12 +16,21 @@ This guide shows how to deploy just the `services/hyperliquid-service` directory
 
 ## Step 2: Configure Build Settings
 
+### ⚠️ IMPORTANT: Select Python Environment
+
+Render will auto-detect the Dockerfile in your repo root and default to **Docker** mode. You need to change this:
+
+1. Look for **Environment** dropdown near the top of the form
+2. Click it and select: **Python 3** ⭐
+3. This tells Render to ignore Dockerfiles and use native Python runtime
+
 ### Basic Settings
 
 - **Name**: `maxxit-hyperliquid-service` (or any name you prefer)
 - **Region**: Choose closest to your Railway app (e.g., Oregon US West)
 - **Branch**: `main`
 - **Root Directory**: `services` ⭐ (This is key!)
+- **Environment**: `Python 3` ⭐ (NOT Docker!)
 - **Runtime**: `Python 3.11`
 
 ### Build & Deploy
