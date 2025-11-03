@@ -14,7 +14,8 @@ import {
   Globe,
   Code,
   Database,
-  Cpu
+  Cpu,
+  X
 } from 'lucide-react';
 
 export default function Whitepaper() {
