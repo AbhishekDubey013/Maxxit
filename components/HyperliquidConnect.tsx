@@ -127,10 +127,25 @@ export function HyperliquidConnect({
   };
 
   const markAsApproved = async () => {
+    if (!userWallet) {
+      setError('Please connect your wallet first');
+      return;
+    }
+
+    if (!agentAddress) {
+      setError('Agent wallet not generated. Please go back to step 1.');
+      return;
+    }
+
     setLoading(true);
     setError('');
 
     try {
+      console.log('[HyperliquidConnect] Marking as approved:', {
+        userWallet,
+        agentAddress,
+      });
+
       const response = await fetch('/api/hyperliquid/user-wallet', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -141,13 +156,18 @@ export function HyperliquidConnect({
       });
 
       if (!response.ok) {
-        throw new Error('Failed to update approval status');
+        const errorData = await response.json();
+        console.error('[HyperliquidConnect] API Error:', errorData);
+        throw new Error(errorData.error || 'Failed to update approval status');
       }
+
+      const result = await response.json();
+      console.log('[HyperliquidConnect] Approval successful:', result);
 
       setStep('complete');
       onSuccess?.();
     } catch (err: any) {
-      console.error('Approval error:', err);
+      console.error('[HyperliquidConnect] Approval error:', err);
       setError(err.message || 'Failed to save approval status');
     } finally {
       setLoading(false);
@@ -380,7 +400,7 @@ export function HyperliquidConnect({
                 </a>
                 <button
                   onClick={markAsApproved}
-                  disabled={loading}
+                  disabled={loading || !agentAddress}
                   className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap flex items-center gap-2"
                 >
                   {loading ? (

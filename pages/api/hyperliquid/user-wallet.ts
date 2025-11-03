@@ -75,9 +75,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(400).json({ error: 'userAddress required' });
       }
 
+      // Check if wallet exists first
+      const existingWallet = await prisma.user_hyperliquid_wallets.findUnique({
+        where: { user_wallet: userAddress.toLowerCase() },
+      });
+
+      if (!existingWallet) {
+        return res.status(404).json({ 
+          error: 'Wallet not found. Please create the wallet first.' 
+        });
+      }
+
       const userWallet = await prisma.user_hyperliquid_wallets.update({
         where: { user_wallet: userAddress.toLowerCase() },
-        data: { is_approved: isApproved },
+        data: { 
+          is_approved: isApproved,
+          last_used_at: new Date(),
+        },
       });
 
       return res.status(200).json({
