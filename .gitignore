@@ -1,37 +1,59 @@
-node_modules
-dist
-.DS_Store
-server/public
-vite.config.ts.*
-*.tar.gz
-.vercel
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
 
-# Environment
+# Testing
+/coverage
+
+# Production build
+/build
+.next/
+out/
+dist/
+
+# Environment variables
 .env
 .env.local
-.env.production
+.env.development.local
+.env.test.local
+.env.production.local
 
-# Python
-twitter-proxy-venv
-__pycache__
-*.pyc
+# Debug logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
 
-# Next.js
-.next
-out
+# OS files
+.DS_Store
+*.pem
 
-# Logs
-logs
-*.log
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
+
+# Misc
+.turbo
+
+# Logs (keep log files but ignore them in git)
+logs/*.log
+logs/*.pid
+
+# Hardhat / Ethereum
+cache/
+artifacts/
+typechain-types/
 
 # Database
-prisma/*.db
-prisma/*.db-journal
+*.db
+*.db-journal
 
-# Build
-build
-.cache
-
-# Replit
-.local
-.replit
