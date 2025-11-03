@@ -21,19 +21,19 @@ This guide shows how to deploy just the `services/hyperliquid-service` directory
 - **Name**: `maxxit-hyperliquid-service` (or any name you prefer)
 - **Region**: Choose closest to your Railway app (e.g., Oregon US West)
 - **Branch**: `main`
-- **Root Directory**: `services/hyperliquid-service` ⭐ (This is key!)
+- **Root Directory**: `services` ⭐ (This is key!)
 - **Runtime**: `Python 3.11`
 
 ### Build & Deploy
 
 - **Build Command**:
   ```bash
-  pip install -r requirements.txt
+  pip install -r requirements-hyperliquid.txt
   ```
 
 - **Start Command**:
   ```bash
-  python main.py --port $PORT
+  python hyperliquid-service.py --port $PORT
   ```
 
 ---
@@ -111,11 +111,11 @@ curl -X POST https://your-service.onrender.com/balance \
 
 ## Why Root Directory is Important
 
-By setting **Root Directory** to `services/hyperliquid-service`, Render will:
+By setting **Root Directory** to `services`, Render will:
 
 1. ✅ Clone the entire repo
-2. ✅ Change directory to `services/hyperliquid-service`
-3. ✅ Look for `requirements.txt` there
+2. ✅ Change directory to `services`
+3. ✅ Look for `requirements-hyperliquid.txt` there
 4. ✅ Execute commands from that directory
 
 This allows you to deploy just one service from a monorepo without needing a separate repository.
@@ -127,11 +127,10 @@ This allows you to deploy just one service from a monorepo without needing a sep
 Your repo structure:
 ```
 Maxxit/
-├── services/
-│   └── hyperliquid-service/     ← Render deploys THIS directory
-│       ├── main.py
-│       ├── requirements.txt
-│       └── ...
+├── services/                    ← Render deploys THIS directory
+│   ├── hyperliquid-service.py
+│   ├── requirements-hyperliquid.txt
+│   └── start-render.sh
 ├── pages/
 ├── components/
 ├── lib/
@@ -140,27 +139,27 @@ Maxxit/
 
 Render's view (after setting root directory):
 ```
-(root = services/hyperliquid-service/)
-├── main.py
-├── requirements.txt
-└── ...
+(root = services/)
+├── hyperliquid-service.py
+├── requirements-hyperliquid.txt
+└── start-render.sh
 ```
 
 ---
 
 ## Troubleshooting
 
-### Build Fails: "requirements.txt not found"
+### Build Fails: "requirements.txt not found" or "requirements-hyperliquid.txt not found"
 
-**Problem**: Render can't find `requirements.txt`
+**Problem**: Render can't find `requirements-hyperliquid.txt`
 
-**Solution**: Make sure **Root Directory** is set to `services/hyperliquid-service`
+**Solution**: Make sure **Root Directory** is set to `services` (NOT `services/hyperliquid-service`)
 
 ### Service Crashes on Start
 
 **Problem**: Port binding issues
 
-**Solution**: Ensure `main.py` reads the `PORT` environment variable:
+**Solution**: Ensure `hyperliquid-service.py` reads the `PORT` environment variable:
 
 ```python
 import os
