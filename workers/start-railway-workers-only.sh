@@ -2,7 +2,8 @@
 
 echo "╔═══════════════════════════════════════════════════════════════╗"
 echo "║                                                               ║"
-echo "║   🟣 RAILWAY - WORKERS ONLY MODE                             ║"
+echo "║   🟣 RAILWAY - NODE.JS WORKERS                               ║"
+echo "║   Signal Generator | Trade Executor | Position Monitor       ║"
 echo "║                                                               ║"
 echo "╚═══════════════════════════════════════════════════════════════╝"
 echo ""
@@ -14,38 +15,25 @@ echo "📦 Installing Node.js dependencies..."
 npm ci --legacy-peer-deps
 
 echo ""
-echo "🐍 Installing Python dependencies for Twitter proxy..."
-pip3 install -r services/requirements-twitter.txt
-
-echo ""
 echo "🔧 Generating Prisma client..."
 npx prisma generate
 
 echo ""
-echo "🚀 Starting Twitter Proxy + Workers..."
+echo "🚀 Starting Workers..."
 echo ""
-
-# Start Twitter Proxy (Python) first
-echo "Starting Twitter proxy on port 5002..."
-cd services
-TWITTER_PROXY_PORT=5002 python3 twitter-proxy.py > ../logs/twitter-proxy.log 2>&1 &
-TWITTER_PID=$!
-cd ..
-echo "✅ Twitter Proxy PID: $TWITTER_PID"
-sleep 3
+echo "Note: Twitter proxy not available on Railway (Node.js env only)"
+echo "Tweet ingestion will use existing database tweets."
 
 echo ""
 echo "Workers starting:"
-echo "  ✅ Tweet Ingestion"
-echo "  ✅ Signal Generator"
-echo "  ✅ Trade Executor"
-echo "  ✅ Position Monitor"
+echo "  ✅ Signal Generator (processes classified tweets)"
+echo "  ✅ Trade Executor (opens Hyperliquid positions)"
+echo "  ✅ Position Monitor (tracks PnL & auto-exits)"
 echo ""
 
 # Start all workers in background (use local tsx to avoid npx conflicts)
-node_modules/.bin/tsx workers/tweet-ingestion-worker.ts &
-TWEET_PID=$!
-echo "Tweet Worker PID: $TWEET_PID"
+# Note: Tweet ingestion worker disabled (no Twitter proxy in Railway Node.js env)
+# The 12 existing signal candidates in the database will be processed
 
 node_modules/.bin/tsx workers/signal-generator.ts &
 SIGNAL_PID=$!
