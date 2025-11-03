@@ -42,20 +42,20 @@ echo "  ✅ Trade Executor"
 echo "  ✅ Position Monitor"
 echo ""
 
-# Start all workers in background
-npx tsx workers/tweet-ingestion-worker.ts &
+# Start all workers in background (use local tsx to avoid npx conflicts)
+node_modules/.bin/tsx workers/tweet-ingestion-worker.ts &
 TWEET_PID=$!
 echo "Tweet Worker PID: $TWEET_PID"
 
-npx tsx workers/signal-generator.ts &
+node_modules/.bin/tsx workers/signal-generator.ts &
 SIGNAL_PID=$!
 echo "Signal Worker PID: $SIGNAL_PID"
 
-npx tsx workers/trade-executor-worker.ts &
+node_modules/.bin/tsx workers/trade-executor-worker.ts &
 EXECUTOR_PID=$!
 echo "Executor Worker PID: $EXECUTOR_PID"
 
-npx tsx workers/position-monitor-hyperliquid.ts &
+node_modules/.bin/tsx workers/position-monitor-hyperliquid.ts &
 MONITOR_PID=$!
 echo "Monitor Worker PID: $MONITOR_PID"
 
