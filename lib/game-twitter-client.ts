@@ -1,7 +1,7 @@
 /**
- * GAME SDK Twitter Client
- * Uses official @virtuals-protocol/game SDK for Twitter API access
- * Replaces Python proxy approach with pure TypeScript solution
+ * GAME Twitter Client via Python Proxy
+ * Uses Python proxy server that calls GAME API
+ * Based on: https://github.com/abxglia/tweets-fetcher/blob/main/twitter_api.py
  */
 
 import axios from 'axios';
@@ -14,15 +14,15 @@ interface Tweet {
 }
 
 export class GameTwitterClient {
-  private apiKey: string;
-  private baseUrl: string = 'https://api.virtuals.io/api';
+  private proxyUrl: string;
 
-  constructor(apiKey: string) {
-    this.apiKey = apiKey;
+  constructor() {
+    // Use Python proxy server
+    this.proxyUrl = process.env.TWITTER_PROXY_URL || 'http://localhost:5002';
   }
 
   /**
-   * Fetch user tweets using GAME API
+   * Fetch user tweets via Python proxy
    */
   async getUserTweets(
     username: string,
@@ -35,54 +35,50 @@ export class GameTwitterClient {
       const cleanUsername = username.replace('@', '');
       const maxResults = Math.max(5, Math.min(options.maxResults || 10, 100));
 
-      console.log(`[GAME SDK] Fetching ${maxResults} tweets from: ${cleanUsername}`);
+      console.log(`[Twitter Proxy] Fetching ${maxResults} tweets from: ${cleanUsername}`);
+      console.log(`[Twitter Proxy] Using proxy: ${this.proxyUrl}`);
 
-      // GAME API endpoint for fetching tweets
-      const response = await axios.get(`${this.baseUrl}/twitter/user/${cleanUsername}/tweets`, {
-        headers: {
-          'Authorization': `Bearer ${this.apiKey}`,
-          'Content-Type': 'application/json'
-        },
-        params: {
-          max_results: maxResults,
-          since_id: options.sinceId,
-        }
+      // Call Python proxy
+      const url = `${this.proxyUrl}/tweets/${cleanUsername}`;
+      const params: any = {
+        max_results: maxResults
+      };
+
+      if (options.sinceId) {
+        params.since_id = options.sinceId;
+      }
+
+      const response = await axios.get(url, { 
+        params,
+        timeout: 30000 // 30 second timeout
       });
 
       if (!response.data || !response.data.data) {
-        console.log('[GAME SDK] No tweets returned from API');
+        console.log('[Twitter Proxy] No tweets returned');
         return [];
       }
 
-      // Transform to standard format
-      const tweets: Tweet[] = response.data.data.map((tweet: any) => ({
-        id: tweet.id || tweet.tweet_id || String(tweet.id),
-        text: tweet.text || tweet.content || '',
-        created_at: tweet.created_at || tweet.timestamp || new Date().toISOString(),
-        author_id: tweet.author_id
-      }));
-
-      console.log(`[GAME SDK] Fetched ${tweets.length} tweets`);
+      const tweets: Tweet[] = response.data.data;
+      console.log(`[Twitter Proxy] Fetched ${tweets.length} tweets`);
       return tweets;
 
     } catch (error: any) {
-      console.error('[GAME SDK] Error fetching tweets:', error.response?.data || error.message);
+      if (error.code === 'ECONNREFUSED') {
+        console.error('[Twitter Proxy] ERROR: Cannot connect to proxy server!');
+        console.error(`[Twitter Proxy] Make sure Python proxy is running on ${this.proxyUrl}`);
+        console.error('[Twitter Proxy] Run: python services/twitter-proxy.py');
+      } else {
+        console.error('[Twitter Proxy] Error fetching tweets:', error.response?.data || error.message);
+      }
       return [];
     }
   }
 }
 
 /**
- * Create GAME Twitter client
+ * Create GAME Twitter client (uses Python proxy)
  */
-export function createGameTwitterClient(): GameTwitterClient | null {
-  const apiKey = process.env.GAME_API_KEY || process.env.X_GAME_API_KEY;
-  
-  if (!apiKey) {
-    console.error('[GAME SDK] No GAME_API_KEY found in environment');
-    return null;
-  }
-
-  return new GameTwitterClient(apiKey);
+export function createGameTwitterClient(): GameTwitterClient {
+  return new GameTwitterClient();
 }
 
