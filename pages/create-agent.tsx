@@ -9,6 +9,7 @@ import { Check, User, Building2, Sliders, Wallet, Eye, Rocket, Twitter, Search, 
 import { Header } from '@components/Header';
 import { usePrivy } from '@privy-io/react-auth';
 import { createProofOfIntentWithMetaMask } from '@lib/proof-of-intent';
+import { HyperliquidConnect } from '@components/HyperliquidConnect';
 
 const wizardSchema = insertAgentSchema.extend({
   description: z.string().max(500).optional(),
@@ -48,6 +49,9 @@ export default function CreateAgent() {
   const [showDeployModal, setShowDeployModal] = useState(false);
   const [createdAgentId, setCreatedAgentId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [hyperliquidModalOpen, setHyperliquidModalOpen] = useState(false);
+  const [hyperliquidAgentId, setHyperliquidAgentId] = useState('');
+  const [hyperliquidAgentName, setHyperliquidAgentName] = useState('');
   
   // Proof of Intent state
   const [proofOfIntent, setProofOfIntent] = useState<{
@@ -334,10 +338,12 @@ export default function CreateAgent() {
       // Close modal first
       setShowDeployModal(false);
       
-      // For Hyperliquid, use the dedicated setup flow
+      // For Hyperliquid, open the setup modal
       if (formData.venue === 'HYPERLIQUID') {
-        console.log('Navigating to Hyperliquid setup:', `/hyperliquid-setup/${createdAgentId}`);
-        window.location.href = `/hyperliquid-setup/${createdAgentId}`;
+        console.log('Opening Hyperliquid setup modal for agent:', createdAgentId);
+        setHyperliquidAgentId(createdAgentId);
+        setHyperliquidAgentName(formData.name);
+        setHyperliquidModalOpen(true);
       } else {
         // For other venues (SPOT, GMX), use standard Safe wallet deployment
         console.log('Navigating to standard deployment:', `/deploy-agent/${createdAgentId}`);
@@ -1148,6 +1154,20 @@ export default function CreateAgent() {
             </p>
           </div>
         </div>
+      )}
+
+      {/* Hyperliquid Setup Modal */}
+      {hyperliquidModalOpen && (
+        <HyperliquidConnect
+          agentId={hyperliquidAgentId}
+          agentName={hyperliquidAgentName}
+          onClose={() => setHyperliquidModalOpen(false)}
+          onSuccess={() => {
+            console.log('Hyperliquid setup complete!');
+            setHyperliquidModalOpen(false);
+            router.push('/my-deployments');
+          }}
+        />
       )}
     </div>
   );
