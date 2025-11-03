@@ -8,6 +8,11 @@ from flask_cors import CORS
 import requests
 import os
 import logging
+from dotenv import load_dotenv
+
+# Load .env from parent directory
+env_path = os.path.join(os.path.dirname(__file__), '..', '.env')
+load_dotenv(env_path)
 
 app = Flask(__name__)
 CORS(app)
@@ -146,13 +151,18 @@ def test():
     })
 
 if __name__ == '__main__':
-    port = int(os.getenv('PORT', 5002))
+    # Get port from environment, default to 5002
+    port_env = os.getenv('TWITTER_PROXY_PORT') or os.getenv('PORT') or '5002'
+    port = int(port_env)
     
     if not GAME_API_KEY:
         logger.warning("⚠️  GAME_API_KEY not set! Proxy will not work properly.")
     else:
         logger.info(f"✅ GAME_API_KEY configured: {GAME_API_KEY[:10]}...")
     
-    logger.info(f"🚀 Starting Twitter Proxy on port {port}")
-    app.run(host='0.0.0.0', port=port, debug=True)
+    logger.info(f"🚀 Starting Twitter Proxy on http://0.0.0.0:{port}")
+    logger.info(f"   Endpoints:")
+    logger.info(f"   - GET /health")
+    logger.info(f"   - GET /tweets/<username>?max_results=10")
+    app.run(host='0.0.0.0', port=port, debug=False, use_reloader=False)
 
