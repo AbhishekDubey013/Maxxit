@@ -93,10 +93,23 @@ export default function MyDeployments() {
     try {
       // CRITICAL FIX: Only fetch deployments for connected wallet
       const response = await fetch(`/api/deployments?userWallet=${connectedWallet}`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch deployments');
+      }
+
       const data = await response.json();
-      setDeployments(data);
+      
+      // Ensure data is always an array
+      if (Array.isArray(data)) {
+        setDeployments(data);
+      } else {
+        console.error('Invalid response format:', data);
+        setDeployments([]);
+      }
     } catch (error) {
       console.error('Failed to fetch deployments:', error);
+      setDeployments([]); // Set to empty array on error
     } finally {
       setLoading(false);
     }
