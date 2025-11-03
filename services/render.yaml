@@ -1,11 +1,19 @@
 services:
   - type: web
-    name: maxxit-hyperliquid-service
-    env: python
+    name: maxxit-python-services
+    runtime: python3
     region: oregon
-    buildCommand: pip install -r requirements-hyperliquid.txt
-    startCommand: python hyperliquid-service.py --port $PORT
+    plan: free
+    rootDir: services
+    buildCommand: pip install -r requirements-twitter.txt && cd hyperliquid-service && pip install -r requirements.txt
+    startCommand: bash start-all-services.sh
     envVars:
+      - key: GAME_API_KEY
+        sync: false
       - key: HYPERLIQUID_TESTNET
-        value: true
-
+        value: "true"
+      - key: PORT
+        value: "5001"
+      - key: TWITTER_PROXY_PORT
+        value: "5002"
+    healthCheckPath: /health
