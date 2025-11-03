@@ -57,13 +57,13 @@ export function Header() {
                 <span className="hidden sm:inline">Create Agent</span>
               </button>
             </Link>
-            <Link href="/whitepaper">
+            <Link href="/docs">
               <button 
                 className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-md text-sm font-medium hover-elevate active-elevate-2 transition-all"
-                data-testid="nav-whitepaper"
+                data-testid="nav-docs"
               >
                 <FileText className="h-4 w-4" />
-                <span className="hidden sm:inline">Whitepaper</span>
+                <span className="hidden sm:inline">Docs</span>
               </button>
             </Link>
             
