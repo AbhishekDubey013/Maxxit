@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: maxxit-hyperliquid-service
+    env: python
+    region: oregon
+    buildCommand: pip install -r requirements-hyperliquid.txt
+    startCommand: python hyperliquid-service.py --port $PORT
+    envVars:
+      - key: HYPERLIQUID_TESTNET
+        value: true
+
