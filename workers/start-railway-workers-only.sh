@@ -19,6 +19,10 @@ echo "🔧 Generating Prisma client..."
 npx prisma generate
 
 echo ""
+echo "🌱 Seeding database (activating accounts, etc.)..."
+npm run db:seed
+
+echo ""
 echo "🚀 Starting Workers..."
 echo ""
 echo "Note: Twitter proxy not available on Railway (Node.js env only)"
