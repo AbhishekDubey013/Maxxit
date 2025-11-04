@@ -1,5 +1,5 @@
 [phases.setup]
-nixPkgs = ["nodejs-18_x", "python310", "python310Packages.pip"]
+nixPkgs = ["nodejs_18", "python310", "python310Packages.pip"]
 
 [phases.install]
 cmds = [
@@ -9,7 +9,4 @@ cmds = [
 
 [phases.build]
 cmds = ["npx prisma generate"]
-
-[start]
-cmd = "bash workers/start-railway-workers-only.sh"
 
