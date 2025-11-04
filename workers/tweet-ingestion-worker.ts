@@ -21,15 +21,17 @@ async function ingestTweets() {
   console.log();
 
   try {
-    // Get all CT accounts
-    const accounts = await prisma.ct_accounts.findMany();
+    // Get only active CT accounts (optimized to reduce API calls)
+    const accounts = await prisma.ct_accounts.findMany({
+      where: { is_active: true }
+    });
 
     if (accounts.length === 0) {
-      console.log('⚠️  No CT accounts found in database');
+      console.log('⚠️  No active CT accounts found. Set is_active=true for accounts to monitor.');
       return;
     }
 
-    console.log(`📋 Found ${accounts.length} CT account(s) to process\n`);
+    console.log(`📋 Found ${accounts.length} active CT account(s) to process\n`);
 
     const xApiClient = createMultiMethodXApiClient();
     const results = [];

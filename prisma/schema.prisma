@@ -109,10 +109,13 @@ model ct_accounts {
   display_name          String?
   followers_count       Int?
   impact_factor         Float                   @default(0) @db.Real
+  is_active             Boolean                 @default(false)
   last_seen_at          DateTime?               @db.Timestamptz(6)
   agent_accounts        agent_accounts[]
   ct_posts              ct_posts[]
   impact_factor_history impact_factor_history[]
+
+  @@index([is_active])
 }
 
 model ct_posts {
