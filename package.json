@@ -103,7 +103,8 @@
     "wouter": "^3.3.5",
     "ws": "^8.18.0",
     "zod": "^3.24.2",
-    "zod-validation-error": "^3.4.0"
+    "zod-validation-error": "^3.4.0",
+    "tsx": "^4.20.5"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-chai-matchers": "^2.1.0",
@@ -140,7 +141,6 @@
     "solc": "^0.8.19",
     "tailwindcss": "^3.4.18",
     "ts-node": "^10.9.2",
-    "tsx": "^4.20.5",
     "typescript": "^5.6.3",
     "vite": "^5.4.20"
   },
