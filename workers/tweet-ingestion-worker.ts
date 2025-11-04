@@ -33,7 +33,22 @@ async function ingestTweets() {
 
     console.log(`📋 Found ${accounts.length} active CT account(s) to process\n`);
 
-    const xApiClient = createMultiMethodXApiClient();
+    // Check if Twitter proxy is available before creating client
+    let xApiClient = null;
+    try {
+      const proxyCheck = await fetch('http://localhost:5002/health', { 
+        signal: AbortSignal.timeout(2000) // 2 second timeout
+      });
+      if (proxyCheck.ok) {
+        console.log('✅ Twitter proxy is available\n');
+        xApiClient = createMultiMethodXApiClient();
+      } else {
+        console.log('⚠️  Twitter proxy not responding - will process existing tweets\n');
+      }
+    } catch (error) {
+      console.log('⚠️  Twitter proxy not available - will process existing tweets\n');
+    }
+
     const results = [];
 
     for (const account of accounts) {
@@ -41,7 +56,7 @@ async function ingestTweets() {
       
       let tweets: Array<{ tweetId: string; tweetText: string; tweetCreatedAt: Date }> = [];
       
-      // Try to fetch from X API (Python proxy with GAME API)
+      // Try to fetch from X API (Python proxy with GAME API) only if client is available
       if (xApiClient) {
         try {
           // Get the last tweet we've seen for this account
@@ -68,38 +83,14 @@ async function ingestTweets() {
 
           console.log(`[${account.x_username}] ✅ Fetched ${tweets.length} tweets from X API`);
         } catch (error: any) {
-          console.log(`[${account.x_username}] ⚠️  X API unavailable:`, error.message);
-          
-          // Check if proxy is down
-          if (error.message.includes('Cannot connect to proxy')) {
-            console.log(`[${account.x_username}] Twitter proxy not running - will process existing tweets from database`);
-            tweets = []; // No new tweets, will process existing ones
-          } else {
-            // Other errors - use mock tweets as fallback for testing
-            console.log(`[${account.x_username}] Using existing tweets from database...`);
-            tweets = []; // Don't generate mock tweets in production
-          }
+          console.log(`[${account.x_username}] ⚠️  X API error:`, error.message);
+          console.log(`[${account.x_username}] No new tweets fetched - will process existing tweets from database`);
+          tweets = []; // No new tweets, will process existing ones
         }
       } else {
-        // Use mock data if X API is not configured
-        console.log(`[${account.x_username}] ⚠️  No X API configured, using mock tweets`);
-        tweets = [
-          {
-            tweetId: `${Date.now()}_${account.id}_1`,
-            tweetText: `$BTC showing strong bullish momentum. Breakout imminent? #Bitcoin #Crypto`,
-            tweetCreatedAt: new Date(),
-          },
-          {
-            tweetId: `${Date.now()}_${account.id}_2`,
-            tweetText: `$ETH breaking key resistance. Bulls in control. Target: $2,500. #Ethereum`,
-            tweetCreatedAt: new Date(),
-          },
-          {
-            tweetId: `${Date.now()}_${account.id}_3`,
-            tweetText: `$WETH trading volume increasing. Accumulation phase? Watch closely. #DeFi`,
-            tweetCreatedAt: new Date(),
-          },
-        ];
+        // X API client not initialized (proxy not available)
+        console.log(`[${account.x_username}] No new tweets - processing existing tweets from database`);
+        tweets = [];
       }
 
       // Create posts in database
