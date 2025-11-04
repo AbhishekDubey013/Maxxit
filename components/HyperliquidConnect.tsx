@@ -146,6 +146,7 @@ export function HyperliquidConnect({
         agentAddress,
       });
 
+      // Step 1: Mark as approved in user_hyperliquid_wallets
       const response = await fetch('/api/hyperliquid/user-wallet', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -163,6 +164,27 @@ export function HyperliquidConnect({
 
       const result = await response.json();
       console.log('[HyperliquidConnect] Approval successful:', result);
+
+      // Step 2: Create or update deployment for this agent
+      console.log('[HyperliquidConnect] Creating deployment for agent...');
+      const deploymentResponse = await fetch('/api/hyperliquid/create-deployment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          agentId,
+          userWallet,
+          agentAddress,
+        }),
+      });
+
+      if (!deploymentResponse.ok) {
+        const errorData = await deploymentResponse.json();
+        console.warn('[HyperliquidConnect] Deployment warning:', errorData);
+        // Don't fail if deployment creation fails - user can still trade
+      } else {
+        const deploymentResult = await deploymentResponse.json();
+        console.log('[HyperliquidConnect] Deployment created:', deploymentResult);
+      }
 
       setStep('complete');
       onSuccess?.();
