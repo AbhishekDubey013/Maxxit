@@ -182,19 +182,28 @@ export async function getAgentPrivateKey(deploymentId: string): Promise<string |
 
     // NEW ARCHITECTURE: Get key from user_hyperliquid_wallets table
     if (deployment.hyperliquid_agent_address) {
-      const userWallet = await prisma.user_hyperliquid_wallets.findFirst({
-        where: {
-          user_wallet: deployment.user_wallet.toLowerCase(),
-          agent_address: deployment.hyperliquid_agent_address.toLowerCase(),
-        }
-      });
+      // Use case-insensitive comparison for Ethereum addresses
+      const userWallet = await prisma.$queryRaw<Array<{
+        id: string;
+        agent_private_key_encrypted: string;
+        agent_key_iv: string;
+        agent_key_tag: string;
+      }>>`
+        SELECT id, agent_private_key_encrypted, agent_key_iv, agent_key_tag
+        FROM user_hyperliquid_wallets
+        WHERE LOWER(user_wallet) = LOWER(${deployment.user_wallet})
+        AND LOWER(agent_address) = LOWER(${deployment.hyperliquid_agent_address})
+        LIMIT 1
+      `;
+      
+      const userWalletData = userWallet[0];
 
-      if (userWallet?.agent_private_key_encrypted && userWallet?.agent_key_iv && userWallet?.agent_key_tag) {
+      if (userWalletData?.agent_private_key_encrypted && userWalletData?.agent_key_iv && userWalletData?.agent_key_tag) {
         console.log('[HyperliquidAgent] Using user-level agent key for deployment:', deploymentId);
         return decryptPrivateKey(
-          userWallet.agent_private_key_encrypted,
-          userWallet.agent_key_iv,
-          userWallet.agent_key_tag
+          userWalletData.agent_private_key_encrypted,
+          userWalletData.agent_key_iv,
+          userWalletData.agent_key_tag
         );
       }
     }
