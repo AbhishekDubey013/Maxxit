@@ -31,19 +31,21 @@ echo "  ✅ Trade Executor (opens Hyperliquid positions)"
 echo "  ✅ Position Monitor (tracks PnL & auto-exits)"
 echo ""
 
-# Start all workers in background (use npx with --yes to auto-install)
+# Start all workers in background (use pre-installed tsx)
 # Note: Tweet ingestion worker disabled (no Twitter proxy in Railway Node.js env)
 # The 12 existing signal candidates in the database will be processed
 
-npx --yes tsx workers/signal-generator.ts &
+./node_modules/.bin/tsx workers/signal-generator.ts &
 SIGNAL_PID=$!
 echo "Signal Worker PID: $SIGNAL_PID"
+sleep 1
 
-npx --yes tsx workers/trade-executor-worker.ts &
+./node_modules/.bin/tsx workers/trade-executor-worker.ts &
 EXECUTOR_PID=$!
 echo "Executor Worker PID: $EXECUTOR_PID"
+sleep 1
 
-npx --yes tsx workers/position-monitor-hyperliquid.ts &
+./node_modules/.bin/tsx workers/position-monitor-hyperliquid.ts &
 MONITOR_PID=$!
 echo "Monitor Worker PID: $MONITOR_PID"
 
