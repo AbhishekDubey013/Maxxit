@@ -167,10 +167,11 @@ export async function getAgentPrivateKey(deploymentId: string): Promise<string |
     const deployment = await prisma.agent_deployments.findUnique({
       where: { id: deploymentId },
       select: {
+        user_wallet: true,
+        hyperliquid_agent_address: true,
         hyperliquid_agent_key_encrypted: true,
         hyperliquid_agent_key_iv: true,
         hyperliquid_agent_key_tag: true,
-        hyperliquid_agent_address: true,
       }
     });
 
@@ -179,21 +180,40 @@ export async function getAgentPrivateKey(deploymentId: string): Promise<string |
       return null;
     }
 
-    // Check if agent wallet is configured for this deployment
-    if (!deployment.hyperliquid_agent_key_encrypted || 
-        !deployment.hyperliquid_agent_key_iv || 
-        !deployment.hyperliquid_agent_key_tag) {
-      console.warn('[HyperliquidAgent] No agent key configured for deployment:', deploymentId);
-      console.warn('[HyperliquidAgent] Call /api/hyperliquid/generate-agent to create one');
-      return null;
+    // NEW ARCHITECTURE: Get key from user_hyperliquid_wallets table
+    if (deployment.hyperliquid_agent_address) {
+      const userWallet = await prisma.user_hyperliquid_wallets.findFirst({
+        where: {
+          user_wallet: deployment.user_wallet.toLowerCase(),
+          agent_address: deployment.hyperliquid_agent_address.toLowerCase(),
+        }
+      });
+
+      if (userWallet?.agent_private_key_encrypted && userWallet?.agent_key_iv && userWallet?.agent_key_tag) {
+        console.log('[HyperliquidAgent] Using user-level agent key for deployment:', deploymentId);
+        return decryptPrivateKey(
+          userWallet.agent_private_key_encrypted,
+          userWallet.agent_key_iv,
+          userWallet.agent_key_tag
+        );
+      }
     }
 
-    console.log('[HyperliquidAgent] Decrypting unique agent key for deployment:', deploymentId);
-    return decryptPrivateKey(
-      deployment.hyperliquid_agent_key_encrypted,
-      deployment.hyperliquid_agent_key_iv,
-      deployment.hyperliquid_agent_key_tag
-    );
+    // OLD ARCHITECTURE (backwards compatibility): Check deployment-level keys
+    if (deployment.hyperliquid_agent_key_encrypted && 
+        deployment.hyperliquid_agent_key_iv && 
+        deployment.hyperliquid_agent_key_tag) {
+      console.log('[HyperliquidAgent] Using deployment-level agent key (old architecture):', deploymentId);
+      return decryptPrivateKey(
+        deployment.hyperliquid_agent_key_encrypted,
+        deployment.hyperliquid_agent_key_iv,
+        deployment.hyperliquid_agent_key_tag
+      );
+    }
+
+    console.warn('[HyperliquidAgent] No agent key configured for deployment:', deploymentId);
+    console.warn('[HyperliquidAgent] Call /api/hyperliquid/generate-agent to create one');
+    return null;
   } catch (error) {
     console.error('[HyperliquidAgent] Failed to get agent private key:', error);
     return null;

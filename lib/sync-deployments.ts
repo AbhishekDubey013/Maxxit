@@ -44,6 +44,12 @@ export async function syncAllDeployments() {
     for (const deployment of deployments) {
       if (!deployment.safe_wallet) continue;
 
+      // Skip Hyperliquid deployments (they don't use Safe modules)
+      if (deployment.agents.venue === 'HYPERLIQUID') {
+        console.log(`[SyncDeployments] Skipping ${deployment.agents.name} (Hyperliquid venue)`);
+        continue;
+      }
+
       try {
         // Check on-chain status
         const safe = new ethers.Contract(deployment.safe_wallet, SAFE_ABI, provider);
