@@ -2,8 +2,7 @@
 
 echo "╔═══════════════════════════════════════════════════════════════╗"
 echo "║                                                               ║"
-echo "║   🟣 RAILWAY - NODE.JS WORKERS                               ║"
-echo "║   Signal Generator | Trade Executor | Position Monitor       ║"
+echo "║   🟣 RAILWAY - WORKERS ONLY MODE                             ║"
 echo "║                                                               ║"
 echo "╚═══════════════════════════════════════════════════════════════╝"
 echo ""
@@ -15,47 +14,42 @@ echo "📦 Installing Node.js dependencies..."
 npm ci --legacy-peer-deps
 
 echo ""
+echo "🐍 Installing Python dependencies for Twitter proxy..."
+pip3 install -r services/requirements-twitter.txt
+
+echo ""
 echo "🔧 Generating Prisma client..."
 npx prisma generate
 
 echo ""
-echo "🌱 Seeding database (activating accounts, etc.)..."
-npm run db:seed
-
-echo ""
-echo "🚀 Starting Workers..."
-echo ""
-echo "Note: Twitter proxy not available on Railway (Node.js env only)"
-echo "Tweet ingestion will use existing database tweets."
-
-echo ""
-echo "Workers starting:"
-echo "  ✅ Signal Generator (processes classified tweets)"
-echo "  ✅ Trade Executor (opens Hyperliquid positions)"
-echo "  ✅ Position Monitor (tracks PnL & auto-exits)"
+echo "🚀 Starting Twitter Proxy + Workers..."
 echo ""
 
-# Start all workers in background (use pre-installed tsx)
-# Note: Tweet ingestion worker disabled (no Twitter proxy in Railway Node.js env)
-# The 12 existing signal candidates in the database will be processed
+# Start Twitter Proxy (Python) first
+echo "Starting Twitter proxy on port 5002..."
+cd services
+TWITTER_PROXY_PORT=5002 python3 twitter-proxy.py > ../logs/twitter-proxy.log 2>&1 &
+TWITTER_PID=$!
+cd ..
+echo "✅ Twitter Proxy PID: $TWITTER_PID"
+sleep 3
 
-./node_modules/.bin/tsx workers/signal-generator.ts &
-SIGNAL_PID=$!
-echo "Signal Worker PID: $SIGNAL_PID"
-sleep 1
+echo ""
+echo "Workers starting in continuous mode:"
+echo "  ✅ Tweet Ingestion (every 5 mins)"
+echo "  ✅ Signal Generator (every 1 min)"
+echo "  ✅ Trade Executor (every 30 sec)"
+echo "  ✅ Position Monitor (every 1 min)"
+echo ""
 
-./node_modules/.bin/tsx workers/trade-executor-worker.ts &
-EXECUTOR_PID=$!
-echo "Executor Worker PID: $EXECUTOR_PID"
-sleep 1
-
-./node_modules/.bin/tsx workers/position-monitor-hyperliquid.ts &
-MONITOR_PID=$!
-echo "Monitor Worker PID: $MONITOR_PID"
+# Start the continuous runner (runs all workers on scheduled intervals)
+node workers/continuous-runner.js &
+RUNNER_PID=$!
+echo "Continuous Runner PID: $RUNNER_PID"
 
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "✅ All workers started successfully!"
+echo "✅ All services started successfully!"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 
