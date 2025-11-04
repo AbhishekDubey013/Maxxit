@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: maxxit-twitter-proxy
+    runtime: python
+    region: oregon
+    plan: free
+    branch: main
+    rootDir: services
+    buildCommand: pip install -r requirements-twitter.txt
+    startCommand: python twitter-proxy.py
+    envVars:
+      - key: GAME_API_KEY
+        sync: false
+      - key: PORT
+        value: 10000
+    healthCheckPath: /health
+    autoDeploy: true
+

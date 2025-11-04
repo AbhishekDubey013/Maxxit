@@ -34,19 +34,22 @@ async function ingestTweets() {
     console.log(`📋 Found ${accounts.length} active CT account(s) to process\n`);
 
     // Check if Twitter proxy is available before creating client
+    const TWITTER_PROXY_URL = process.env.TWITTER_PROXY_URL || 'http://localhost:5002';
     let xApiClient = null;
     try {
-      const proxyCheck = await fetch('http://localhost:5002/health', { 
-        signal: AbortSignal.timeout(2000) // 2 second timeout
+      console.log(`Checking Twitter proxy at: ${TWITTER_PROXY_URL}`);
+      const proxyCheck = await fetch(`${TWITTER_PROXY_URL}/health`, { 
+        signal: AbortSignal.timeout(3000) // 3 second timeout
       });
       if (proxyCheck.ok) {
-        console.log('✅ Twitter proxy is available\n');
+        const healthData = await proxyCheck.json();
+        console.log(`✅ Twitter proxy is available (client: ${healthData.client_initialized ? 'ready' : 'not initialized'})\n`);
         xApiClient = createMultiMethodXApiClient();
       } else {
         console.log('⚠️  Twitter proxy not responding - will process existing tweets\n');
       }
-    } catch (error) {
-      console.log('⚠️  Twitter proxy not available - will process existing tweets\n');
+    } catch (error: any) {
+      console.log(`⚠️  Twitter proxy not available (${error.message}) - will process existing tweets\n`);
     }
 
     const results = [];
