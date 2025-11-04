@@ -14,11 +14,13 @@ echo "📦 Installing Node.js dependencies..."
 npm ci --legacy-peer-deps
 
 echo ""
-echo "🐍 Installing Python dependencies for Twitter proxy..."
+echo "🐍 Checking Python environment..."
 # Check if python3 is available
 if command -v python3 &> /dev/null; then
-    echo "✅ Python3 found"
-    pip3 install -r services/requirements-twitter.txt --quiet
+    echo "✅ Python3 found: $(python3 --version)"
+    echo "✅ Pip found: $(pip3 --version | head -n1)"
+    echo "📦 Checking installed packages..."
+    pip3 list | grep -E "(requests|flask)" || echo "⚠️  Some packages may be missing"
 else
     echo "⚠️  Python3 not found - Twitter proxy will not start"
     echo "   Workers will use existing tweets from database"
@@ -39,6 +41,9 @@ echo ""
 # Start Twitter Proxy (Python) first if Python is available
 if command -v python3 &> /dev/null; then
     echo "Starting Twitter proxy on port 5002..."
+    echo "Environment check:"
+    echo "  - GAME_API_KEY: ${GAME_API_KEY:0:10}... (${#GAME_API_KEY} chars)"
+    echo "  - Python version: $(python3 --version)"
     cd services
     TWITTER_PROXY_PORT=5002 python3 twitter-proxy.py > ../logs/twitter-proxy.log 2>&1 &
     TWITTER_PID=$!
@@ -54,6 +59,19 @@ if command -v python3 &> /dev/null; then
         echo "✅ Twitter Proxy is healthy and ready"
     else
         echo "⚠️  Twitter Proxy health check failed - will use existing tweets"
+        echo "   Checking proxy logs for errors..."
+        if [ -f logs/twitter-proxy.log ]; then
+            echo "   Last 10 lines of twitter-proxy.log:"
+            tail -n 10 logs/twitter-proxy.log | sed 's/^/   /'
+        else
+            echo "   No proxy log file found"
+        fi
+        echo "   Checking if proxy process is running..."
+        if ps -p $TWITTER_PID > /dev/null 2>&1; then
+            echo "   ✅ Proxy process ($TWITTER_PID) is running but not responding"
+        else
+            echo "   ❌ Proxy process ($TWITTER_PID) has died"
+        fi
     fi
 else
     echo "⚠️  Skipping Twitter Proxy (Python not available)"
