@@ -68,22 +68,17 @@ async function ingestTweets() {
 
           console.log(`[${account.x_username}] ✅ Fetched ${tweets.length} tweets from X API`);
         } catch (error: any) {
-          console.error(`[${account.x_username}] ❌ X API error:`, error.message);
+          console.log(`[${account.x_username}] ⚠️  X API unavailable:`, error.message);
           
-          // Fall back to mock tweets on error
-          console.log(`[${account.x_username}] Using mock tweets as fallback...`);
-          tweets = [
-            {
-              tweetId: `${Date.now()}_${account.id}_1`,
-              tweetText: `$BTC breaking out! Strong momentum building. Time to accumulate? #Bitcoin`,
-              tweetCreatedAt: new Date(),
-            },
-            {
-              tweetId: `${Date.now()}_${account.id}_2`,
-              tweetText: `$ETH looking bullish after breaking key resistance at $2,000. Next target $2,500.`,
-              tweetCreatedAt: new Date(),
-            },
-          ];
+          // Check if proxy is down
+          if (error.message.includes('Cannot connect to proxy')) {
+            console.log(`[${account.x_username}] Twitter proxy not running - will process existing tweets from database`);
+            tweets = []; // No new tweets, will process existing ones
+          } else {
+            // Other errors - use mock tweets as fallback for testing
+            console.log(`[${account.x_username}] Using existing tweets from database...`);
+            tweets = []; // Don't generate mock tweets in production
+          }
         }
       } else {
         // Use mock data if X API is not configured
