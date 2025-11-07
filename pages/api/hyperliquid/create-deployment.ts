@@ -37,6 +37,32 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(404).json({ error: 'Agent not found' });
     }
 
+    // Get encrypted key from user_hyperliquid_wallets
+    const userWalletRecord = await prisma.user_hyperliquid_wallets.findFirst({
+      where: {
+        user_wallet: userWallet.toLowerCase(),
+        agent_address: agentAddress,
+      },
+    });
+
+    if (!userWalletRecord) {
+      console.error('[CreateDeployment] User wallet record not found');
+      return res.status(404).json({ 
+        error: 'User wallet record not found. Please reconnect Hyperliquid.' 
+      });
+    }
+
+    // Prepare deployment data with encrypted key
+    const deploymentData = {
+      safe_wallet: userWallet.toLowerCase(),
+      hyperliquid_agent_address: agentAddress,
+      hyperliquid_agent_key_encrypted: userWalletRecord.agent_private_key_encrypted,
+      hyperliquid_agent_key_iv: userWalletRecord.agent_key_iv,
+      hyperliquid_agent_key_tag: userWalletRecord.agent_key_tag,
+      status: 'ACTIVE' as const,
+      sub_active: true,
+    };
+
     // Check if deployment already exists for this agent and user
     const existingDeployment = await prisma.agent_deployments.findFirst({
       where: {
@@ -52,12 +78,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       console.log('[CreateDeployment] Updating existing deployment:', existingDeployment.id);
       deployment = await prisma.agent_deployments.update({
         where: { id: existingDeployment.id },
-        data: {
-          safe_wallet: userWallet.toLowerCase(),
-          hyperliquid_agent_address: agentAddress,
-          status: 'ACTIVE',
-          sub_active: true,
-        },
+        data: deploymentData,
       });
     } else {
       // Create new deployment
@@ -66,10 +87,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         data: {
           agent_id: agentId,
           user_wallet: userWallet.toLowerCase(),
-          safe_wallet: userWallet.toLowerCase(),
-          hyperliquid_agent_address: agentAddress,
-          status: 'ACTIVE',
-          sub_active: true,
+          ...deploymentData,
         },
       });
     }
