@@ -21,7 +21,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         user_wallet: userWallet.toLowerCase(),
       },
       include: {
-        agent: {
+        agents: {
           select: {
             id: true,
             name: true,
@@ -30,7 +30,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         },
       },
       orderBy: {
-        created_at: 'desc',
+        sub_started_at: 'desc',
       },
     });
 
@@ -39,8 +39,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       id: deployment.id,
       agentId: deployment.agent_id,
       agent: {
-        name: deployment.agent.name,
-        venue: deployment.agent.venue,
+        name: deployment.agents.name,
+        venue: deployment.agents.venue,
       },
       userWallet: deployment.user_wallet,
       safeWallet: deployment.safe_wallet || '',
