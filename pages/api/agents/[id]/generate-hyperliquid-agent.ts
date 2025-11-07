@@ -5,8 +5,8 @@ import crypto from 'crypto';
 
 const prisma = new PrismaClient();
 
-// Encryption key from environment
-const ENCRYPTION_KEY = process.env.AGENT_ENCRYPTION_KEY || 'default-key-change-me-in-production';
+// Encryption key from environment (must match decryption key!)
+const ENCRYPTION_KEY = process.env.AGENT_WALLET_ENCRYPTION_KEY;
 
 function encryptPrivateKey(privateKey: string): { encrypted: string; iv: string; tag: string } {
   const key = crypto.createHash('sha256').update(ENCRYPTION_KEY).digest();

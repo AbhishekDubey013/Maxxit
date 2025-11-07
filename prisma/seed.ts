@@ -33,3 +33,4 @@ seed()
     await prisma.$disconnect();
   });
 
+
