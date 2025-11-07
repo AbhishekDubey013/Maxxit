@@ -6,10 +6,10 @@
 const { spawn } = require('child_process');
 
 // Environment variable-based intervals with defaults
-const TWEET_INGESTION_INTERVAL = parseInt(process.env.TWEET_INGESTION_INTERVAL || '1800000'); // 30 mins (was 5 mins)
-const SIGNAL_GENERATION_INTERVAL = parseInt(process.env.SIGNAL_GENERATION_INTERVAL || '300000'); // 5 mins (was 1 min)
-const TRADE_EXECUTION_INTERVAL = parseInt(process.env.TRADE_EXECUTION_INTERVAL || '60000'); // 1 min (was 30 sec)
-const POSITION_MONITOR_INTERVAL = parseInt(process.env.POSITION_MONITOR_INTERVAL || '300000'); // 5 mins (was 1 min)
+const TWEET_INGESTION_INTERVAL = parseInt(process.env.TWEET_INGESTION_INTERVAL || '300000'); // 5 mins
+const SIGNAL_GENERATION_INTERVAL = parseInt(process.env.SIGNAL_GENERATION_INTERVAL || '60000'); // 1 min
+const TRADE_EXECUTION_INTERVAL = parseInt(process.env.TRADE_EXECUTION_INTERVAL || '30000'); // 30 sec
+const POSITION_MONITOR_INTERVAL = parseInt(process.env.POSITION_MONITOR_INTERVAL || '60000'); // 1 min
 
 const workers = [
   { name: 'Tweet Ingestion', script: 'workers/tweet-ingestion-worker.ts', interval: TWEET_INGESTION_INTERVAL },
