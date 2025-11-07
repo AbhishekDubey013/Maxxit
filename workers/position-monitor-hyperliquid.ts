@@ -119,26 +119,44 @@ export async function monitorHyperliquidPositions() {
               });
             }
 
-            dbPosition = await prisma.positions.create({
-              data: {
-                deployment_id: deployment.id,
-                signal_id: signal.id,
-                venue: 'HYPERLIQUID',
-                token_symbol: symbol,
-                side: side,
-                qty: size,
-                entry_price: entryPrice,
-                source: 'auto-discovered',
-                trailing_params: {
-                  enabled: true,
-                  trailingPercent: 1,
-                  highestPrice: side === 'LONG' ? entryPrice : undefined,
-                  lowestPrice: side === 'SHORT' ? entryPrice : undefined,
+            try {
+              dbPosition = await prisma.positions.create({
+                data: {
+                  deployment_id: deployment.id,
+                  signal_id: signal.id,
+                  venue: 'HYPERLIQUID',
+                  token_symbol: symbol,
+                  side: side,
+                  qty: size,
+                  entry_price: entryPrice,
+                  source: 'auto-discovered',
+                  trailing_params: {
+                    enabled: true,
+                    trailingPercent: 1,
+                    highestPrice: side === 'LONG' ? entryPrice : undefined,
+                    lowestPrice: side === 'SHORT' ? entryPrice : undefined,
+                  }
                 }
+              });
+              console.log(`     ✅ Created DB record: ${dbPosition.id.substring(0, 8)}...`);
+            } catch (error: any) {
+              if (error.code === 'P2002') {
+                // Duplicate - position already exists (race condition), fetch it
+                console.log(`     ⚠️  Position already exists (race condition), fetching...`);
+                dbPosition = await prisma.positions.findFirst({
+                  where: {
+                    deployment_id: deployment.id,
+                    signal_id: signal.id,
+                  }
+                });
+                if (!dbPosition) {
+                  console.error(`     ❌ Could not find position after duplicate error`);
+                  continue;
+                }
+              } else {
+                throw error;
               }
-            });
-
-            console.log(`     ✅ Created DB record: ${dbPosition.id.substring(0, 8)}...`);
+            }
           } else {
             console.log(`     ✅ Found in DB: ${dbPosition.id.substring(0, 8)}...`);
           }
