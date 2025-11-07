@@ -739,14 +739,14 @@ export class TradeExecutor {
    */
   private async executeHyperliquidTrade(ctx: ExecutionContext): Promise<ExecutionResult> {
     try {
-      // Get agent private key for Hyperliquid trading
-      const { getAgentPrivateKey } = await import('../pages/api/hyperliquid/register-agent');
-      const agentPrivateKey = await getAgentPrivateKey(ctx.deployment.id);
+      // Get agent private key from wallet pool (NO decryption needed!)
+      const { getPrivateKeyForAddress } = await import('./wallet-pool');
+      const agentPrivateKey = await getPrivateKeyForAddress(ctx.deployment.hyperliquid_agent_address);
       
       if (!agentPrivateKey) {
         return {
           success: false,
-          error: 'Hyperliquid agent wallet not registered. Please run setup first.',
+          error: 'Hyperliquid agent wallet not found in pool. Please reconnect.',
           reason: 'Agent wallet required for Hyperliquid trading',
         };
       }
