@@ -320,7 +320,7 @@ async function handleStatusCommand(chatId: number, deploymentId: string) {
         signal: true
       },
       orderBy: {
-        openedAt: 'desc'
+        opened_at: 'desc'
       }
     });
 

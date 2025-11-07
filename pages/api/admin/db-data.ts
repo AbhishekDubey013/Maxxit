@@ -66,7 +66,7 @@ export default async function handler(
       case 'Position':
         data = await prisma.position.findMany({
           take: 100,
-          orderBy: { openedAt: 'desc' },
+          orderBy: { opened_at: 'desc' },
           include: {
             signal: {
               select: {

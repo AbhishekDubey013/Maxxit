@@ -24,7 +24,7 @@ export default async function handler(
         deploymentId: '35c4f2d1-318c-420a-b3b0-abbd8bf847ff',
       },
       orderBy: {
-        openedAt: 'desc',
+        opened_at: 'desc',
       },
       take: 5,
     });

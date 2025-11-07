@@ -57,7 +57,7 @@ export default function Creator() {
             const [positionsData, billingData] = await Promise.all([
               db.get('positions', {
                 'deploymentId': `in.(${deploymentIds.join(',')})`,
-                'order': 'openedAt.desc',
+                'order': 'opened_at.desc',
                 'limit': '10',
                 'select': '*',
               }),

@@ -24,7 +24,7 @@ export default async function handler(
         agentId,
       },
       orderBy: {
-        openedAt: 'desc',
+        opened_at: 'desc',
       },
       include: {
         signal: {
