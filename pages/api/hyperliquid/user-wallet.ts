@@ -100,6 +100,38 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
     }
 
+    // DELETE - Remove user's agent wallet (for reset/regenerate)
+    if (req.method === 'DELETE') {
+      const { userAddress } = req.body;
+
+      if (!userAddress) {
+        return res.status(400).json({ error: 'userAddress required' });
+      }
+
+      const normalizedAddress = userAddress.toLowerCase();
+
+      // Delete from user_hyperliquid_wallets
+      await prisma.user_hyperliquid_wallets.deleteMany({
+        where: { user_wallet: normalizedAddress },
+      });
+
+      // Clear from wallet_pool
+      await prisma.$executeRaw`
+        DELETE FROM wallet_pool WHERE assigned_to_user_wallet = ${normalizedAddress}
+      `;
+
+      // Clear agent address from deployments
+      await prisma.agent_deployments.updateMany({
+        where: { user_wallet: normalizedAddress },
+        data: { hyperliquid_agent_address: null },
+      });
+
+      return res.status(200).json({ 
+        success: true,
+        message: 'Agent wallet deleted successfully' 
+      });
+    }
+
     return res.status(405).json({ error: 'Method not allowed' });
   } catch (error: any) {
     console.error('[HyperliquidUserWallet] Error:', error);
