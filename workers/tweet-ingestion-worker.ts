@@ -102,7 +102,29 @@ async function ingestTweets() {
 
       for (const tweet of tweets) {
         try {
-          // Classify tweet using LLM
+          // Quick pre-filter: Skip obvious non-signals to save LLM API calls
+          const hasToken = /\$[A-Z]{2,10}\b|BTC|ETH|SOL|AVAX|ARB|OP|MATIC|LINK|UNI|AAVE/i.test(tweet.tweetText);
+          const isShortNonSignal = tweet.tweetText.length < 30 && !hasToken;
+          const isCommonChatter = /^(gm|gn|good morning|good night|hello|hi|hey|wagmi|lfg|lets go|thank you|thanks)$/i.test(tweet.tweetText.trim());
+          
+          if (isShortNonSignal || isCommonChatter) {
+            console.log(`[${account.x_username}] ⏭️  Skipping obvious non-signal: "${tweet.tweetText.substring(0, 30)}..."`);
+            // Still save it but mark as not a signal candidate
+            await prisma.ct_posts.create({
+              data: {
+                ct_account_id: account.id,
+                tweet_id: tweet.tweetId,
+                tweet_text: tweet.tweetText,
+                tweet_created_at: tweet.tweetCreatedAt,
+                is_signal_candidate: false,
+                extracted_tokens: [],
+              },
+            });
+            createdCount++;
+            continue;
+          }
+          
+          // Classify tweet using LLM (only if it passes pre-filter)
           console.log(`[${account.x_username}] Classifying tweet: "${tweet.tweetText.substring(0, 50)}..."`);
           const classification = await classifyTweet(tweet.tweetText);
           
