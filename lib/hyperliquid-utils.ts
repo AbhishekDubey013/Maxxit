@@ -3,8 +3,10 @@
  * Helper functions for interacting with Hyperliquid positions and prices
  */
 
-import { getAgentPrivateKey } from '../pages/api/hyperliquid/register-agent';
+import { PrismaClient } from '@prisma/client';
+import { getPrivateKeyForAddress } from './wallet-pool';
 
+const prisma = new PrismaClient();
 const HYPERLIQUID_SERVICE_URL = process.env.HYPERLIQUID_SERVICE_URL || 'http://localhost:5001';
 
 export interface HyperliquidPosition {
@@ -106,11 +108,21 @@ export async function closeHyperliquidPosition(params: {
   size?: number; // Optional - if not provided, closes full position
 }): Promise<{ success: boolean; result?: any; error?: string }> {
   try {
-    // Get agent private key for this deployment
-    const agentPrivateKey = await getAgentPrivateKey(params.deploymentId);
+    // Get deployment with agent address
+    const deployment = await prisma.agent_deployments.findUnique({
+      where: { id: params.deploymentId },
+      select: { hyperliquid_agent_address: true }
+    });
+    
+    if (!deployment?.hyperliquid_agent_address) {
+      throw new Error('Hyperliquid agent wallet not registered. Please run setup first.');
+    }
+    
+    // Get agent private key from wallet pool (NO decryption!)
+    const agentPrivateKey = await getPrivateKeyForAddress(deployment.hyperliquid_agent_address);
     
     if (!agentPrivateKey) {
-      throw new Error('Hyperliquid agent wallet not registered. Please run setup first.');
+      throw new Error('Hyperliquid agent private key not found in wallet pool.');
     }
 
     const response = await fetch(`${HYPERLIQUID_SERVICE_URL}/close-position`, {
