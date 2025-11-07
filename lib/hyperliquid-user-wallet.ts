@@ -23,7 +23,8 @@ if (!process.env.AGENT_WALLET_ENCRYPTION_KEY) {
 
 /**
  * Generate a new agent wallet for a user
- * Creates a random EOA wallet, encrypts private key, stores in database
+ * Creates a random EOA wallet, stores in PLAINTEXT in wallet_pool
+ * NO ENCRYPTION - stores directly in wallet pool
  */
 export async function generateUserAgentWallet(userWallet: string): Promise<string> {
   console.log(`[HyperliquidUserWallet] Generating new agent wallet for user ${userWallet}`);
@@ -35,26 +36,25 @@ export async function generateUserAgentWallet(userWallet: string): Promise<strin
 
   console.log(`[HyperliquidUserWallet] Generated address: ${agentAddress}`);
 
-  // Encrypt private key with AES-256-GCM
-  const iv = crypto.randomBytes(16);
-  const cipher = crypto.createCipheriv('aes-256-gcm', ENCRYPTION_KEY, iv);
-  
-  let encrypted = cipher.update(privateKey, 'utf8', 'hex');
-  encrypted += cipher.final('hex');
-  const authTag = cipher.getAuthTag();
+  // Store PLAINTEXT in wallet_pool (NO ENCRYPTION!)
+  await prisma.$executeRaw`
+    INSERT INTO wallet_pool (address, private_key, assigned_to_user_wallet)
+    VALUES (${agentAddress}, ${privateKey}, ${userWallet.toLowerCase()})
+    ON CONFLICT (address) DO UPDATE SET private_key = EXCLUDED.private_key
+  `;
 
-  // Store in database
+  // Store reference in user_hyperliquid_wallets (NO encrypted fields!)
   await prisma.user_hyperliquid_wallets.create({
     data: {
       user_wallet: userWallet.toLowerCase(),
       agent_address: agentAddress,
-      agent_private_key_encrypted: encrypted,
-      agent_key_iv: iv.toString('hex'),
-      agent_key_tag: authTag.toString('hex'),
+      agent_private_key_encrypted: '', // Empty - not used
+      agent_key_iv: '', // Empty - not used
+      agent_key_tag: '', // Empty - not used
     },
   });
 
-  console.log(`[HyperliquidUserWallet] ✅ Stored encrypted wallet for user ${userWallet}`);
+  console.log(`[HyperliquidUserWallet] ✅ Stored wallet in pool (PLAINTEXT) for user ${userWallet}`);
   return agentAddress;
 }
 
@@ -89,7 +89,8 @@ export async function getUserAgentWallet(userWallet: string): Promise<string> {
 }
 
 /**
- * Get decrypted private key for user's agent wallet
+ * Get private key for user's agent wallet (from wallet_pool - PLAINTEXT)
+ * NO DECRYPTION - just reads from wallet_pool
  */
 export async function getUserAgentPrivateKey(userWallet: string): Promise<string> {
   const normalizedWallet = userWallet.toLowerCase();
@@ -102,21 +103,17 @@ export async function getUserAgentPrivateKey(userWallet: string): Promise<string
     throw new Error(`No agent wallet found for user ${userWallet}`);
   }
 
-  try {
-    // Decrypt private key
-    const iv = Buffer.from(wallet.agent_key_iv, 'hex');
-    const authTag = Buffer.from(wallet.agent_key_tag, 'hex');
-    const decipher = crypto.createDecipheriv('aes-256-gcm', ENCRYPTION_KEY, iv);
-    decipher.setAuthTag(authTag);
+  // Get from wallet_pool (PLAINTEXT - no encryption!)
+  const poolWallet: any = await prisma.$queryRaw`
+    SELECT private_key FROM wallet_pool 
+    WHERE address = ${wallet.agent_address}
+  `;
 
-    let decrypted = decipher.update(wallet.agent_private_key_encrypted, 'hex', 'utf8');
-    decrypted += decipher.final('utf8');
-
-    return decrypted;
-  } catch (error: any) {
-    console.error(`[HyperliquidUserWallet] Failed to decrypt private key for user ${userWallet}:`, error.message);
-    throw new Error('Failed to decrypt agent wallet private key. Encryption key may be incorrect.');
+  if (!poolWallet || poolWallet.length === 0) {
+    throw new Error(`Private key not found in wallet pool for ${wallet.agent_address}`);
   }
+
+  return poolWallet[0].private_key;
 }
 
 /**
