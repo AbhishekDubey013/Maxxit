@@ -1,0 +1,18 @@
+INFO:__main__:🌐 Running on TESTNET
+INFO:__main__:📡 Base URL: https://api.hyperliquid-testnet.xyz
+ * Serving Flask app 'hyperliquid-service'
+ * Debug mode: off
+INFO:werkzeug:[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5001
+ * Running on http://192.168.1.22:5001
+INFO:werkzeug:[33mPress CTRL+C to quit[0m
+INFO:werkzeug:127.0.0.1 - - [07/Nov/2025 19:33:03] "POST /market-info HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [07/Nov/2025 19:33:04] "POST /balance HTTP/1.1" 200 -
+INFO:__main__:Agent trading on behalf of vault: 0xa10846a81528d429b50b0dcbf8968938a572fac5
+WARNING:__main__:⚠️  Attempting trade for 0xa10846a81528d429b50b0dcbf8968938a572fac5 with agent 0x5C8991d871A79ABC221B445e1121Dd75EAB44B11
+WARNING:__main__:⚠️  If agent is not approved, trade will be REJECTED by Hyperliquid
+INFO:__main__:Rounded size from 181.41531425050414 to 181.4 (1 decimals)
+INFO:__main__:Order placed: {'status': 'err', 'response': 'User or API Wallet 0x5c8991d871a79abc221b445e1121dd75eab44b11 does not exist.'}
+ERROR:__main__:Error opening position: 'str' object has no attribute 'get'
+INFO:werkzeug:127.0.0.1 - - [07/Nov/2025 19:33:06] "[35m[1mPOST /open-position HTTP/1.1[0m" 500 -

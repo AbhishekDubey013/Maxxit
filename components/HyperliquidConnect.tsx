@@ -126,6 +126,39 @@ export function HyperliquidConnect({
     }
   };
 
+  const resetConnection = async () => {
+    if (!confirm('This will delete your current agent wallet and generate a new one. You will need to approve it again on Hyperliquid. Continue?')) {
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+
+    try {
+      // Delete the user's agent wallet
+      const deleteResponse = await fetch('/api/hyperliquid/user-wallet', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userAddress: userWallet }),
+      });
+
+      if (!deleteResponse.ok) {
+        throw new Error('Failed to delete old wallet');
+      }
+
+      // Reset state and restart flow
+      setAgentAddress('');
+      setStep('connect');
+      
+      console.log('✅ Connection reset. Click "Connect Wallet" to generate a new agent.');
+    } catch (err: any) {
+      console.error('Reset error:', err);
+      setError(err.message || 'Failed to reset connection');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const markAsApproved = async () => {
     if (!userWallet) {
       setError('Please connect your wallet first');
@@ -344,9 +377,19 @@ export function HyperliquidConnect({
                       )}
                     </button>
                   </div>
-                  <p className="mt-2 text-xs text-purple-700 dark:text-purple-300 bg-purple-100 dark:bg-purple-900/30 rounded p-2">
-                    🔒 This agent is unique to you. Private key is encrypted on our backend.
-                  </p>
+                  <div className="mt-2 flex items-center justify-between">
+                    <p className="text-xs text-purple-700 dark:text-purple-300 bg-purple-100 dark:bg-purple-900/30 rounded p-2 flex-1">
+                      🔒 This agent is unique to you. Private key stored securely.
+                    </p>
+                    <button
+                      onClick={resetConnection}
+                      disabled={loading}
+                      className="ml-2 text-xs text-red-600 dark:text-red-400 hover:underline disabled:opacity-50"
+                      title="Generate a new agent wallet"
+                    >
+                      Reset
+                    </button>
+                  </div>
                 </div>
 
                 {/* Instructions */}
