@@ -63,7 +63,7 @@ export default function Creator() {
               }),
               db.get('billing_events', {
                 'deploymentId': `in.(${deploymentIds.join(',')})`,
-                'order': 'occurredAt.desc',
+                'order': 'occurred_at.desc',
                 'limit': '20',
                 'select': '*',
               })
