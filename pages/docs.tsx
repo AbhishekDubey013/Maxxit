@@ -19,6 +19,7 @@ export default function DocsPage() {
     { id: 'billing', title: 'Billing & Fees', icon: DollarSign },
     { id: 'wallets', title: 'Safe Wallets', icon: Shield },
     { id: 'trading', title: 'Trading System', icon: Wallet },
+    { id: 'hyperliquid', title: 'Hyperliquid Integration', icon: Zap },
     { id: 'risks', title: 'Risks & Disclaimers', icon: AlertTriangle },
   ];
 
@@ -851,6 +852,231 @@ export default function DocsPage() {
                         <li>✓ Real-time monitoring 24/7 with instant execution</li>
                         <li>✓ Adaptive exit strategies for different market regimes</li>
                       </ul>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </section>
+
+            {/* Hyperliquid Integration */}
+            <section id="hyperliquid">
+              <Card className="border-blue-200 dark:border-blue-800">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-blue-600 dark:text-blue-400">
+                    <Zap className="h-5 w-5" />
+                    Hyperliquid Integration
+                  </CardTitle>
+                  <CardDescription>Non-custodial perpetual trading with agent delegation</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <p className="text-foreground">
+                    Maxxit now supports <strong>Hyperliquid</strong>, a high-performance perpetual DEX, using an innovative 
+                    <strong> agent delegation model</strong>. Trade with leverage while maintaining 100% custody of your funds.
+                  </p>
+                  
+                  <div className="bg-blue-50 dark:bg-blue-950/20 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
+                    <h4 className="font-semibold mb-2 flex items-center gap-2">
+                      <Lock className="h-4 w-4" />
+                      Agent Delegation Model
+                    </h4>
+                    <p className="text-sm text-muted-foreground mb-3">
+                      Unlike traditional copy trading where you transfer funds to a platform, Hyperliquid's delegation 
+                      allows agents to <strong>trade on your behalf</strong> while funds remain in <strong>your wallet</strong>.
+                    </p>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex gap-2">
+                        <span className="text-green-600 font-semibold">✓</span>
+                        <span>Your funds stay in YOUR Hyperliquid wallet</span>
+                      </div>
+                      <div className="flex gap-2">
+                        <span className="text-green-600 font-semibold">✓</span>
+                        <span>Agent can only trade, cannot withdraw funds</span>
+                      </div>
+                      <div className="flex gap-2">
+                        <span className="text-green-600 font-semibold">✓</span>
+                        <span>Revoke agent access anytime on Hyperliquid</span>
+                      </div>
+                      <div className="flex gap-2">
+                        <span className="text-green-600 font-semibold">✓</span>
+                        <span>All trades visible on Hyperliquid blockchain</span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-3">
+                    <h4 className="font-semibold">How It Works</h4>
+                    <div className="space-y-4">
+                      <div className="flex gap-3">
+                        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-semibold">
+                          1
+                        </div>
+                        <div>
+                          <h5 className="font-semibold text-sm">Connect Hyperliquid Wallet</h5>
+                          <p className="text-sm text-muted-foreground">
+                            Connect your Hyperliquid wallet (via MetaMask or other Web3 wallet) and deposit USDC. 
+                            Your funds remain in your wallet at all times.
+                          </p>
+                        </div>
+                      </div>
+                      
+                      <div className="flex gap-3">
+                        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-semibold">
+                          2
+                        </div>
+                        <div>
+                          <h5 className="font-semibold text-sm">Deploy Agent</h5>
+                          <p className="text-sm text-muted-foreground">
+                            Select a Hyperliquid-compatible agent from the marketplace. Maxxit creates a dedicated agent wallet 
+                            (stored encrypted) that will execute trades on your behalf.
+                          </p>
+                        </div>
+                      </div>
+                      
+                      <div className="flex gap-3">
+                        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-semibold">
+                          3
+                        </div>
+                        <div>
+                          <h5 className="font-semibold text-sm">Approve Agent (One-Time)</h5>
+                          <p className="text-sm text-muted-foreground">
+                            Sign a transaction on Hyperliquid approving the agent to trade on your behalf. This grants the agent 
+                            permission to open/close positions but <strong>NOT to withdraw funds</strong>.
+                          </p>
+                        </div>
+                      </div>
+                      
+                      <div className="flex gap-3">
+                        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-semibold">
+                          4
+                        </div>
+                        <div>
+                          <h5 className="font-semibold text-sm">Automated Trading Begins</h5>
+                          <p className="text-sm text-muted-foreground">
+                            The agent monitors market signals and executes perpetual trades (BTC, ETH, SOL, etc.) with leverage 
+                            directly from your wallet. You can revoke agent access anytime on Hyperliquid.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <Separator />
+                  
+                  <div className="space-y-3">
+                    <h4 className="font-semibold">Advanced Features</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div className="p-4 border rounded-md">
+                        <h5 className="font-semibold mb-2">📊 Auto Position Discovery</h5>
+                        <p className="text-sm text-muted-foreground">
+                          System automatically detects positions opened outside Maxxit and creates tracking records. 
+                          Even manual trades on Hyperliquid get monitored for trailing stops.
+                        </p>
+                      </div>
+                      
+                      <div className="p-4 border rounded-md">
+                        <h5 className="font-semibold mb-2">🎯 Trailing Stops (1%)</h5>
+                        <p className="text-sm text-muted-foreground">
+                          All positions monitored with configurable trailing stops. Default 1% trailing stop activates 
+                          after +3% profit to lock in gains while letting winners run.
+                        </p>
+                      </div>
+                      
+                      <div className="p-4 border rounded-md">
+                        <h5 className="font-semibold mb-2">🔒 Race Prevention</h5>
+                        <p className="text-sm text-muted-foreground">
+                          Database locks and idempotent operations prevent duplicate close attempts. Monitor instance 
+                          locking ensures only one process monitors positions at a time.
+                        </p>
+                      </div>
+                      
+                      <div className="p-4 border rounded-md">
+                        <h5 className="font-semibold mb-2">🔄 Self-Healing Sync</h5>
+                        <p className="text-sm text-muted-foreground">
+                          System automatically reconciles DB state with Hyperliquid if positions closed externally. 
+                          No manual intervention needed to keep records accurate.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <Separator />
+                  
+                  <div className="bg-green-50 dark:bg-green-950/20 p-4 rounded-lg border border-green-200 dark:border-green-800">
+                    <h4 className="font-semibold mb-2">⚡ Performance Stats</h4>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                      <div>
+                        <div className="text-2xl font-bold text-green-600">~2s</div>
+                        <div className="text-xs text-muted-foreground">Position Discovery</div>
+                      </div>
+                      <div>
+                        <div className="text-2xl font-bold text-green-600">~5s</div>
+                        <div className="text-xs text-muted-foreground">Trade Execution</div>
+                      </div>
+                      <div>
+                        <div className="text-2xl font-bold text-green-600">30s</div>
+                        <div className="text-xs text-muted-foreground">Monitor Cycle</div>
+                      </div>
+                      <div>
+                        <div className="text-2xl font-bold text-green-600">100%</div>
+                        <div className="text-xs text-muted-foreground">Idempotent Ops</div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="bg-purple-50 dark:bg-purple-950/20 p-4 rounded-lg border border-purple-200 dark:border-purple-800">
+                    <h4 className="font-semibold mb-2">💰 Hyperliquid Profit Sharing</h4>
+                    <p className="text-sm text-muted-foreground mb-3">
+                      Same transparent fee model applies to Hyperliquid trades. 10% profit share collected automatically 
+                      after closing profitable positions using Hyperliquid's internal USDC transfer system.
+                    </p>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Agent creator share:</span>
+                        <span className="font-semibold">10% of profits</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">You keep:</span>
+                        <span className="font-semibold text-green-600">90% of profits</span>
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-2">
+                        No withdrawal needed - profits stay in your Hyperliquid wallet
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="bg-yellow-50 dark:bg-yellow-950/20 p-4 rounded-lg border border-yellow-200 dark:border-yellow-800">
+                    <h4 className="font-semibold mb-2 flex items-center gap-2">
+                      <AlertTriangle className="h-4 w-4" />
+                      Hyperliquid-Specific Risks
+                    </h4>
+                    <ul className="space-y-1 text-sm text-muted-foreground">
+                      <li>• <strong>Leverage Risk:</strong> Perpetuals use leverage which amplifies both gains and losses</li>
+                      <li>• <strong>Liquidation Risk:</strong> Positions can be liquidated if collateral falls below maintenance margin</li>
+                      <li>• <strong>Funding Rates:</strong> Long/short positions pay periodic funding fees based on market imbalance</li>
+                      <li>• <strong>Market Volatility:</strong> 24/7 trading with high leverage can result in rapid losses</li>
+                      <li>• <strong>Agent Delegation:</strong> Ensure you trust the agent before approving on Hyperliquid</li>
+                    </ul>
+                  </div>
+                  
+                  <div className="bg-muted p-4 rounded-lg">
+                    <h4 className="font-semibold mb-2">📚 Learn More</h4>
+                    <div className="space-y-2 text-sm">
+                      <div>
+                        <a href="https://hyperliquid.xyz" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                          Hyperliquid Official Site →
+                        </a>
+                      </div>
+                      <div>
+                        <a href="https://app.hyperliquid.xyz" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                          Trade on Hyperliquid →
+                        </a>
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-2">
+                          For technical documentation on our Hyperliquid integration, see our{' '}
+                        <a href="https://github.com/your-repo/HYPERLIQUID_INTEGRATION.md" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                          GitHub documentation
+                        </a>
+                      </div>
                     </div>
                   </div>
                 </CardContent>
