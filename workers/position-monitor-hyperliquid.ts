@@ -214,7 +214,7 @@ export async function monitorHyperliquidPositions() {
                     closed_at: null,
                   },
                   orderBy: {
-                    created_at: 'desc'
+                    opened_at: 'desc'
                   }
                 });
                 
