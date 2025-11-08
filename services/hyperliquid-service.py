@@ -304,10 +304,16 @@ def close_position():
                 break
         
         if not current_position:
+            logger.info(f"No open position found for {coin} - position may have already been closed")
+            # Return success with a message instead of error
+            # This makes the operation idempotent
             return jsonify({
-                "success": False,
-                "error": f"No open position found for {coin}"
-            }), 400
+                "success": True,
+                "result": {
+                    "status": "already_closed",
+                    "message": f"No open position found for {coin} - may have been closed already"
+                }
+            })
         
         # Determine if current position is long or short
         current_size = float(current_position.get("szi", 0))
@@ -669,31 +675,36 @@ def approve_agent_signature():
 @app.route('/transfer', methods=['POST'])
 def transfer():
     """
-    Transfer USDC from user wallet to agent wallet on Hyperliquid
+    Transfer USDC on Hyperliquid
+    Supports both direct transfer and agent delegation
     """
     try:
         data = request.json
-        user_private_key = data.get('userPrivateKey')
+        agent_private_key = data.get('agentPrivateKey')  # Agent's key
         to_address = data.get('toAddress')
         amount = data.get('amount')
+        vault_address = data.get('vaultAddress')  # Optional: user's wallet for delegation
         
-        if not all([user_private_key, to_address, amount]):
+        if not all([agent_private_key, to_address, amount]):
             return jsonify({
                 "success": False,
-                "error": "Missing required fields: userPrivateKey, toAddress, amount"
+                "error": "Missing required fields: agentPrivateKey, toAddress, amount"
             }), 400
         
-        # Create exchange instance for user
-        user_account = Account.from_key(user_private_key)
-        user_exchange = Exchange(user_account, base_url=BASE_URL)
+        # Create exchange instance for agent (with optional vault delegation)
+        exchange = get_exchange_for_agent(agent_private_key, vault_address)
         
-        logger.info(f"Transferring ${amount} USDC from {user_account.address} to {to_address}")
+        agent_account = Account.from_key(agent_private_key)
+        from_address = vault_address if vault_address else agent_account.address
         
-        # Execute transfer (using internal transfer on Hyperliquid)
-        # Note: Hyperliquid has an internal USDC ledger for trading
-        result = user_exchange.transfer(
-            amount=float(amount),
-            destination=to_address
+        logger.info(f"Transferring ${amount} USDC from {from_address} to {to_address}")
+        if vault_address:
+            logger.info(f"  (Agent {agent_account.address} acting on behalf of user)")
+        
+        # Execute transfer using Hyperliquid's internal USDC ledger
+        result = exchange.usd_transfer(
+            destination=to_address,
+            amount=float(amount)
         )
         
         logger.info(f"Transfer result: {result}")
@@ -701,7 +712,7 @@ def transfer():
         return jsonify({
             "success": True,
             "result": result,
-            "from": user_account.address,
+            "from": from_address,
             "to": to_address,
             "amount": float(amount),
             "message": "Transfer completed successfully"

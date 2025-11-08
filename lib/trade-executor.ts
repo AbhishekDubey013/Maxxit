@@ -858,6 +858,45 @@ export class TradeExecutor {
    */
   async closePosition(positionId: string): Promise<ExecutionResult> {
     try {
+      // STEP 1: Acquire lock by updating position with "closing" status
+      // This prevents race conditions when multiple monitors try to close the same position
+      const lockResult = await prisma.positions.updateMany({
+        where: { 
+          id: positionId,
+          closed_at: null, // Only lock if not already closed
+        },
+        data: {
+          // Use a special field to mark as "closing in progress"
+          // This is safer than relying on closed_at alone
+          metadata: {
+            closing: true,
+            closingStartedAt: new Date().toISOString(),
+          }
+        }
+      });
+
+      // If no rows updated, position is already closed or being closed
+      if (lockResult.count === 0) {
+        const existingPosition = await prisma.positions.findUnique({
+          where: { id: positionId },
+        });
+        
+        if (existingPosition?.closed_at) {
+          console.log(`[TradeExecutor] Position ${positionId} already closed at ${existingPosition.closed_at.toISOString()}`);
+          return {
+            success: true, // Return success, not error
+            positionId,
+          };
+        }
+        
+        console.log(`[TradeExecutor] Position ${positionId} is being closed by another process`);
+        return {
+          success: true, // Return success to avoid retries
+          positionId,
+        };
+      }
+
+      // STEP 2: Now fetch the position with lock acquired
       const position = await prisma.positions.findUnique({
         where: { id: positionId },
         include: {
@@ -873,13 +912,6 @@ export class TradeExecutor {
         return {
           success: false,
           error: 'Position not found',
-        };
-      }
-
-      if (position.closed_at) {
-        return {
-          success: false,
-          error: `Position already closed at ${position.closed_at.toISOString()}`,
         };
       }
 
@@ -1104,6 +1136,154 @@ export class TradeExecutor {
   }
 
   /**
+   * Calculate and collect fees from Hyperliquid trades
+   * Supports multiple fee models via environment variables
+   */
+  private async collectHyperliquidFees(params: {
+    deploymentId: string;
+    userAddress: string;
+    pnl: number;
+    positionSize: number;
+  }): Promise<void> {
+    const feeModel = process.env.HYPERLIQUID_FEE_MODEL || 'PROFIT_SHARE'; // PROFIT_SHARE | FLAT | PERCENTAGE | TIERED
+    let feeAmount = 0;
+    let feeType = 'PROFIT_SHARE';
+
+    // Calculate fee based on model
+    switch (feeModel) {
+      case 'FLAT':
+        // Fixed fee per trade (e.g., $0.50)
+        feeAmount = parseFloat(process.env.HYPERLIQUID_FLAT_FEE || '0.5');
+        feeType = 'FLAT_FEE';
+        break;
+
+      case 'PERCENTAGE':
+        // Percentage of position size (e.g., 0.1%)
+        const feePercent = parseFloat(process.env.HYPERLIQUID_FEE_PERCENT || '0.1');
+        feeAmount = params.positionSize * (feePercent / 100);
+        feeType = 'POSITION_FEE';
+        break;
+
+      case 'TIERED':
+        // Tiered profit share (more profit = higher %)
+        if (params.pnl > 0) {
+          if (params.pnl >= 500) {
+            feeAmount = params.pnl * 0.15; // 15% for $500+
+          } else if (params.pnl >= 100) {
+            feeAmount = params.pnl * 0.10; // 10% for $100-$500
+          } else {
+            feeAmount = params.pnl * 0.05; // 5% for under $100
+          }
+          feeType = 'TIERED_PROFIT_SHARE';
+        }
+        break;
+
+      case 'PROFIT_SHARE':
+      default:
+        // Simple profit share (only on profits)
+        if (params.pnl > 0) {
+          const profitSharePercent = parseFloat(process.env.HYPERLIQUID_PROFIT_SHARE || '10');
+          feeAmount = params.pnl * (profitSharePercent / 100);
+          feeType = 'PROFIT_SHARE';
+        }
+        break;
+    }
+
+    // Only collect if fee is meaningful
+    if (feeAmount < 0.01) {
+      console.log(`[Fees] Fee too small ($${feeAmount.toFixed(4)}), skipping collection`);
+      return;
+    }
+
+    console.log(`[Fees] Collecting ${feeType}: $${feeAmount.toFixed(2)} (P&L: $${params.pnl.toFixed(2)})`);
+
+    try {
+      await this.collectHyperliquidFee({
+        deploymentId: params.deploymentId,
+        userAddress: params.userAddress,
+        amount: feeAmount,
+        feeType,
+      });
+    } catch (error: any) {
+      console.error('[Fees] Failed to collect fee:', error.message);
+      // Don't fail the whole close operation if fee collection fails
+    }
+  }
+
+  /**
+   * Transfer fee from user's Hyperliquid wallet to platform
+   */
+  private async collectHyperliquidFee(params: {
+    deploymentId: string;
+    userAddress: string;
+    amount: number;
+    feeType: string;
+  }): Promise<void> {
+    const HYPERLIQUID_SERVICE_URL = process.env.HYPERLIQUID_SERVICE_URL || 'http://localhost:5001';
+    const platformWallet = process.env.HYPERLIQUID_PLATFORM_WALLET || process.env.PLATFORM_FEE_RECEIVER;
+    
+    if (!platformWallet) {
+      throw new Error('HYPERLIQUID_PLATFORM_WALLET not configured');
+    }
+
+    // Get agent private key from wallet pool
+    const deployment = await prisma.agent_deployments.findUnique({
+      where: { id: params.deploymentId },
+      select: { hyperliquid_agent_address: true }
+    });
+    
+    if (!deployment?.hyperliquid_agent_address) {
+      throw new Error('Agent wallet not found for deployment');
+    }
+    
+    const { getPrivateKeyForAddress } = await import('./wallet-pool');
+    const agentPrivateKey = await getPrivateKeyForAddress(deployment.hyperliquid_agent_address);
+    
+    if (!agentPrivateKey) {
+      throw new Error('Agent private key not found');
+    }
+
+    console.log(`[ProfitShare] Transferring $${params.amount.toFixed(2)} from ${params.userAddress} to ${platformWallet}`);
+
+    // Call Hyperliquid service to transfer USDC
+    const response = await fetch(`${HYPERLIQUID_SERVICE_URL}/transfer`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        agentPrivateKey,
+        toAddress: platformWallet,
+        amount: params.amount,
+        vaultAddress: params.userAddress, // Agent acts on behalf of user
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Transfer failed');
+    }
+
+    const result = await response.json();
+    console.log(`[ProfitShare] ✅ Collected $${params.amount.toFixed(2)} - TX: ${result.result?.status}`);
+    
+    // Record the fee in database
+    await prisma.billing_events.create({
+      data: {
+        deployment_id: params.deploymentId,
+        kind: 'PROFIT_SHARE',
+        amount: params.amount.toString(),
+        asset: 'USDC',
+        status: 'COMPLETED',
+        occurred_at: new Date(),
+        metadata: {
+          platform: 'HYPERLIQUID',
+          userWallet: params.userAddress,
+          platformWallet,
+        },
+      },
+    });
+  }
+
+  /**
    * Close Hyperliquid position
    */
   private async closeHyperliquidPositionMethod(
@@ -1133,6 +1313,40 @@ export class TradeExecutor {
       });
 
       if (!result.success) {
+        // Check if error is due to position already being closed on Hyperliquid
+        const errorMsg = result.error || '';
+        const isAlreadyClosed = 
+          errorMsg.includes('No open position') || 
+          errorMsg.includes('Position not found') ||
+          errorMsg.includes('not found');
+        
+        if (isAlreadyClosed) {
+          console.log('[TradeExecutor] ⚠️  Position already closed on Hyperliquid, updating DB...');
+          
+          // Get final position state from Hyperliquid to calculate accurate P&L
+          const { getHyperliquidOpenPositions } = await import('./hyperliquid-utils');
+          const hlPositions = await getHyperliquidOpenPositions(userHyperliquidAddress);
+          const hlPosition = hlPositions.find(p => p.coin === position.token_symbol);
+          
+          // If position not found, it was closed - mark it as closed in DB
+          if (!hlPosition) {
+            await prisma.positions.update({
+              where: { id: position.id },
+              data: {
+                closed_at: new Date(),
+                exit_price: null, // Unknown exit price since we didn't close it
+                pnl: 0, // Unknown P&L
+              },
+            });
+            
+            console.log('[TradeExecutor] ✅ DB record updated - position was already closed');
+            return {
+              success: true,
+              positionId: position.id,
+            };
+          }
+        }
+        
         throw new Error(result.error || 'Failed to close position');
       }
 
@@ -1166,6 +1380,14 @@ export class TradeExecutor {
         positionId: position.id,
         pnl: pnl.toFixed(2) + ' USD',
         closePrice: result.result?.closePx,
+      });
+
+      // Collect fees based on configured model
+      await this.collectHyperliquidFees({
+        deploymentId: position.deployment_id,
+        userAddress: userHyperliquidAddress,
+        pnl,
+        positionSize: parseFloat(position.qty?.toString() || '0') * parseFloat(position.entry_price?.toString() || '0'),
       });
 
       return {
