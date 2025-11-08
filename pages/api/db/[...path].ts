@@ -110,7 +110,24 @@ function parseQuery(query: Record<string, any>) {
     } else if (key === 'order') {
       // Handle order: field.asc or field.desc.nullslast
       const orderParts = values[0].split('.');
-      const field = camelToSnake(orderParts[0]); // Convert camelCase to snake_case for Prisma
+      let field = orderParts[0];
+      
+      // Special handling for fields with numbers (camelToSnake doesn't handle these)
+      const fieldMap: Record<string, string> = {
+        'apr30d': 'apr_30d',
+        'apr90d': 'apr_90d',
+        'aprSi': 'apr_si',
+        'sharpe30d': 'sharpe_30d',
+        'sharpe90d': 'sharpe_90d',
+        'sharpeSi': 'sharpe_si',
+      };
+      
+      if (fieldMap[field]) {
+        field = fieldMap[field];
+      } else {
+        field = camelToSnake(field); // Convert camelCase to snake_case for Prisma
+      }
+      
       const direction = orderParts[1] === 'desc' ? 'desc' : 'asc';
       options.orderBy = { [field]: direction };
     } else if (key === 'limit') {
