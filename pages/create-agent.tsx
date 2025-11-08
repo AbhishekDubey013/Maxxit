@@ -344,6 +344,10 @@ export default function CreateAgent() {
         setHyperliquidAgentId(createdAgentId);
         setHyperliquidAgentName(formData.name);
         setHyperliquidModalOpen(true);
+      } else if (formData.venue === 'OSTIUM') {
+        // For Ostium, redirect to deployment page with venue param
+        console.log('Navigating to Ostium deployment:', `/deploy-agent/${createdAgentId}`);
+        window.location.href = `/deploy-agent/${createdAgentId}?venue=ostium`;
       } else {
         // For other venues (SPOT, GMX), use standard Safe wallet deployment
         console.log('Navigating to standard deployment:', `/deploy-agent/${createdAgentId}`);
@@ -528,7 +532,7 @@ export default function CreateAgent() {
               </h2>
 
               <div className="space-y-4">
-                {['SPOT', 'GMX', 'HYPERLIQUID'].map((venue) => (
+                {['SPOT', 'GMX', 'HYPERLIQUID', 'OSTIUM'].map((venue) => (
                   <label
                     key={venue}
                     className={`block p-4 border-2 rounded-lg cursor-pointer transition-colors ${
@@ -551,6 +555,7 @@ export default function CreateAgent() {
                           {venue === 'SPOT' && 'DEX spot trading (1inch/Uniswap)'}
                           {venue === 'GMX' && 'GMX perpetuals trading'}
                           {venue === 'HYPERLIQUID' && 'Hyperliquid perpetuals'}
+                          {venue === 'OSTIUM' && 'Ostium perpetuals (Arbitrum)'}
                         </p>
                       </div>
                       {formData.venue === venue && (
@@ -1137,6 +1142,8 @@ export default function CreateAgent() {
                 <Rocket className="h-5 w-5" />
                 {formData.venue === 'HYPERLIQUID' 
                   ? 'Setup Hyperliquid Agent' 
+                  : formData.venue === 'OSTIUM'
+                  ? 'Setup Ostium Agent'
                   : 'Deploy Agent & Connect Safe Wallet'}
               </button>
               

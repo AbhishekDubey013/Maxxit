@@ -3,6 +3,7 @@ import { Header } from '@components/Header';
 import GMXSetupButton from '@components/GMXSetupButton';
 import { SPOTSetupButton } from '@components/SPOTSetupButton';
 import { HyperliquidSetupButton } from '@components/HyperliquidSetupButton';
+import { OstiumSetupButton } from '@components/OstiumSetupButton';
 import { HyperliquidAgentModal } from '@components/HyperliquidAgentModal';
 import { usePrivy } from '@privy-io/react-auth';
 import { 
@@ -254,7 +255,7 @@ export default function MyDeployments() {
                     <div className="pt-4 border-t border-border">
                       <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
                         <Zap className="w-4 h-4" />
-                        {deployment.agent.venue === 'GMX' ? 'GMX Trading Setup' : deployment.agent.venue === 'HYPERLIQUID' ? 'Hyperliquid Trading Setup' : 'Trading Module Setup'}
+                        {deployment.agent.venue === 'GMX' ? 'GMX Trading Setup' : deployment.agent.venue === 'HYPERLIQUID' ? 'Hyperliquid Trading Setup' : deployment.agent.venue === 'OSTIUM' ? 'Ostium Trading Setup' : 'Trading Module Setup'}
                       </div>
                       <div className="bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-800 rounded-lg p-3 mb-3">
                         <p className="text-xs text-orange-700 dark:text-orange-300 mb-2">
@@ -271,7 +272,14 @@ export default function MyDeployments() {
                               <li>• Register agent wallet for trading</li>
                             </>
                           )}
-                          <li>• {deployment.agent.venue === 'GMX' ? 'Sign ONE transaction and you\'re ready!' : deployment.agent.venue === 'HYPERLIQUID' ? 'Sign ONE transaction and bridge USDC to start trading!' : 'Then the system will auto-setup on first trade'}</li>
+                          {deployment.agent.venue === 'OSTIUM' && (
+                            <>
+                              <li>• Connect your Arbitrum wallet</li>
+                              <li>• Generate agent wallet for trading</li>
+                              <li>• Approve agent to trade on your behalf</li>
+                            </>
+                          )}
+                          <li>• {deployment.agent.venue === 'GMX' ? 'Sign ONE transaction and you\'re ready!' : deployment.agent.venue === 'HYPERLIQUID' ? 'Sign ONE transaction and bridge USDC to start trading!' : deployment.agent.venue === 'OSTIUM' ? 'Quick setup - start trading on Arbitrum!' : 'Then the system will auto-setup on first trade'}</li>
                         </ul>
                       </div>
                       {deployment.agent.venue === 'GMX' ? (
@@ -282,6 +290,12 @@ export default function MyDeployments() {
                       ) : deployment.agent.venue === 'HYPERLIQUID' ? (
                         <HyperliquidSetupButton 
                           safeAddress={deployment.safeWallet}
+                          onSetupComplete={() => fetchDeployments()}
+                        />
+                      ) : deployment.agent.venue === 'OSTIUM' ? (
+                        <OstiumSetupButton 
+                          agentId={deployment.agentId}
+                          agentName={deployment.agent.name}
                           onSetupComplete={() => fetchDeployments()}
                         />
                       ) : (
