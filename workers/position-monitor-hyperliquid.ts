@@ -9,6 +9,7 @@
 import { PrismaClient } from '@prisma/client';
 import { TradeExecutor } from '../lib/trade-executor';
 import { getHyperliquidOpenPositions, getHyperliquidMarketPrice } from '../lib/hyperliquid-utils';
+import { updateMetricsForDeployment } from '../lib/metrics-updater';
 import { calculatePnL } from '../lib/price-oracle';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -384,6 +385,11 @@ export async function monitorHyperliquidPositions() {
               if (result.success) {
                 totalPositionsClosed++;
                 console.log(`     ✅ Position closed! P&L: $${pnlUSD.toFixed(2)} (${closeReason})\n`);
+                
+                // Update agent APR metrics automatically (non-blocking)
+                updateMetricsForDeployment(deployment.id).catch(err => {
+                  console.error('     ⚠️  Warning: Failed to update metrics:', err.message);
+                });
               } else {
                 // Don't log as error if position was already closed
                 if (result.error?.includes('already closed')) {

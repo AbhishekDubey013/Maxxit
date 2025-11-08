@@ -12,6 +12,7 @@ import { createHyperliquidAdapter, HyperliquidAdapter } from './adapters/hyperli
 import { SafeModuleService, createSafeModuleService } from './safe-module-service';
 import { createSafeTransactionService } from './safe-transaction-service';
 import { closeHyperliquidPosition } from './hyperliquid-utils';
+import { updateMetricsForDeployment } from './metrics-updater';
 import { ethers } from 'ethers';
 
 const prisma = new PrismaClient();
@@ -1409,6 +1410,11 @@ export class TradeExecutor {
         userAddress: userHyperliquidAddress,
         pnl,
         positionSize: parseFloat(position.qty?.toString() || '0') * parseFloat(position.entry_price?.toString() || '0'),
+      });
+
+      // Update agent APR metrics automatically (non-blocking)
+      updateMetricsForDeployment(position.deployment_id).catch(err => {
+        console.error('[TradeExecutor] Warning: Failed to update metrics:', err.message);
       });
 
       return {
