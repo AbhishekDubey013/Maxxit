@@ -53,22 +53,41 @@ export async function updateAgentMetrics(agentId: string): Promise<MetricsUpdate
     const positions30d = positions.filter(p => p.closed_at && p.closed_at >= thirtyDaysAgo);
     const positions90d = positions.filter(p => p.closed_at && p.closed_at >= ninetyDaysAgo);
 
-    // Calculate total PnL
+    // Calculate total PnL for each period
     const totalPnl30d = positions30d.reduce((sum, p) => sum + parseFloat(p.pnl?.toString() || '0'), 0);
     const totalPnl90d = positions90d.reduce((sum, p) => sum + parseFloat(p.pnl?.toString() || '0'), 0);
     const totalPnlSi = positions.reduce((sum, p) => sum + parseFloat(p.pnl?.toString() || '0'), 0);
 
-    // Simplified APR calculation (assuming $1000 initial capital)
-    const initialCapital = 1000;
-    const apr30d = (totalPnl30d / initialCapital) * (365 / 30) * 100;
-    const apr90d = (totalPnl90d / initialCapital) * (365 / 90) * 100;
+    // Calculate ACTUAL capital deployed (entry_price × qty) for each period
+    const calculateCapitalDeployed = (positionList: typeof positions) => {
+      return positionList.reduce((sum, p) => {
+        const entryPrice = parseFloat(p.entry_price?.toString() || '0');
+        const qty = parseFloat(p.qty?.toString() || '0');
+        return sum + (entryPrice * qty);
+      }, 0);
+    };
+
+    const capitalDeployed30d = calculateCapitalDeployed(positions30d);
+    const capitalDeployed90d = calculateCapitalDeployed(positions90d);
+    const capitalDeployedSi = calculateCapitalDeployed(positions);
+
+    // APR calculation using ACTUAL deployed capital (not assumed $1000)
+    // Fallback to $1000 only if no capital was deployed (edge case)
+    const apr30d = capitalDeployed30d > 0 
+      ? (totalPnl30d / capitalDeployed30d) * (365 / 30) * 100
+      : 0;
+    const apr90d = capitalDeployed90d > 0
+      ? (totalPnl90d / capitalDeployed90d) * (365 / 90) * 100
+      : 0;
     
     // Calculate SI APR based on first position date
     const firstPosition = positions[positions.length - 1];
     const daysSinceInception = firstPosition.closed_at 
       ? Math.max(1, (now.getTime() - firstPosition.closed_at.getTime()) / (24 * 60 * 60 * 1000))
       : 1;
-    const aprSi = (totalPnlSi / initialCapital) * (365 / daysSinceInception) * 100;
+    const aprSi = capitalDeployedSi > 0
+      ? (totalPnlSi / capitalDeployedSi) * (365 / daysSinceInception) * 100
+      : 0;
 
     // Simplified Sharpe ratio (std dev approximation)
     const avgReturn = totalPnl30d / Math.max(1, positions30d.length);
@@ -96,6 +115,9 @@ export async function updateAgentMetrics(agentId: string): Promise<MetricsUpdate
       aprSi: aprSi.toFixed(2) + '%',
       sharpe30d: sharpe30d.toFixed(2),
       positionsAnalyzed: positions.length,
+      capitalDeployed30d: '$' + capitalDeployed30d.toFixed(2),
+      capitalDeployedSi: '$' + capitalDeployedSi.toFixed(2),
+      totalPnlSi: '$' + totalPnlSi.toFixed(2),
     });
 
     return {
