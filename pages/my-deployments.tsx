@@ -4,6 +4,7 @@ import GMXSetupButton from '@components/GMXSetupButton';
 import { SPOTSetupButton } from '@components/SPOTSetupButton';
 import { HyperliquidSetupButton } from '@components/HyperliquidSetupButton';
 import { HyperliquidAgentModal } from '@components/HyperliquidAgentModal';
+import { usePrivy } from '@privy-io/react-auth';
 import { 
   Wallet, 
   Activity, 
@@ -16,16 +17,6 @@ import {
   Copy,
   Zap
 } from 'lucide-react';
-
-// Extend Window interface for MetaMask
-declare global {
-  interface Window {
-    ethereum?: {
-      request: (args: { method: string; params?: any[] }) => Promise<any>;
-      on?: (event: string, callback: (...args: any[]) => void) => void;
-    };
-  }
-}
 
 interface Deployment {
   id: string;
@@ -42,6 +33,7 @@ interface Deployment {
 }
 
 export default function MyDeployments() {
+  const { authenticated, user, login } = usePrivy();
   const [deployments, setDeployments] = useState<Deployment[]>([]);
   const [loading, setLoading] = useState(true);
   const [telegramModalOpen, setTelegramModalOpen] = useState(false);
@@ -52,47 +44,23 @@ export default function MyDeployments() {
   const [botUsername, setBotUsername] = useState<string>('');
   const [generating, setGenerating] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [connectedWallet, setConnectedWallet] = useState<string>('');
 
   useEffect(() => {
-    // Get connected wallet address from MetaMask/wallet provider
-    const getWallet = async () => {
-      if (typeof window.ethereum !== 'undefined') {
-        try {
-          const accounts = await window.ethereum.request({ method: 'eth_accounts' });
-          if (accounts.length > 0) {
-            setConnectedWallet(accounts[0]);
-          } else {
-            // Request wallet connection
-            const requestedAccounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-            setConnectedWallet(requestedAccounts[0]);
-          }
-        } catch (error) {
-          console.error('Failed to connect wallet:', error);
-          alert('Please connect your wallet to view your deployments');
-        }
-      } else {
-        alert('Please install MetaMask or another Web3 wallet');
-      }
-    };
-
-    getWallet();
-  }, []);
-
-  useEffect(() => {
-    if (connectedWallet) {
+    if (authenticated && user?.wallet?.address) {
       fetchDeployments();
+    } else {
+      setLoading(false);
     }
-  }, [connectedWallet]);
+  }, [authenticated, user?.wallet?.address]);
 
   const fetchDeployments = async () => {
-    if (!connectedWallet) {
+    if (!user?.wallet?.address) {
       return;
     }
 
     try {
-      // CRITICAL FIX: Only fetch deployments for connected wallet
-      const response = await fetch(`/api/deployments?userWallet=${connectedWallet}`);
+      // Fetch deployments for logged-in Privy wallet
+      const response = await fetch(`/api/deployments?userWallet=${user.wallet.address}`);
       
       if (!response.ok) {
         throw new Error('Failed to fetch deployments');
@@ -197,7 +165,23 @@ export default function MyDeployments() {
           </p>
         </div>
 
-        {deployments.length === 0 ? (
+        {!authenticated ? (
+          <div className="border border-border rounded-lg bg-card">
+            <div className="flex flex-col items-center justify-center py-12 px-4">
+              <Wallet className="w-12 h-12 text-muted-foreground mb-4" />
+              <h3 className="text-lg font-medium mb-2">Connect Wallet</h3>
+              <p className="text-muted-foreground mb-4 text-center">
+                Please connect your wallet to view your deployments
+              </p>
+              <button 
+                onClick={login}
+                className="inline-flex items-center justify-center px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:bg-primary/90"
+              >
+                Connect Wallet
+              </button>
+            </div>
+          </div>
+        ) : deployments.length === 0 ? (
           <div className="border border-border rounded-lg bg-card">
             <div className="flex flex-col items-center justify-center py-12 px-4">
               <Activity className="w-12 h-12 text-muted-foreground mb-4" />
