@@ -10,9 +10,61 @@ import { PrismaClient } from '@prisma/client';
 import { TradeExecutor } from '../lib/trade-executor';
 import { getHyperliquidOpenPositions, getHyperliquidMarketPrice } from '../lib/hyperliquid-utils';
 import { calculatePnL } from '../lib/price-oracle';
+import * as fs from 'fs';
+import * as path from 'path';
 
 const prisma = new PrismaClient();
 const executor = new TradeExecutor();
+
+// Lock file to prevent concurrent monitor instances
+const LOCK_FILE = path.join(__dirname, '../.position-monitor.lock');
+const LOCK_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+
+/**
+ * Acquire a file-based lock to prevent concurrent monitor instances
+ */
+async function acquireLock(): Promise<boolean> {
+  try {
+    // Check if lock file exists
+    if (fs.existsSync(LOCK_FILE)) {
+      const stats = fs.statSync(LOCK_FILE);
+      const lockAge = Date.now() - stats.mtimeMs;
+      
+      // If lock is older than timeout, assume it's stale and remove it
+      if (lockAge > LOCK_TIMEOUT_MS) {
+        console.log('⚠️  Found stale lock file, removing...');
+        fs.unlinkSync(LOCK_FILE);
+      } else {
+        console.log('⚠️  Another monitor instance is running (lock age: ' + Math.round(lockAge / 1000) + 's)');
+        return false;
+      }
+    }
+    
+    // Create lock file with current timestamp and PID
+    fs.writeFileSync(LOCK_FILE, JSON.stringify({
+      pid: process.pid,
+      startedAt: new Date().toISOString(),
+    }));
+    
+    return true;
+  } catch (error: any) {
+    console.error('Failed to acquire lock:', error.message);
+    return false;
+  }
+}
+
+/**
+ * Release the lock file
+ */
+function releaseLock(): void {
+  try {
+    if (fs.existsSync(LOCK_FILE)) {
+      fs.unlinkSync(LOCK_FILE);
+    }
+  } catch (error: any) {
+    console.error('Failed to release lock:', error.message);
+  }
+}
 
 export async function monitorHyperliquidPositions() {
   console.log('\n╔═══════════════════════════════════════════════════════════════╗');
@@ -20,6 +72,16 @@ export async function monitorHyperliquidPositions() {
   console.log('║     📊 HYPERLIQUID POSITION MONITOR - SMART DISCOVERY        ║');
   console.log('║                                                               ║');
   console.log('╚═══════════════════════════════════════════════════════════════╝\n');
+
+  // Acquire lock to prevent concurrent runs
+  const hasLock = await acquireLock();
+  if (!hasLock) {
+    console.log('❌ Could not acquire lock. Exiting to prevent race conditions.\n');
+    return {
+      success: false,
+      error: 'Another monitor instance is already running',
+    };
+  }
 
   try {
     // Step 1: Get ALL deployments (any agent can trade on Hyperliquid)
@@ -143,18 +205,27 @@ export async function monitorHyperliquidPositions() {
               if (error.code === 'P2002') {
                 // Duplicate - position already exists (race condition), fetch it
                 console.log(`     ⚠️  Position already exists (race condition), fetching...`);
+                
+                // Try multiple strategies to find the position
                 dbPosition = await prisma.positions.findFirst({
                   where: {
                     deployment_id: deployment.id,
-                    signal_id: signal.id,
+                    token_symbol: symbol,
+                    closed_at: null,
+                  },
+                  orderBy: {
+                    created_at: 'desc'
                   }
                 });
+                
                 if (!dbPosition) {
-                  console.error(`     ❌ Could not find position after duplicate error`);
+                  console.error(`     ❌ Could not find position after duplicate error - skipping`);
                   continue;
                 }
+                console.log(`     ✅ Found existing record: ${dbPosition.id.substring(0, 8)}...`);
               } else {
-                throw error;
+                console.error(`     ❌ Error creating position: ${error.message}`);
+                continue; // Skip this position, don't crash the whole monitor
               }
             }
           } else {
@@ -275,13 +346,22 @@ export async function monitorHyperliquidPositions() {
           if (shouldClose) {
             console.log(`\n     ⚡ Closing position via TradeExecutor...`);
             
-            const result = await executor.closePosition(dbPosition.id);
+            try {
+              const result = await executor.closePosition(dbPosition.id);
 
-            if (result.success) {
-              totalPositionsClosed++;
-              console.log(`     ✅ Position closed! P&L: $${pnlUSD.toFixed(2)} (${closeReason})\n`);
-            } else {
-              console.log(`     ❌ Failed to close: ${result.error}\n`);
+              if (result.success) {
+                totalPositionsClosed++;
+                console.log(`     ✅ Position closed! P&L: $${pnlUSD.toFixed(2)} (${closeReason})\n`);
+              } else {
+                // Don't log as error if position was already closed
+                if (result.error?.includes('already closed')) {
+                  console.log(`     ℹ️  Position already closed elsewhere\n`);
+                } else {
+                  console.log(`     ❌ Failed to close: ${result.error}\n`);
+                }
+              }
+            } catch (closeError: any) {
+              console.error(`     ❌ Exception while closing: ${closeError.message}\n`);
             }
           } else {
             console.log(`     ✅ Position healthy\n`);
@@ -341,6 +421,8 @@ export async function monitorHyperliquidPositions() {
     console.error('\n❌ Fatal error:', error);
     return { success: false, error: error.message };
   } finally {
+    // Release lock before exiting
+    releaseLock();
     await prisma.$disconnect();
   }
 }
