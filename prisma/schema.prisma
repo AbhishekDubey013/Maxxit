@@ -327,6 +327,7 @@ enum venue_t {
   SPOT
   GMX
   HYPERLIQUID
+  OSTIUM
 }
 
 model user_hyperliquid_wallets {
