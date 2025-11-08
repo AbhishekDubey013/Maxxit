@@ -157,6 +157,40 @@ export async function closeHyperliquidPosition(params: {
 }
 
 /**
+ * Get user fills (historical trades) including closed PnL
+ */
+export async function getHyperliquidUserFills(userAddress: string): Promise<Array<{
+  coin: string;
+  side: string;
+  px: string;
+  sz: string;
+  time: number;
+  closedPnl: string;
+  fee: string;
+  tid: string;
+  oid: string;
+}>> {
+  try {
+    const response = await fetch(`${HYPERLIQUID_SERVICE_URL}/user-fills`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ address: userAddress }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || `Failed to get user fills: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data.fills || [];
+  } catch (error: any) {
+    console.error('[HyperliquidUtils] Failed to get user fills:', error.message);
+    return [];
+  }
+}
+
+/**
  * Get account balance for a Hyperliquid account
  */
 export async function getHyperliquidAccountBalance(
