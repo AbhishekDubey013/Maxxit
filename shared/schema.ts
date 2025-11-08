@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 // Enums
-export const VenueEnum = z.enum(["SPOT", "GMX", "HYPERLIQUID"]);
+export const VenueEnum = z.enum(["SPOT", "GMX", "HYPERLIQUID", "OSTIUM"]);
 export const AgentStatusEnum = z.enum(["DRAFT", "ACTIVE", "PAUSED"]);
 export const DeploymentStatusEnum = z.enum(["ACTIVE", "PAUSED", "CANCELLED"]);
 export const BillingKindEnum = z.enum(["SUBSCRIPTION", "INFRA_FEE", "PROFIT_SHARE"]);

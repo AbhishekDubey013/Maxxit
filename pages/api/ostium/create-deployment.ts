@@ -1,0 +1,63 @@
+import type { NextApiRequest, NextApiResponse } from 'next';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
+
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  try {
+    const { agentId, userWallet, agentAddress } = req.body;
+
+    if (!agentId || !userWallet || !agentAddress) {
+      return res.status(400).json({
+        error: 'agentId, userWallet, and agentAddress are required',
+      });
+    }
+
+    // Check if deployment already exists
+    const existingDeployment = await prisma.agent_deployments.findFirst({
+      where: {
+        agent_id: agentId,
+        user_wallet: userWallet,
+        venue: 'OSTIUM',
+      },
+    });
+
+    if (existingDeployment) {
+      console.log('[Ostium Create Deployment] Deployment already exists:', existingDeployment.id);
+      return res.status(200).json({
+        success: true,
+        deployment: existingDeployment,
+        message: 'Deployment already exists',
+      });
+    }
+
+    // Create new deployment
+    const deployment = await prisma.agent_deployments.create({
+      data: {
+        agent_id: agentId,
+        user_wallet: userWallet,
+        safe_wallet: userWallet, // For Ostium, safe_wallet = user's Arbitrum wallet
+        hyperliquid_agent_address: agentAddress, // Reusing this field for Ostium agent
+        venue: 'OSTIUM',
+        status: 'ACTIVE',
+      },
+    });
+
+    console.log('[Ostium Create Deployment] Created deployment:', deployment.id);
+
+    return res.status(200).json({
+      success: true,
+      deployment,
+    });
+  } catch (error: any) {
+    console.error('[Ostium Create Deployment API] Error:', error);
+    return res.status(500).json({
+      error: error.message || 'Failed to create deployment',
+    });
+  }
+}
+
