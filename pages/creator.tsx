@@ -36,42 +36,55 @@ export default function Creator() {
 
         setAgents(agentsData || []);
 
-        // If we have agents, fetch related data IN PARALLEL
+        // Fetch YOUR deployments (agents you subscribed to) - ALWAYS run this
+        const myDeploymentsPromise = db.get('agent_deployments', {
+          'userWallet': `eq.${user.wallet.address}`,
+          'select': '*',
+        });
+
+        // If we have agents, also fetch deployments BY OTHERS for agents you created
+        let allDeployments = await myDeploymentsPromise;
+        
         if (agentsData && agentsData.length > 0) {
           const agentIds = agentsData.map((a: Agent) => a.id);
           
-          // Fetch deployments for these agents
-          const deploymentsPromise = db.get('agent_deployments', {
+          // Fetch deployments by others for these agents (to track subscribers)
+          const othersDeploymentsPromise = db.get('agent_deployments', {
             'agentId': `in.(${agentIds.join(',')})`,
+            'userWallet': `neq.${user.wallet.address}`, // Exclude your own
             'select': '*',
           });
 
-          // Wait for deployments to get IDs, then fetch positions and billing in parallel
-          const deploymentsData = await deploymentsPromise;
-          setDeployments(deploymentsData || []);
+          const othersDeployments = await othersDeploymentsPromise;
+          
+          // Combine: YOUR deployments + deployments by OTHERS for your agents
+          allDeployments = [...(allDeployments || []), ...(othersDeployments || [])];
+        }
 
-          if (deploymentsData && deploymentsData.length > 0) {
-            const deploymentIds = deploymentsData.map((d: AgentDeployment) => d.id);
-            
-            // Fetch positions and billing events IN PARALLEL (not sequential)
-            const [positionsData, billingData] = await Promise.all([
-              db.get('positions', {
-                'deploymentId': `in.(${deploymentIds.join(',')})`,
-                'order': 'opened_at.desc',
-                'limit': '10',
-                'select': '*',
-              }),
-              db.get('billing_events', {
-                'deploymentId': `in.(${deploymentIds.join(',')})`,
-                'order': 'occurred_at.desc',
-                'limit': '20',
-                'select': '*',
-              })
-            ]);
+        setDeployments(allDeployments || []);
 
-            setPositions(positionsData || []);
-            setBillingEvents(billingData || []);
-          }
+        // Fetch positions and billing events for all deployments
+        if (allDeployments && allDeployments.length > 0) {
+          const deploymentIds = allDeployments.map((d: AgentDeployment) => d.id);
+          
+          // Fetch positions and billing events IN PARALLEL (not sequential)
+          const [positionsData, billingData] = await Promise.all([
+            db.get('positions', {
+              'deploymentId': `in.(${deploymentIds.join(',')})`,
+              'order': 'openedAt.desc',
+              'limit': '10',
+              'select': '*',
+            }),
+            db.get('billing_events', {
+              'deploymentId': `in.(${deploymentIds.join(',')})`,
+              'order': 'occurredAt.desc',
+              'limit': '20',
+              'select': '*',
+            })
+          ]);
+
+          setPositions(positionsData || []);
+          setBillingEvents(billingData || []);
         }
 
         setError(null);
