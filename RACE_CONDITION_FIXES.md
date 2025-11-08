@@ -153,7 +153,7 @@ try {
         token_symbol: symbol,
         closed_at: null,
       },
-      orderBy: { created_at: 'desc' }
+      orderBy: { opened_at: 'desc' }
     });
     
     if (!dbPosition) {
