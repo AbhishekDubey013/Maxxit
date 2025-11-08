@@ -18,15 +18,39 @@ export default async function handler(
 
   try {
     // Get all unclassified tweets (or force re-classify all)
+    // ONLY process tweets from ACTIVE accounts to prevent LLM credit waste
     const { forceAll } = req.query;
     
-    const where = forceAll === 'true' 
-      ? {} 
-      : { isSignalCandidate: false };
+    // Get active account IDs
+    const activeAccounts = await prisma.ct_accounts.findMany({
+      where: { is_active: true },
+      select: { id: true },
+    });
+    
+    const activeAccountIds = activeAccounts.map(a => a.id);
+    
+    if (activeAccountIds.length === 0) {
+      return res.status(200).json({
+        success: true,
+        message: 'No active CT accounts found',
+        processed: 0,
+      });
+    }
+    
+    const where: any = {
+      ct_account_id: { in: activeAccountIds }, // ONLY active accounts
+    };
+    
+    if (forceAll !== 'true') {
+      where.is_signal_candidate = false; // Only unclassified
+    }
 
-    const unclassifiedTweets = await prisma.ctPost.findMany({
+    const unclassifiedTweets = await prisma.ct_posts.findMany({
       where,
-      orderBy: { tweetCreatedAt: 'desc' },
+      include: {
+        ct_accounts: true,
+      },
+      orderBy: { tweet_created_at: 'desc' },
       take: 100, // Process up to 100 at a time
     });
 
@@ -39,15 +63,16 @@ export default async function handler(
 
     for (const post of unclassifiedTweets) {
       try {
-        console.log(`[ClassifyAll] Classifying: "${post.tweetText.substring(0, 60)}..."`);
+        const username = post.ct_accounts?.x_username || 'unknown';
+        console.log(`[ClassifyAll] Classifying @${username}: "${post.tweet_text.substring(0, 60)}..."`);
         
-        const classification = await classifyTweet(post.tweetText);
+        const classification = await classifyTweet(post.tweet_text);
         
-        await prisma.ctPost.update({
+        await prisma.ct_posts.update({
           where: { id: post.id },
           data: {
-            isSignalCandidate: classification.isSignalCandidate,
-            extractedTokens: classification.extractedTokens,
+            is_signal_candidate: classification.isSignalCandidate,
+            extracted_tokens: classification.extractedTokens,
           },
         });
 
@@ -60,8 +85,9 @@ export default async function handler(
         }
 
         results.push({
-          tweetId: post.tweetId,
-          tweetText: post.tweetText.substring(0, 80),
+          tweetId: post.tweet_id,
+          tweetText: post.tweet_text.substring(0, 80),
+          username: post.ct_accounts?.x_username,
           isSignalCandidate: classification.isSignalCandidate,
           extractedTokens: classification.extractedTokens,
           sentiment: classification.sentiment,

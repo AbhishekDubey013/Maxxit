@@ -20,7 +20,7 @@ export default async function handler(
   try {
     const { ctAccountId } = req.query;
 
-    // Get CT accounts to process
+    // Get CT accounts to process (ONLY ACTIVE accounts to prevent LLM waste)
     let accounts;
     if (ctAccountId) {
       const account = await prisma.ctAccount.findUnique({
@@ -28,7 +28,10 @@ export default async function handler(
       });
       accounts = account ? [account] : [];
     } else {
-      accounts = await prisma.ctAccount.findMany();
+      // ONLY process active accounts to prevent unnecessary LLM API calls
+      accounts = await prisma.ctAccount.findMany({
+        where: { is_active: true },
+      });
     }
 
     if (accounts.length === 0) {
