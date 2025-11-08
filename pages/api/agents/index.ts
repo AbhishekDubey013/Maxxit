@@ -61,13 +61,24 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse) {
   const orderBy: any = {};
   if (order) {
     const [field, direction] = (order as string).split('.');
-    // Convert camelCase from frontend to snake_case for Prisma
-    orderBy[camelToSnake(field)] = direction === 'desc' ? 'desc' : 'asc';
+    
+    // Special handling for fields with numbers (camelToSnake doesn't handle these)
+    const fieldMap: Record<string, string> = {
+      'apr30d': 'apr_30d',
+      'apr90d': 'apr_90d',
+      'aprSi': 'apr_si',
+      'sharpe30d': 'sharpe_30d',
+      'sharpe90d': 'sharpe_90d',
+      'sharpeSi': 'sharpe_si',
+    };
+    
+    const snakeField = fieldMap[field] || camelToSnake(field);
+    orderBy[snakeField] = direction === 'desc' ? 'desc' : 'asc';
   } else {
     orderBy.apr_30d = 'desc'; // Default sort (snake_case for Prisma)
   }
 
-  const agents = await prisma.agent.findMany({
+  const agents = await prisma.agents.findMany({
     where,
     orderBy,
     take: parseInt(limit as string),
@@ -85,11 +96,13 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse) {
     const validated = insertAgentSchema.parse(req.body);
     
     // Create agent
-    const agent = await prisma.agent.create({
+    const agent = await prisma.agents.create({
       data: validated,
     });
 
-    return res.status(201).json(agent);
+    // Convert response keys to camelCase for frontend
+    const camelCaseAgent = convertKeysToCamelCase(agent);
+    return res.status(201).json(camelCaseAgent);
   } catch (error: any) {
     if (error instanceof z.ZodError) {
       return res.status(400).json({ 
