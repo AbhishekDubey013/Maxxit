@@ -880,45 +880,7 @@ export class TradeExecutor {
    */
   async closePosition(positionId: string): Promise<ExecutionResult> {
     try {
-      // STEP 1: Acquire lock by updating position with "closing" status
-      // This prevents race conditions when multiple monitors try to close the same position
-      const lockResult = await prisma.positions.updateMany({
-        where: { 
-          id: positionId,
-          closed_at: null, // Only lock if not already closed
-        },
-        data: {
-          // Use a special field to mark as "closing in progress"
-          // This is safer than relying on closed_at alone
-          metadata: {
-            closing: true,
-            closingStartedAt: new Date().toISOString(),
-          }
-        }
-      });
-
-      // If no rows updated, position is already closed or being closed
-      if (lockResult.count === 0) {
-        const existingPosition = await prisma.positions.findUnique({
-          where: { id: positionId },
-        });
-        
-        if (existingPosition?.closed_at) {
-          console.log(`[TradeExecutor] Position ${positionId} already closed at ${existingPosition.closed_at.toISOString()}`);
-          return {
-            success: true, // Return success, not error
-            positionId,
-          };
-        }
-        
-        console.log(`[TradeExecutor] Position ${positionId} is being closed by another process`);
-        return {
-          success: true, // Return success to avoid retries
-          positionId,
-        };
-      }
-
-      // STEP 2: Now fetch the position with lock acquired
+      // STEP 1: Check if position is already closed (idempotency check)
       const position = await prisma.positions.findUnique({
         where: { id: positionId },
         include: {
@@ -934,6 +896,16 @@ export class TradeExecutor {
         return {
           success: false,
           error: 'Position not found',
+        };
+      }
+
+      // Idempotency: if already closed, return success
+      if (position.closed_at) {
+        console.log(`[TradeExecutor] Position ${positionId} already closed at ${position.closed_at.toISOString()}`);
+        return {
+          success: true,
+          positionId,
+          message: `Position already closed at ${position.closed_at.toISOString()}`,
         };
       }
 
