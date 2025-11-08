@@ -6,6 +6,8 @@ Add Ostium perpetual DEX support to Maxxit, similar to Hyperliquid integration.
 
 **Ostium**: Perpetual DEX on Arbitrum with Python and Rust SDKs
 
+**✅ VERIFIED**: Ostium supports non-custodial trading via `use_delegation=True` parameter!
+
 ## Architecture Comparison
 
 ### Hyperliquid Model (Current)
@@ -13,15 +15,12 @@ Add Ostium perpetual DEX support to Maxxit, similar to Hyperliquid integration.
 User Wallet → Approves Agent → Agent Trades on Behalf → Auto Profit Share
 ```
 
-### Ostium Model (Proposed - Option A: Non-Custodial)
+### Ostium Model (✅ NON-CUSTODIAL - CONFIRMED)
 ```
-Safe Wallet → Enable Module → Module Trades via Ostium → Collect Profit Share
+User Wallet → Approves Agent (on-chain) → Agent Trades via Delegation → Auto Profit Share
 ```
 
-### Ostium Model (Option B: Simpler Start)
-```
-User Deposits → Agent Wallet Trades → Profit Share → User Withdraws
-```
+**Key Feature**: `OstiumSDK(use_delegation=True)` enables agent wallets to trade using user's collateral without custody!
 
 ---
 
