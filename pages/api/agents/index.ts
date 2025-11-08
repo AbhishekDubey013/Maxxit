@@ -5,6 +5,33 @@ import { z } from 'zod';
 
 const prisma = new PrismaClient();
 
+// Convert camelCase to snake_case for Prisma field names
+function camelToSnake(str: string): string {
+  return str.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
+}
+
+// Convert snake_case to camelCase for API responses
+function snakeToCamel(str: string): string {
+  return str.replace(/_([a-z0-9])/gi, (_, char) => char.toUpperCase());
+}
+
+// Convert all keys in an object from snake_case to camelCase
+function convertKeysToCamelCase(obj: any): any {
+  if (obj === null || obj === undefined) return obj;
+  if (typeof obj !== 'object') return obj;
+  if (obj instanceof Date) return obj; // Don't convert Date objects
+  if (Array.isArray(obj)) return obj.map(convertKeysToCamelCase);
+  
+  const result: any = {};
+  for (const key in obj) {
+    if (obj.hasOwnProperty(key)) {
+      const camelKey = snakeToCamel(key);
+      result[camelKey] = convertKeysToCamelCase(obj[key]);
+    }
+  }
+  return result;
+}
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
@@ -34,9 +61,10 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse) {
   const orderBy: any = {};
   if (order) {
     const [field, direction] = (order as string).split('.');
-    orderBy[field === 'apr_30d' ? 'apr30d' : field] = direction === 'desc' ? 'desc' : 'asc';
+    // Convert camelCase from frontend to snake_case for Prisma
+    orderBy[camelToSnake(field)] = direction === 'desc' ? 'desc' : 'asc';
   } else {
-    orderBy.apr30d = 'desc'; // Default sort
+    orderBy.apr_30d = 'desc'; // Default sort (snake_case for Prisma)
   }
 
   const agents = await prisma.agent.findMany({
@@ -46,7 +74,9 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse) {
     skip: parseInt(offset as string),
   });
 
-  return res.status(200).json(agents);
+  // Convert response keys to camelCase for frontend
+  const camelCaseAgents = convertKeysToCamelCase(agents);
+  return res.status(200).json(camelCaseAgents);
 }
 
 async function handlePost(req: NextApiRequest, res: NextApiResponse) {
