@@ -131,11 +131,45 @@ export async function executeTradesForSignals() {
             failureCount++;
             console.error(`[TradeWorker] ❌ Signal ${signal.id} execution failed`);
             console.error(`[TradeWorker]    Error: ${result.message || result.error}`);
+            
+            // Check if this is a permanent failure that should skip the signal
+            let shouldSkip = false;
+            let skipReason = '';
+            
             if (result.errors && result.errors.length > 0) {
               result.errors.forEach((err: any) => {
                 console.error(`[TradeWorker]    - Deployment ${err.deploymentId}: ${err.error}`);
                 if (err.reason) console.error(`[TradeWorker]      Reason: ${err.reason}`);
+                
+                // Detect permanent failure conditions
+                const errorMsg = err.error?.toLowerCase() || '';
+                const errorReason = err.reason?.toLowerCase() || '';
+                
+                if (
+                  errorMsg.includes('minimum value of $10') ||
+                  errorMsg.includes('minimum order size') ||
+                  errorMsg.includes('insufficient balance') ||
+                  errorMsg.includes('below venue minimum') ||
+                  errorMsg.includes('position size too small') ||
+                  errorReason.includes('insufficient balance')
+                ) {
+                  shouldSkip = true;
+                  skipReason = err.error || 'Insufficient funds or below minimum order size';
+                }
               });
+              
+              // If ALL deployments failed with permanent errors, skip the signal
+              if (shouldSkip && result.errors.length === (signal.agents?.agent_deployments?.length || 0)) {
+                console.log(`[TradeWorker] 🚫 Marking signal ${signal.id} as skipped (permanent failure)`);
+                console.log(`[TradeWorker]    Reason: ${skipReason}`);
+                
+                await prisma.signals.update({
+                  where: { id: signal.id },
+                  data: {
+                    skipped_reason: skipReason,
+                  }
+                });
+              }
             }
           }
         } else {
@@ -143,6 +177,29 @@ export async function executeTradesForSignals() {
           const errorText = await response.text();
           console.error(`[TradeWorker] ❌ Signal ${signal.id} API call failed (${response.status})`);
           console.error(`[TradeWorker]    Response: ${errorText}`);
+          
+          // Try to parse error and check if it's a permanent failure
+          try {
+            const errorData = JSON.parse(errorText);
+            if (errorData.errors) {
+              const hasMinimumError = errorData.errors.some((err: any) => 
+                err.error?.includes('minimum value of $10') || 
+                err.error?.includes('minimum order size')
+              );
+              
+              if (hasMinimumError) {
+                console.log(`[TradeWorker] 🚫 Marking signal ${signal.id} as skipped (below minimum)`);
+                await prisma.signals.update({
+                  where: { id: signal.id },
+                  data: {
+                    skipped_reason: 'Below minimum order size ($10 for Hyperliquid)',
+                  }
+                });
+              }
+            }
+          } catch (e) {
+            // Couldn't parse error, will retry next time
+          }
         }
 
         // Small delay between executions to avoid rate limits

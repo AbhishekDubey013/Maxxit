@@ -778,6 +778,18 @@ export class TradeExecutor {
       // Get Hyperliquid balance (user's wallet balance, not agent's)
       const hlBalance = await adapter.getBalance(userHyperliquidWallet);
       
+      // Hyperliquid minimum order size is $10
+      const HYPERLIQUID_MIN_ORDER = 10;
+      
+      // Check if user has enough balance
+      if (hlBalance.withdrawable < HYPERLIQUID_MIN_ORDER) {
+        return {
+          success: false,
+          error: `Order must have minimum value of $10. asset=${hlBalance.withdrawable.toFixed(2)}`,
+          reason: `Insufficient balance. Available: $${hlBalance.withdrawable.toFixed(2)}, Required: $${HYPERLIQUID_MIN_ORDER}`,
+        };
+      }
+      
       let collateralUSDC: number;
       
       if (sizeModel.type === 'fixed-usdc') {
@@ -787,8 +799,17 @@ export class TradeExecutor {
         collateralUSDC = (hlBalance.withdrawable * percentageToUse) / 100;
       }
 
-      // Minimum collateral check
-      collateralUSDC = Math.max(collateralUSDC, 10); // Minimum $10 for Hyperliquid
+      // Ensure collateral meets minimum requirement
+      collateralUSDC = Math.max(collateralUSDC, HYPERLIQUID_MIN_ORDER);
+      
+      // Final check: ensure user has enough balance for the calculated collateral
+      if (collateralUSDC > hlBalance.withdrawable) {
+        return {
+          success: false,
+          error: `Order must have minimum value of $10. asset=${hlBalance.withdrawable.toFixed(2)}`,
+          reason: `Insufficient balance for trade. Available: $${hlBalance.withdrawable.toFixed(2)}, Required: $${collateralUSDC.toFixed(2)}`,
+        };
+      }
 
       console.log('[TradeExecutor] Hyperliquid trade:', {
         token: actualTokenSymbol,
