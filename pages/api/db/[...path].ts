@@ -110,7 +110,7 @@ function parseQuery(query: Record<string, any>) {
     } else if (key === 'order') {
       // Handle order: field.asc or field.desc.nullslast
       const orderParts = values[0].split('.');
-      const field = orderParts[0]; // Keep in snake_case for Prisma
+      const field = camelToSnake(orderParts[0]); // Convert camelCase to snake_case for Prisma
       const direction = orderParts[1] === 'desc' ? 'desc' : 'asc';
       options.orderBy = { [field]: direction };
     } else if (key === 'limit') {
