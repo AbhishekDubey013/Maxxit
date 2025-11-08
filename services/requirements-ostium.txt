@@ -1,0 +1,17 @@
+# Ostium Service Requirements
+# Install: pip install -r requirements-ostium.txt
+
+# Core
+Flask==3.0.0
+flask-cors==4.0.0
+
+# Ostium SDK
+ostium-python-sdk==0.1.21
+
+# Web3 (usually included with ostium-python-sdk but explicit for safety)
+web3==6.11.3
+
+# Utilities
+python-dotenv==1.0.0
+requests==2.31.0
+

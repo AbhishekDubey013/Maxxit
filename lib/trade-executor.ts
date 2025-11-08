@@ -14,6 +14,12 @@ import { createSafeTransactionService } from './safe-transaction-service';
 import { closeHyperliquidPosition } from './hyperliquid-utils';
 import { updateMetricsForDeployment } from './metrics-updater';
 import { ethers } from 'ethers';
+import {
+  openOstiumPosition,
+  closeOstiumPosition,
+  getOstiumBalance,
+  transferOstiumUSDC,
+} from './adapters/ostium-adapter';
 
 const prisma = new PrismaClient();
 
@@ -145,11 +151,11 @@ export class TradeExecutor {
     try {
       const deployment = signal.agents.agent_deployments[0];
 
-      // Validate Safe wallet (skip for HYPERLIQUID - uses agent EOA wallet instead)
+      // Validate Safe wallet (skip for HYPERLIQUID and OSTIUM - use agent EOA wallet instead)
       const chainId = getChainIdForVenue(signal.venue);
       const safeWallet = createSafeWallet(deployment.safe_wallet, chainId);
       
-      if (signal.venue !== 'HYPERLIQUID') {
+      if (signal.venue !== 'HYPERLIQUID' && signal.venue !== 'OSTIUM') {
         const validation = await safeWallet.validateSafe();
         if (!validation.valid) {
           return {
@@ -158,7 +164,7 @@ export class TradeExecutor {
           };
         }
       } else {
-        console.log('[TradeExecutor] Skipping Safe validation for HYPERLIQUID (uses agent EOA wallet)');
+        console.log(`[TradeExecutor] Skipping Safe validation for ${signal.venue} (uses agent EOA wallet)`);
       }
 
       // NOTE: Module auto-initializes on first trade (handled by smart contract)
@@ -230,10 +236,10 @@ export class TradeExecutor {
         };
       }
 
-      // 2. Check USDC balance (skip for HYPERLIQUID - balance is on agent wallet on Hyperliquid)
+      // 2. Check USDC balance (skip for HYPERLIQUID and OSTIUM - balance is on user wallet)
       let usdcBalance = 0;
       
-      if (signal.venue !== 'HYPERLIQUID') {
+      if (signal.venue !== 'HYPERLIQUID' && signal.venue !== 'OSTIUM') {
         usdcBalance = await safeWallet.getUSDCBalance();
         
         if (usdcBalance === 0) {
@@ -258,8 +264,8 @@ export class TradeExecutor {
           };
         }
       } else {
-        // For Hyperliquid, balance validation happens in the adapter
-        console.log('[TradeExecutor] Skipping Safe balance check for HYPERLIQUID (balance on agent wallet)');
+        // For Hyperliquid/Ostium, balance validation happens in the adapter
+        console.log(`[TradeExecutor] Skipping Safe balance check for ${signal.venue} (balance on user wallet)`);
         usdcBalance = 100; // Dummy value to pass validation
       }
 
@@ -311,6 +317,8 @@ export class TradeExecutor {
         return this.executeGMXTrade(ctx);
       case 'HYPERLIQUID':
         return this.executeHyperliquidTrade(ctx);
+      case 'OSTIUM':
+        return this.executeOstiumTrade(ctx);
       default:
         return {
           success: false,
@@ -876,6 +884,134 @@ export class TradeExecutor {
   }
 
   /**
+   * Execute Ostium trade (similar to Hyperliquid delegation model)
+   */
+  private async executeOstiumTrade(ctx: ExecutionContext): Promise<ExecutionResult> {
+    try {
+      // Get agent private key from wallet pool
+      const { getPrivateKeyForAddress } = await import('./wallet-pool');
+      
+      // For Ostium, we need the agent wallet address (similar to Hyperliquid)
+      // Check if we have ostium_agent_address, otherwise use hyperliquid_agent_address as fallback
+      const agentAddress = ctx.deployment.hyperliquid_agent_address; // TODO: Add ostium_agent_address column
+      const agentPrivateKey = await getPrivateKeyForAddress(agentAddress);
+      
+      if (!agentPrivateKey) {
+        return {
+          success: false,
+          error: 'Ostium agent wallet not found in pool. Please reconnect.',
+          reason: 'Agent wallet required for Ostium trading',
+        };
+      }
+
+      // safe_wallet stores the user's Arbitrum wallet address
+      const userArbitrumWallet = ctx.deployment.safe_wallet;
+      
+      console.log('[TradeExecutor] Ostium delegation setup:');
+      console.log(`  User Wallet: ${userArbitrumWallet}`);
+      console.log(`  Agent will trade on behalf of user via delegation`);
+      
+      // Strip _MANUAL_timestamp suffix if present
+      const actualTokenSymbol = ctx.signal.token_symbol.split('_MANUAL_')[0];
+      
+      // Get balance
+      const balance = await getOstiumBalance(userArbitrumWallet);
+      const usdcBalance = parseFloat(balance.usdcBalance);
+      
+      // Ostium minimum order size is $10 (similar to Hyperliquid)
+      const OSTIUM_MIN_ORDER = 10;
+      
+      if (usdcBalance < OSTIUM_MIN_ORDER) {
+        return {
+          success: false,
+          error: `Order must have minimum value of $10. Balance: $${usdcBalance.toFixed(2)}`,
+          reason: `Insufficient balance. Available: $${usdcBalance.toFixed(2)}, Required: $${OSTIUM_MIN_ORDER}`,
+        };
+      }
+      
+      // Calculate position size
+      const sizeModel = ctx.signal.size_model as any;
+      const leverage = sizeModel.leverage || 10;
+      
+      let collateralUSDC: number;
+      
+      if (sizeModel.type === 'fixed-usdc') {
+        collateralUSDC = sizeModel.value || 0;
+      } else {
+        const percentageToUse = sizeModel.value || 5;
+        collateralUSDC = (usdcBalance * percentageToUse) / 100;
+      }
+
+      // Ensure collateral meets minimum requirement
+      collateralUSDC = Math.max(collateralUSDC, OSTIUM_MIN_ORDER);
+      
+      // Final check: ensure user has enough balance
+      if (collateralUSDC > usdcBalance) {
+        return {
+          success: false,
+          error: `Insufficient balance. Available: $${usdcBalance.toFixed(2)}, Required: $${collateralUSDC.toFixed(2)}`,
+        };
+      }
+
+      // Calculate position size in tokens
+      // Note: Ostium uses position size directly (not coin size like HL)
+      const positionSizeUSD = collateralUSDC * leverage;
+
+      console.log('[TradeExecutor] Ostium trade:', {
+        token: actualTokenSymbol,
+        collateral: collateralUSDC,
+        leverage,
+        side: ctx.signal.side,
+        balance: usdcBalance,
+      });
+
+      // Open position via delegation
+      const result = await openOstiumPosition({
+        privateKey: agentPrivateKey,
+        market: actualTokenSymbol,
+        size: collateralUSDC, // Ostium uses USDC size
+        side: ctx.signal.side.toLowerCase() as 'long' | 'short',
+        leverage,
+        useDelegation: true,
+        userAddress: userArbitrumWallet,
+      });
+
+      console.log('[TradeExecutor] ✅ Ostium position opened:', result);
+
+      // Create position record
+      const position = await prisma.positions.create({
+        data: {
+          deployment_id: ctx.deployment.id,
+          signal_id: ctx.signal.id,
+          venue: ctx.signal.venue,
+          token_symbol: actualTokenSymbol,
+          side: ctx.signal.side,
+          entry_price: result.entryPrice,
+          qty: collateralUSDC,
+          entry_tx_hash: result.txHash || 'OST-' + Date.now(),
+          trailing_params: {
+            enabled: true,
+            trailingPercent: 1, // 1% trailing stop
+            highestPrice: null,
+          },
+        },
+      });
+
+      return {
+        success: true,
+        txHash: result.txHash,
+        positionId: position.id,
+      };
+    } catch (error: any) {
+      console.error('[TradeExecutor] Ostium execution failed:', error);
+      return {
+        success: false,
+        error: error.message,
+      };
+    }
+  }
+
+  /**
    * Close a position
    */
   async closePosition(positionId: string): Promise<ExecutionResult> {
@@ -919,6 +1055,8 @@ export class TradeExecutor {
         return await this.closeGMXPosition(position, safeWallet, chainId);
       } else if (position.venue === 'HYPERLIQUID') {
         return await this.closeHyperliquidPositionMethod(position);
+      } else if (position.venue === 'OSTIUM') {
+        return await this.closeOstiumPositionMethod(position);
       } else {
         return {
           success: false,
@@ -1400,6 +1538,213 @@ export class TradeExecutor {
         error: error.message,
       };
     }
+  }
+
+  /**
+   * Close Ostium position (similar to Hyperliquid)
+   */
+  private async closeOstiumPositionMethod(
+    position: any
+  ): Promise<ExecutionResult> {
+    try {
+      console.log('[TradeExecutor] Closing Ostium position:', {
+        positionId: position.id,
+        token: position.token_symbol,
+        side: position.side,
+        venue: position.venue,
+      });
+
+      // Get agent private key from wallet pool
+      const { getPrivateKeyForAddress } = await import('./wallet-pool');
+      const agentAddress = position.agent_deployments.hyperliquid_agent_address; // TODO: Add ostium_agent_address
+      const agentPrivateKey = await getPrivateKeyForAddress(agentAddress);
+      
+      if (!agentPrivateKey) {
+        throw new Error('Ostium agent wallet not found in pool');
+      }
+
+      // Get user's Arbitrum address from deployment
+      const userArbitrumAddress = position.agent_deployments.safe_wallet;
+      
+      if (!userArbitrumAddress) {
+        throw new Error('User Arbitrum address not found in deployment');
+      }
+
+      // Close position via Ostium adapter
+      const result = await closeOstiumPosition({
+        privateKey: agentPrivateKey,
+        market: position.token_symbol,
+        useDelegation: true,
+        userAddress: userArbitrumAddress,
+      });
+
+      if (!result.success) {
+        // Check if already closed (idempotent)
+        if (result.message && result.message.includes('No open position')) {
+          console.log('[TradeExecutor] ⚠️  Position already closed on Ostium, updating DB...');
+          
+          await prisma.positions.update({
+            where: { id: position.id },
+            data: {
+              closed_at: new Date(),
+              exit_price: null,
+              pnl: 0,
+            },
+          });
+          
+          console.log('[TradeExecutor] ✅ DB record updated - position was already closed');
+          return {
+            success: true,
+            positionId: position.id,
+          };
+        }
+        
+        throw new Error(result.error || 'Failed to close position');
+      }
+
+      console.log('[TradeExecutor] Ostium position close result:', result);
+
+      // Get P&L from result
+      const pnl = result.closePnl || 0;
+
+      // Update position in database
+      await prisma.positions.update({
+        where: { id: position.id },
+        data: {
+          closed_at: new Date(),
+          exit_price: result.result?.exitPrice || null,
+          pnl: pnl,
+        },
+      });
+
+      console.log('[TradeExecutor] ✅ Ostium position closed:', {
+        positionId: position.id,
+        pnl: pnl.toFixed(2) + ' USD',
+      });
+
+      // Collect profit share (10%)
+      await this.collectOstiumFees({
+        deploymentId: position.deployment_id,
+        userAddress: userArbitrumAddress,
+        pnl,
+        positionSize: parseFloat(position.qty?.toString() || '0'),
+      });
+
+      // Update agent APR metrics automatically (non-blocking)
+      updateMetricsForDeployment(position.deployment_id).catch(err => {
+        console.error('[TradeExecutor] Warning: Failed to update metrics:', err.message);
+      });
+
+      return {
+        success: true,
+        positionId: position.id,
+      };
+    } catch (error: any) {
+      console.error('[TradeExecutor] Ostium close error:', error);
+      return {
+        success: false,
+        error: error.message,
+      };
+    }
+  }
+
+  /**
+   * Collect Ostium fees (profit share model)
+   */
+  private async collectOstiumFees(params: {
+    deploymentId: string;
+    userAddress: string;
+    pnl: number;
+    positionSize: number;
+  }): Promise<void> {
+    // Simple profit share (only on profits)
+    if (params.pnl <= 0) {
+      console.log(`[Fees] No profit, skipping fee collection`);
+      return;
+    }
+
+    const profitSharePercent = parseFloat(process.env.OSTIUM_PROFIT_SHARE || '10');
+    const feeAmount = params.pnl * (profitSharePercent / 100);
+
+    // Only collect if fee is meaningful
+    if (feeAmount < 0.01) {
+      console.log(`[Fees] Fee too small ($${feeAmount.toFixed(4)}), skipping collection`);
+      return;
+    }
+
+    console.log(`[Fees] Collecting PROFIT_SHARE: $${feeAmount.toFixed(2)} (P&L: $${params.pnl.toFixed(2)})`);
+
+    try {
+      await this.collectOstiumFee({
+        deploymentId: params.deploymentId,
+        userAddress: params.userAddress,
+        amount: feeAmount,
+      });
+    } catch (error: any) {
+      console.error('[Fees] Failed to collect fee:', error.message);
+      // Don't fail the whole close operation if fee collection fails
+    }
+  }
+
+  /**
+   * Transfer fee from user's Arbitrum wallet to platform
+   */
+  private async collectOstiumFee(params: {
+    deploymentId: string;
+    userAddress: string;
+    amount: number;
+  }): Promise<void> {
+    const platformWallet = process.env.OSTIUM_PLATFORM_WALLET || process.env.PLATFORM_FEE_RECEIVER;
+    
+    if (!platformWallet) {
+      throw new Error('OSTIUM_PLATFORM_WALLET not configured');
+    }
+
+    // Get agent private key from wallet pool
+    const deployment = await prisma.agent_deployments.findUnique({
+      where: { id: params.deploymentId },
+      select: { hyperliquid_agent_address: true } // TODO: ostium_agent_address
+    });
+    
+    if (!deployment?.hyperliquid_agent_address) {
+      throw new Error('Agent wallet not found for deployment');
+    }
+    
+    const { getPrivateKeyForAddress } = await import('./wallet-pool');
+    const agentPrivateKey = await getPrivateKeyForAddress(deployment.hyperliquid_agent_address);
+    
+    if (!agentPrivateKey) {
+      throw new Error('Agent private key not found');
+    }
+
+    console.log(`[ProfitShare] Transferring $${params.amount.toFixed(2)} from ${params.userAddress} to ${platformWallet}`);
+
+    // Call Ostium adapter to transfer USDC
+    const result = await transferOstiumUSDC({
+      agentPrivateKey,
+      toAddress: platformWallet,
+      amount: params.amount,
+      vaultAddress: params.userAddress, // Agent acts on behalf of user
+    });
+
+    console.log(`[ProfitShare] ✅ Collected $${params.amount.toFixed(2)} - TX: ${result.txHash}`);
+    
+    // Record the fee in database
+    await prisma.billing_events.create({
+      data: {
+        deployment_id: params.deploymentId,
+        kind: 'PROFIT_SHARE',
+        amount: params.amount.toString(),
+        asset: 'USDC',
+        status: 'COMPLETED',
+        occurred_at: new Date(),
+        metadata: {
+          platform: 'OSTIUM',
+          userWallet: params.userAddress,
+          platformWallet,
+        },
+      },
+    });
   }
 
   /**
