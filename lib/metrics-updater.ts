@@ -1,0 +1,144 @@
+/**
+ * Automatic Metrics Updater
+ * Updates agent APR and Sharpe ratio after position closes
+ */
+
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
+
+export interface MetricsUpdateResult {
+  success: boolean;
+  apr30d?: number;
+  apr90d?: number;
+  aprSi?: number;
+  sharpe30d?: number;
+  error?: string;
+}
+
+/**
+ * Update agent metrics automatically after a position closes
+ * @param agentId - The agent whose metrics to update
+ */
+export async function updateAgentMetrics(agentId: string): Promise<MetricsUpdateResult> {
+  try {
+    console.log(`[MetricsUpdater] Updating metrics for agent ${agentId}`);
+
+    // Get all closed positions for this agent
+    const deployments = await prisma.agent_deployments.findMany({
+      where: { agent_id: agentId },
+      select: { id: true },
+    });
+
+    const deploymentIds = deployments.map(d => d.id);
+
+    const positions = await prisma.positions.findMany({
+      where: {
+        deployment_id: { in: deploymentIds },
+        closed_at: { not: null },
+      },
+      orderBy: { closed_at: 'desc' },
+    });
+
+    if (positions.length === 0) {
+      console.log('[MetricsUpdater] No closed positions found - skipping update');
+      return { success: true };
+    }
+
+    const now = new Date();
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+
+    // Filter positions by time
+    const positions30d = positions.filter(p => p.closed_at && p.closed_at >= thirtyDaysAgo);
+    const positions90d = positions.filter(p => p.closed_at && p.closed_at >= ninetyDaysAgo);
+
+    // Calculate total PnL
+    const totalPnl30d = positions30d.reduce((sum, p) => sum + parseFloat(p.pnl?.toString() || '0'), 0);
+    const totalPnl90d = positions90d.reduce((sum, p) => sum + parseFloat(p.pnl?.toString() || '0'), 0);
+    const totalPnlSi = positions.reduce((sum, p) => sum + parseFloat(p.pnl?.toString() || '0'), 0);
+
+    // Simplified APR calculation (assuming $1000 initial capital)
+    const initialCapital = 1000;
+    const apr30d = (totalPnl30d / initialCapital) * (365 / 30) * 100;
+    const apr90d = (totalPnl90d / initialCapital) * (365 / 90) * 100;
+    
+    // Calculate SI APR based on first position date
+    const firstPosition = positions[positions.length - 1];
+    const daysSinceInception = firstPosition.closed_at 
+      ? Math.max(1, (now.getTime() - firstPosition.closed_at.getTime()) / (24 * 60 * 60 * 1000))
+      : 1;
+    const aprSi = (totalPnlSi / initialCapital) * (365 / daysSinceInception) * 100;
+
+    // Simplified Sharpe ratio (std dev approximation)
+    const avgReturn = totalPnl30d / Math.max(1, positions30d.length);
+    const variance = positions30d.reduce((sum, p) => {
+      const pnl = parseFloat(p.pnl?.toString() || '0');
+      return sum + Math.pow(pnl - avgReturn, 2);
+    }, 0) / Math.max(1, positions30d.length);
+    const stdDev = Math.sqrt(variance);
+    const sharpe30d = stdDev > 0 ? (avgReturn / stdDev) : 0;
+
+    // Update agent
+    await prisma.agents.update({
+      where: { id: agentId },
+      data: {
+        apr_30d: apr30d,
+        apr_90d: apr90d,
+        apr_si: aprSi,
+        sharpe_30d: sharpe30d,
+      },
+    });
+
+    console.log('[MetricsUpdater] ✅ Metrics updated:', {
+      apr30d: apr30d.toFixed(2) + '%',
+      apr90d: apr90d.toFixed(2) + '%',
+      aprSi: aprSi.toFixed(2) + '%',
+      sharpe30d: sharpe30d.toFixed(2),
+      positionsAnalyzed: positions.length,
+    });
+
+    return {
+      success: true,
+      apr30d,
+      apr90d,
+      aprSi,
+      sharpe30d,
+    };
+  } catch (error: any) {
+    console.error('[MetricsUpdater] Error updating metrics:', error.message);
+    return {
+      success: false,
+      error: error.message,
+    };
+  }
+}
+
+/**
+ * Update metrics for a deployment's agent after a position closes
+ * @param deploymentId - The deployment ID of the closed position
+ */
+export async function updateMetricsForDeployment(deploymentId: string): Promise<MetricsUpdateResult> {
+  try {
+    // Get the agent ID from deployment
+    const deployment = await prisma.agent_deployments.findUnique({
+      where: { id: deploymentId },
+      select: { agent_id: true },
+    });
+
+    if (!deployment) {
+      return {
+        success: false,
+        error: 'Deployment not found',
+      };
+    }
+
+    return await updateAgentMetrics(deployment.agent_id);
+  } catch (error: any) {
+    return {
+      success: false,
+      error: error.message,
+    };
+  }
+}
+
