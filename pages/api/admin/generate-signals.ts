@@ -27,9 +27,12 @@ export default async function handler(
   try {
     const { tokenSymbol, ctPostId } = req.query;
 
-    // Get signal candidate tweets
+    // Get signal candidate tweets from ACTIVE accounts only
     const where: any = {
-      isSignalCandidate: true,
+      // isSignalCandidate: true,
+      ctAccount: {
+        isActive: true,
+      },
     };
 
     if (ctPostId) {
