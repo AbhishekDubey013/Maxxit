@@ -4,10 +4,10 @@ interface Agent {
   id: string;
   name: string;
   venue: string;
-  apr_30d: number | null;
-  apr_90d: number | null;
-  apr_si: number | null;
-  sharpe_30d: number | null;
+  apr30d: number | null;
+  apr90d: number | null;
+  aprSi: number | null;
+  sharpe30d: number | null;
 }
 
 interface AgentCardProps {
@@ -45,14 +45,14 @@ export function AgentCard({ agent, onClick }: AgentCardProps) {
         <div className="flex justify-between items-center">
           <span className="text-sm text-muted-foreground">APR (30d)</span>
           <span className="text-lg font-bold text-primary" data-testid={`text-apr30d-${agent.id}`}>
-            {agent.apr_30d != null ? `${agent.apr_30d.toFixed(2)}%` : 'N/A'}
+            {agent.apr30d != null ? `${agent.apr30d.toFixed(2)}%` : 'N/A'}
           </span>
         </div>
         
-        {agent.sharpe_30d != null && (
+        {agent.sharpe30d != null && (
           <div className="flex justify-between items-center text-sm">
             <span className="text-muted-foreground">Sharpe Ratio</span>
-            <span className="text-foreground">{agent.sharpe_30d.toFixed(2)}</span>
+            <span className="text-foreground">{agent.sharpe30d.toFixed(2)}</span>
           </div>
         )}
       </div>
