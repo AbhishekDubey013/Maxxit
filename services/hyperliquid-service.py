@@ -353,6 +353,42 @@ def close_position():
         logger.error(f"Error closing position: {str(e)}")
         return jsonify({"success": False, "error": str(e)}), 500
 
+@app.route('/user-fills', methods=['POST'])
+def get_user_fills():
+    """Get historical fills (trades) for a user including closed PnL"""
+    try:
+        data = request.json
+        address = data.get('address')
+        
+        if not address:
+            return jsonify({"error": "address required"}), 400
+        
+        # Get user fills from Hyperliquid
+        fills = info.user_fills(address)
+        
+        # Format fills with PnL data
+        formatted_fills = []
+        for fill in fills:
+            formatted_fills.append({
+                "coin": fill.get("coin"),
+                "side": fill.get("side"),  # "A" = long/buy, "B" = short/sell
+                "px": fill.get("px"),  # Fill price
+                "sz": fill.get("sz"),  # Fill size
+                "time": fill.get("time"),  # Timestamp
+                "closedPnl": fill.get("closedPnl", "0"),  # PnL from closing position
+                "fee": fill.get("fee"),
+                "tid": fill.get("tid"),  # Trade ID
+                "oid": fill.get("oid"),  # Order ID
+            })
+        
+        return jsonify({
+            "success": True,
+            "fills": formatted_fills
+        })
+    except Exception as e:
+        logger.error(f"Error getting user fills: {str(e)}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
 @app.route('/transfer', methods=['POST'])
 def transfer_usdc():
     """Transfer USDC between Hyperliquid accounts"""

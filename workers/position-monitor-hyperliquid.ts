@@ -8,7 +8,7 @@
 
 import { PrismaClient } from '@prisma/client';
 import { TradeExecutor } from '../lib/trade-executor';
-import { getHyperliquidOpenPositions, getHyperliquidMarketPrice } from '../lib/hyperliquid-utils';
+import { getHyperliquidOpenPositions, getHyperliquidMarketPrice, getHyperliquidUserFills } from '../lib/hyperliquid-utils';
 import { updateMetricsForDeployment } from '../lib/metrics-updater';
 import { calculatePnL } from '../lib/price-oracle';
 import * as fs from 'fs';
@@ -419,17 +419,62 @@ export async function monitorHyperliquidPositions() {
         const orphans = dbPositions.filter(p => !hlTokens.has(p.token_symbol));
 
         if (orphans.length > 0) {
-          console.log(`  🔄 Cleaning up ${orphans.length} orphan DB record(s):`);
+          console.log(`  🔄 Cleaning up ${orphans.length} orphan DB record(s) (closed externally):`);
+          
+          // Fetch historical fills to get actual PnL for closed positions
+          let fills: any[] = [];
+          try {
+            fills = await getHyperliquidUserFills(deployment.hyperliquid_user_address || deployment.user_wallet);
+            console.log(`     Retrieved ${fills.length} historical fills from Hyperliquid`);
+          } catch (error: any) {
+            console.log(`     ⚠️  Could not fetch fills: ${error.message}`);
+          }
+          
           for (const orphan of orphans) {
             console.log(`     Closing ${orphan.token_symbol} (not on Hyperliquid)`);
+            
+            let exitPrice = parseFloat(orphan.entry_price.toString());
+            let pnl = 0;
+            let exitReason = 'closed_externally';
+            
+            // Try to find the closing fill for this position
+            if (fills.length > 0) {
+              const closingFills = fills.filter(f => {
+                return f.coin === orphan.token_symbol && parseFloat(f.closedPnl) !== 0;
+              });
+              
+              if (closingFills.length > 0) {
+                // Use the most recent closing fill
+                const mostRecentFill = closingFills.reduce((latest, fill) => 
+                  fill.time > latest.time ? fill : latest
+                );
+                
+                exitPrice = parseFloat(mostRecentFill.px);
+                pnl = parseFloat(mostRecentFill.closedPnl);
+                exitReason = 'closed_externally_with_pnl';
+                
+                console.log(`        ✅ Found closing fill: Exit=$${exitPrice.toFixed(4)}, PnL=$${pnl.toFixed(2)}`);
+              } else {
+                console.log(`        ⚠️  No closing fill found, using entry price as exit`);
+              }
+            }
+            
             await prisma.positions.update({
               where: { id: orphan.id },
               data: {
                 closed_at: new Date(),
-                pnl: 0,
-                exit_price: orphan.entry_price,
+                pnl: pnl.toString(),
+                exit_price: exitPrice.toString(),
+                exit_reason: exitReason,
               }
             });
+            
+            // Update agent APR metrics (non-blocking)
+            if (pnl !== 0) {
+              updateMetricsForDeployment(deployment.id).catch(err => {
+                console.error('        ⚠️  Warning: Failed to update metrics:', err.message);
+              });
+            }
           }
           console.log();
         }
