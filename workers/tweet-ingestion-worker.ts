@@ -102,11 +102,22 @@ async function ingestTweets() {
 
       for (const tweet of tweets) {
         try {
+          // Check if tweet already exists beefore calling LLM
+          const existingTweet = await prisma.ct_posts.findUnique({
+            where: { tweet_id: tweet.tweetId },
+          });
+
+          if (existingTweet) {
+            console.log(`[${account.x_username}] ⏭️  Tweet already classified, skipping: "${tweet.tweetText.substring(0, 30)}..."`);
+            skippedCount++;
+            continue;
+          }
+
           // Quick pre-filter: Skip obvious non-signals to save LLM API calls
           const hasToken = /\$[A-Z]{2,10}\b|BTC|ETH|SOL|AVAX|ARB|OP|MATIC|LINK|UNI|AAVE/i.test(tweet.tweetText);
           const isShortNonSignal = tweet.tweetText.length < 30 && !hasToken;
           const isCommonChatter = /^(gm|gn|good morning|good night|hello|hi|hey|wagmi|lfg|lets go|thank you|thanks)$/i.test(tweet.tweetText.trim());
-          
+
           if (isShortNonSignal || isCommonChatter) {
             console.log(`[${account.x_username}] ⏭️  Skipping obvious non-signal: "${tweet.tweetText.substring(0, 30)}..."`);
             // Still save it but mark as not a signal candidate
@@ -123,13 +134,13 @@ async function ingestTweets() {
             createdCount++;
             continue;
           }
-          
-          // Classify tweet using LLM (only if it passes pre-filter)
+
+          // Classify tweet using LLM (only if it passes pre-filter AND doesn't exist)
           console.log(`[${account.x_username}] Classifying tweet: "${tweet.tweetText.substring(0, 50)}..."`);
           const classification = await classifyTweet(tweet.tweetText);
-          
+
           console.log(`[${account.x_username}] → Signal: ${classification.isSignalCandidate}, Tokens: ${classification.extractedTokens.join(', ') || 'none'}, Sentiment: ${classification.sentiment}`);
-          
+
           // Create post with classification
           await prisma.ct_posts.create({
             data: {
@@ -144,7 +155,7 @@ async function ingestTweets() {
           createdCount++;
         } catch (error: any) {
           if (error.code === 'P2002') {
-            // Duplicate tweet, skip
+            // Duplicate tweet, skip (edge case - shouldn't happen due to check above)
             skippedCount++;
           } else {
             console.error(`[${account.x_username}] Error creating post:`, error.message);
