@@ -11,10 +11,10 @@ interface Agent {
   id: string;
   name: string;
   venue: string;
-  apr_30d: number | null;
-  apr_90d: number | null;
-  apr_si: number | null;
-  sharpe_30d: number | null;
+  apr30d: number | null;
+  apr90d: number | null;
+  aprSi: number | null;
+  sharpe30d: number | null;
 }
 
 export default function Home() {
@@ -31,9 +31,9 @@ export default function Home() {
       try {
         const data = await db.get('agents', {
           'status': 'eq.ACTIVE',
-          'order': 'apr_30d.desc',
+          'order': 'apr30d.desc',
           'limit': '20',
-          'select': 'id,name,venue,apr_30d,apr_90d,apr_si,sharpe_30d',
+          'select': 'id,name,venue,apr30d,apr90d,aprSi,sharpe30d',
         });
         setAgents(data || []);
         setError(null);

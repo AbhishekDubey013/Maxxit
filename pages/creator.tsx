@@ -30,7 +30,7 @@ export default function Creator() {
         // Fetch agents created by this wallet
         const agentsData = await db.get('agents', {
           'creatorWallet': `eq.${user.wallet.address}`,
-          'order': 'apr_30d.desc.nullslast',
+          'order': 'apr30d.desc.nullslast',
           'select': '*',
         });
 
