@@ -153,33 +153,21 @@ export async function monitorHyperliquidPositions() {
           if (!dbPosition) {
             console.log(`     ⚠️  Not in DB - creating record...`);
             
-            // Find or create a signal for this position
-            let signal = await prisma.signals.findFirst({
-              where: {
+            // ALWAYS create a NEW signal for auto-discovered positions
+            // Don't reuse signals to avoid unique constraint violations on (deployment_id, signal_id)
+            const signal = await prisma.signals.create({
+              data: {
                 agent_id: deployment.agents.id,
                 token_symbol: symbol,
-              },
-              orderBy: {
-                created_at: 'desc'
+                side: side,
+                venue: 'HYPERLIQUID',
+                size_model: { type: 'fixed', value: size },
+                risk_model: { stopLoss: null, takeProfit: null, trailingStop: 0.01 },
+                source_tweets: ['AUTO_DISCOVERED'],
+                proof_verified: true,
+                executor_agreement_verified: true,
               }
             });
-
-            if (!signal) {
-              // Create a placeholder signal for discovered position
-              signal = await prisma.signals.create({
-                data: {
-                  agent_id: deployment.agents.id,
-                  token_symbol: symbol,
-                  side: side,
-                  venue: 'HYPERLIQUID',
-                  size_model: { type: 'fixed', value: size },
-                  risk_model: { stopLoss: null, takeProfit: null, trailingStop: 0.01 },
-                  source_tweets: ['AUTO_DISCOVERED'],
-                  proof_verified: true,
-                  executor_agreement_verified: true,
-                }
-              });
-            }
 
             try {
               dbPosition = await prisma.positions.create({
@@ -203,26 +191,69 @@ export async function monitorHyperliquidPositions() {
               console.log(`     ✅ Created DB record: ${dbPosition.id.substring(0, 8)}...`);
             } catch (error: any) {
               if (error.code === 'P2002') {
-                // Duplicate - position already exists (race condition), fetch it
+                // Duplicate - position already exists (race condition)
+                // Unique constraint is on (deployment_id, signal_id), so search by that
                 console.log(`     ⚠️  Position already exists (race condition), fetching...`);
                 
-                // Try multiple strategies to find the position
-                dbPosition = await prisma.positions.findFirst({
+                dbPosition = await prisma.positions.findUnique({
                   where: {
-                    deployment_id: deployment.id,
-                    token_symbol: symbol,
-                    closed_at: null,
-                  },
-                  orderBy: {
-                    opened_at: 'desc'
+                    deployment_id_signal_id: {
+                      deployment_id: deployment.id,
+                      signal_id: signal.id,
+                    }
                   }
                 });
                 
                 if (!dbPosition) {
-                  console.error(`     ❌ Could not find position after duplicate error - skipping`);
-                  continue;
+                  // If still not found, try by deployment + token + open status
+                  console.log(`     🔍 Searching by deployment + token...`);
+                  dbPosition = await prisma.positions.findFirst({
+                    where: {
+                      deployment_id: deployment.id,
+                      token_symbol: symbol,
+                      closed_at: null,
+                    },
+                    orderBy: {
+                      opened_at: 'desc'
+                    }
+                  });
                 }
-                console.log(`     ✅ Found existing record: ${dbPosition.id.substring(0, 8)}...`);
+                
+                if (!dbPosition) {
+                  console.error(`     ❌ Could not find position after duplicate error`);
+                  console.error(`     💡 This might be a closed position - checking all positions...`);
+                  
+                  // Last resort: find any position (even closed) to understand what's happening
+                  const anyPosition = await prisma.positions.findFirst({
+                    where: {
+                      deployment_id: deployment.id,
+                      token_symbol: symbol,
+                    },
+                    orderBy: {
+                      opened_at: 'desc'
+                    }
+                  });
+                  
+                  if (anyPosition) {
+                    if (anyPosition.closed_at) {
+                      console.log(`     ℹ️  Found closed position (closed at ${anyPosition.closed_at.toISOString()})`);
+                      console.log(`     ℹ️  Hyperliquid still reports position as open - may be sync issue`);
+                    } else {
+                      console.log(`     ℹ️  Found open position ${anyPosition.id.substring(0, 8)}... - will monitor it`);
+                      dbPosition = anyPosition;
+                    }
+                  } else {
+                    console.error(`     ❌ No position found at all - skipping`);
+                  }
+                  
+                  if (!dbPosition) {
+                    continue; // Skip this position
+                  }
+                }
+                
+                if (dbPosition) {
+                  console.log(`     ✅ Found existing record: ${dbPosition.id.substring(0, 8)}...`);
+                }
               } else {
                 console.error(`     ❌ Error creating position: ${error.message}`);
                 continue; // Skip this position, don't crash the whole monitor
