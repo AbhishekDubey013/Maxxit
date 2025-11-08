@@ -32,9 +32,14 @@ export default async function handler(
       console.warn('[SIGNAL] LunarCrush API key not configured - using default 5% position size');
     }
 
-    // 1. Get candidate posts (is_signal_candidate=true)
+    // 1. Get candidate posts (is_signal_candidate=true) from ACTIVE accounts only
     const candidatePosts = await prisma.ct_posts.findMany({
-      where: { is_signal_candidate: true },
+      where: {
+        // is_signal_candidate: true,
+        ct_accounts: {
+          is_active: true
+        }
+      },
       include: { ct_accounts: true },
       orderBy: { tweet_created_at: 'desc' },
       take: 10,
