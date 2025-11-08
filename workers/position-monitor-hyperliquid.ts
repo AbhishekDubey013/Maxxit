@@ -137,8 +137,8 @@ export async function monitorHyperliquidPositions() {
           const size = Math.abs(parseFloat(hlPos.szi));
           const unrealizedPnl = parseFloat(hlPos.unrealizedPnl);
 
-          console.log(`  📊 ${symbol} ${side}:`);
-          console.log(`     Entry: $${entryPrice.toFixed(4)}, Size: ${size}, PnL: $${unrealizedPnl.toFixed(2)}`);
+          console.log(`\n  📊 ${symbol} ${side}:`);
+          console.log(`     Entry: $${entryPrice.toFixed(4)}, Size: ${size.toFixed(4)}, PnL: $${unrealizedPnl.toFixed(2)}`);
 
           // Step 4: Check if position exists in DB
           let dbPosition = await prisma.positions.findFirst({
@@ -236,7 +236,8 @@ export async function monitorHyperliquidPositions() {
           const currentPrice = await getHyperliquidMarketPrice(symbol);
           
           if (!currentPrice) {
-            console.log(`     ⚠️  Price unavailable, skipping monitoring\n`);
+            console.log(`     ⚠️  Price unavailable for ${symbol}, skipping monitoring`);
+            console.log(`     💡 Reason: Token may not be supported by price oracle\n`);
             continue;
           }
 
