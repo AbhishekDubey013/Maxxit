@@ -389,38 +389,7 @@ def get_user_fills():
         logger.error(f"Error getting user fills: {str(e)}")
         return jsonify({"success": False, "error": str(e)}), 500
 
-@app.route('/transfer', methods=['POST'])
-def transfer_usdc():
-    """Transfer USDC between Hyperliquid accounts"""
-    try:
-        data = request.json
-        from_private_key = data.get('fromPrivateKey')
-        to_address = data.get('toAddress')
-        amount = data.get('amount')
-        
-        if not all([from_private_key, to_address, amount]):
-            return jsonify({
-                "success": False,
-                "error": "Missing required fields: fromPrivateKey, toAddress, amount"
-            }), 400
-        
-        exchange = get_exchange_for_agent(from_private_key)
-        
-        # Transfer USDC
-        transfer_result = exchange.withdraw(
-            amount=float(amount),
-            destination=to_address
-        )
-        
-        logger.info(f"Transfer executed: {transfer_result}")
-        
-        return jsonify({
-            "success": True,
-            "result": transfer_result
-        })
-    except Exception as e:
-        logger.error(f"Error transferring USDC: {str(e)}")
-        return jsonify({"success": False, "error": str(e)}), 500
+# REMOVED: Duplicate /transfer endpoint - see line 711 for the correct one with vault delegation support
 
 @app.route('/vault/deposit', methods=['POST'])
 def vault_deposit():
