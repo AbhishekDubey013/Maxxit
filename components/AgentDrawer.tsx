@@ -5,6 +5,7 @@ import { usePrivy } from '@privy-io/react-auth';
 import { Rocket } from 'lucide-react';
 import { HyperliquidConnect } from './HyperliquidConnect';
 import { OstiumConnect } from './OstiumConnect';
+import { OstiumApproval } from './OstiumApproval';
 
 interface PnlSnapshot {
   day: string;
@@ -27,6 +28,11 @@ export function AgentDrawer({ agentId, agentName, agentVenue, onClose }: AgentDr
   const [venue, setVenue] = useState<string>(agentVenue || '');
   const [hyperliquidModalOpen, setHyperliquidModalOpen] = useState(false);
   const [ostiumModalOpen, setOstiumModalOpen] = useState(false);
+  const [ostiumApprovalModal, setOstiumApprovalModal] = useState<{
+    deploymentId: string;
+    agentAddress: string;
+    userWallet: string;
+  } | null>(null);
 
   // Fetch agent venue if not provided
   useEffect(() => {
@@ -107,7 +113,7 @@ export function AgentDrawer({ agentId, agentName, agentVenue, onClose }: AgentDr
     if (venue === 'HYPERLIQUID') {
       setHyperliquidModalOpen(true);
     } else if (venue === 'OSTIUM') {
-      // Deploy Ostium directly
+      // Deploy Ostium - assign agent and open approval modal
       try {
         setLoading(true);
         const userWallet = user.wallet.address;
@@ -125,10 +131,14 @@ export function AgentDrawer({ agentId, agentName, agentVenue, onClose }: AgentDr
           throw new Error(data.error || 'Failed to deploy Ostium agent');
         }
 
-        console.log('[Ostium Deploy from Drawer] Success:', data);
-        alert(`✅ Ostium agent deployed successfully!\nAgent Address: ${data.agentAddress}`);
-        setIsDeployed(true);
-        onClose(); // Close drawer
+        console.log('[Ostium Deploy from Drawer] Agent assigned:', data);
+        
+        // Open approval modal for user to sign
+        setOstiumApprovalModal({
+          deploymentId: data.deploymentId,
+          agentAddress: data.agentAddress,
+          userWallet: data.userWallet,
+        });
       } catch (err: any) {
         console.error('[Ostium Deploy from Drawer] Error:', err);
         alert(`Failed to deploy: ${err.message}`);
@@ -276,6 +286,21 @@ export function AgentDrawer({ agentId, agentName, agentVenue, onClose }: AgentDr
             setIsDeployed(true);
             onClose(); // Close the drawer
           }}
+        />
+      )}
+
+      {/* Ostium Approval Modal - User signs with wallet */}
+      {ostiumApprovalModal && (
+        <OstiumApproval
+          deploymentId={ostiumApprovalModal.deploymentId}
+          agentAddress={ostiumApprovalModal.agentAddress}
+          userWallet={ostiumApprovalModal.userWallet}
+          onApprovalComplete={() => {
+            setOstiumApprovalModal(null);
+            setIsDeployed(true);
+            onClose(); // Close the drawer
+          }}
+          onClose={() => setOstiumApprovalModal(null)}
         />
       )}
     </div>
