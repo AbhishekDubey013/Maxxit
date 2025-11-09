@@ -8,13 +8,4 @@ INFO:werkzeug:[31m[1mWARNING: This is a development server. Do not use it in a
  * Running on http://127.0.0.1:5002
  * Running on http://192.168.1.19:5002
 INFO:werkzeug:[33mPress CTRL+C to quit[0m
-INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 13:59:01] "POST /balance HTTP/1.1" 200 -
-INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 13:59:06] "POST /open-position HTTP/1.1" 200 -
-ERROR:__main__:Get positions error: name 'NetworkConfig' is not defined
-ERROR:__main__:Traceback (most recent call last):
-  File "/Users/abhishekdubey/Downloads/Maxxit/services/ostium-service.py", line 145, in get_positions
-    network = NetworkConfig.testnet() if OSTIUM_TESTNET else NetworkConfig.mainnet()
-              ^^^^^^^^^^^^^
-NameError: name 'NetworkConfig' is not defined
-
-INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 13:59:11] "[35m[1mPOST /positions HTTP/1.1[0m" 500 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 14:02:52] "POST /open-position HTTP/1.1" 200 -
