@@ -11,6 +11,7 @@ import { usePrivy } from '@privy-io/react-auth';
 import { createProofOfIntentWithMetaMask } from '@lib/proof-of-intent';
 import { HyperliquidConnect } from '@components/HyperliquidConnect';
 import { OstiumConnect } from '@components/OstiumConnect';
+import { OstiumApproval } from '@components/OstiumApproval';
 
 const wizardSchema = insertAgentSchema.extend({
   description: z.string().max(500).optional(),
@@ -337,6 +338,12 @@ export default function CreateAgent() {
     }
   };
 
+  const [ostiumApprovalModal, setOstiumApprovalModal] = useState<{
+    deploymentId: string;
+    agentAddress: string;
+    userWallet: string;
+  } | null>(null);
+
   const deployOstiumAgent = async (agentId: string) => {
     try {
       setIsSubmitting(true);
@@ -363,9 +370,15 @@ export default function CreateAgent() {
         throw new Error(data.error || 'Failed to deploy Ostium agent');
       }
 
-      console.log('[Ostium Deploy] Success:', data);
-      alert(`✅ Ostium agent deployed successfully!\nAgent Address: ${data.agentAddress}`);
-      router.push('/my-deployments');
+      console.log('[Ostium Deploy] Agent assigned:', data);
+      
+      // Open approval modal for user to sign transaction
+      setOstiumApprovalModal({
+        deploymentId: data.deploymentId,
+        agentAddress: data.agentAddress,
+        userWallet: data.userWallet,
+      });
+
     } catch (err: any) {
       console.error('[Ostium Deploy] Error:', err);
       setError(err.message || 'Failed to deploy Ostium agent');
@@ -1231,6 +1244,21 @@ export default function CreateAgent() {
             setOstiumModalOpen(false);
             router.push('/my-deployments');
           }}
+        />
+      )}
+
+      {/* Ostium Approval Modal - User signs with wallet */}
+      {ostiumApprovalModal && (
+        <OstiumApproval
+          deploymentId={ostiumApprovalModal.deploymentId}
+          agentAddress={ostiumApprovalModal.agentAddress}
+          userWallet={ostiumApprovalModal.userWallet}
+          onApprovalComplete={() => {
+            console.log('Ostium agent approved!');
+            setOstiumApprovalModal(null);
+            router.push('/my-deployments');
+          }}
+          onClose={() => setOstiumApprovalModal(null)}
         />
       )}
     </div>
