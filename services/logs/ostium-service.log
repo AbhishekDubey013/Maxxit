@@ -1,18 +1,129 @@
 /Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/web3/__init__.py:2: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
   import pkg_resources
-2025-11-09 13:14:32,022 [INFO] 🚀 Ostium Service Starting...
-2025-11-09 13:14:32,022 [INFO]    Network: TESTNET
-2025-11-09 13:14:32,022 [INFO]    RPC URL: https://sepolia-rollup.arbitrum.io/rpc
-2025-11-09 13:14:32,024 [INFO] 🚀 Starting Ostium Service on port 5002
-2025-11-09 13:14:32,024 [INFO]    Network: TESTNET (Arbitrum Sepolia)
+WARNING:root:Could not apply monkey-patch: cannot import name 'SignedTransaction' from 'web3.types' (/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/web3/types.py)
  * Serving Flask app 'ostium-service'
  * Debug mode: off
-2025-11-09 13:14:37,028 [INFO] [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+INFO:werkzeug:[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
  * Running on all addresses (0.0.0.0)
  * Running on http://127.0.0.1:5002
  * Running on http://192.168.1.19:5002
-2025-11-09 13:14:37,028 [INFO] [33mPress CTRL+C to quit[0m
-2025-11-09 13:14:38,367 [INFO] User approving agent: 0xdef7EaB0e799D4d7e6902223F8A70A08a9b38F61
-2025-11-09 13:14:39,784 [INFO] Transaction sent: 0x2711124aec2971e7b1c6407f1ed6979fddef53603659c8273ecea92bfd1d5aad
-2025-11-09 13:14:40,692 [INFO] ✅ Agent approved! Tx hash: 0x2711124aec2971e7b1c6407f1ed6979fddef53603659c8273ecea92bfd1d5aad
-2025-11-09 13:14:40,692 [INFO] 127.0.0.1 - - [09/Nov/2025 13:14:40] "POST /approve-agent HTTP/1.1" 200 -
+INFO:werkzeug:[33mPress CTRL+C to quit[0m
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 13:42:40] "POST /balance HTTP/1.1" 200 -
+ERROR:__main__:Open position error: BelowMinLevPos()
+ERROR:__main__:Traceback (most recent call last):
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/ostium.py", line 180, in perform_trade
+    ).build_transaction({'from': account.address})
+      ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/web3/contract/contract.py", line 354, in build_transaction
+    return build_transaction_for_function(
+        self.address,
+    ...<6 lines>...
+        **self.kwargs,
+    )
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/web3/contract/utils.py", line 232, in build_transaction_for_function
+    prepared_transaction = fill_transaction_defaults(w3, prepared_transaction)
+  File "cytoolz/functoolz.pyx", line 289, in cytoolz.functoolz.curry.__call__
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/web3/_utils/transactions.py", line 132, in fill_transaction_defaults
+    default_val = default_getter(w3, transaction)
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/web3/_utils/transactions.py", line 72, in <lambda>
+    "gas": lambda w3, tx: w3.eth.estimate_gas(tx),
+                          ~~~~~~~~~~~~~~~~~~~^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/web3/eth/eth.py", line 293, in estimate_gas
+    return self._estimate_gas(transaction, block_identifier)
+           ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/web3/module.py", line 75, in caller
+    result = w3.manager.request_blocking(
+        method_str, params, error_formatters, null_result_formatters
+    )
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/web3/manager.py", line 325, in request_blocking
+    return self.formatted_response(
+           ~~~~~~~~~~~~~~~~~~~~~~~^
+        response, params, error_formatters, null_result_formatters
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/web3/manager.py", line 286, in formatted_response
+    apply_error_formatters(error_formatters, response)
+    ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/web3/manager.py", line 103, in apply_error_formatters
+    formatted_resp = pipe(response, error_formatters)
+  File "cytoolz/functoolz.pyx", line 706, in cytoolz.functoolz.pipe
+  File "cytoolz/functoolz.pyx", line 681, in cytoolz.functoolz.c_pipe
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/web3/_utils/contract_error_handling.py", line 156, in raise_contract_logic_error_on_revert
+    _raise_contract_error(data)
+    ~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/web3/_utils/contract_error_handling.py", line 128, in _raise_contract_error
+    raise ContractCustomError(response_error_data, data=response_error_data)
+web3.exceptions.ContractCustomError: 0xeca695e1
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/ostium-service.py", line 252, in open_position
+    result = sdk.ostium.perform_trade(trade_params, at_price=current_price)
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/ostium.py", line 216, in perform_trade
+    raise Exception(
+        f'{reason_string}\n\n{suggestion}' if suggestion != None else reason_string)
+Exception: BelowMinLevPos()
+
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 13:42:41] "[35m[1mPOST /open-position HTTP/1.1[0m" 500 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 13:43:09] "POST /balance HTTP/1.1" 200 -
+ERROR:__main__:Open position error: execution reverted: ERC20: transfer amount exceeds balance
+
+Please top up your account with more USDC
+ERROR:__main__:Traceback (most recent call last):
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/ostium.py", line 180, in perform_trade
+    ).build_transaction({'from': account.address})
+      ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/web3/contract/contract.py", line 354, in build_transaction
+    return build_transaction_for_function(
+        self.address,
+    ...<6 lines>...
+        **self.kwargs,
+    )
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/web3/contract/utils.py", line 232, in build_transaction_for_function
+    prepared_transaction = fill_transaction_defaults(w3, prepared_transaction)
+  File "cytoolz/functoolz.pyx", line 289, in cytoolz.functoolz.curry.__call__
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/web3/_utils/transactions.py", line 132, in fill_transaction_defaults
+    default_val = default_getter(w3, transaction)
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/web3/_utils/transactions.py", line 72, in <lambda>
+    "gas": lambda w3, tx: w3.eth.estimate_gas(tx),
+                          ~~~~~~~~~~~~~~~~~~~^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/web3/eth/eth.py", line 293, in estimate_gas
+    return self._estimate_gas(transaction, block_identifier)
+           ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/web3/module.py", line 75, in caller
+    result = w3.manager.request_blocking(
+        method_str, params, error_formatters, null_result_formatters
+    )
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/web3/manager.py", line 325, in request_blocking
+    return self.formatted_response(
+           ~~~~~~~~~~~~~~~~~~~~~~~^
+        response, params, error_formatters, null_result_formatters
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/web3/manager.py", line 286, in formatted_response
+    apply_error_formatters(error_formatters, response)
+    ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/web3/manager.py", line 103, in apply_error_formatters
+    formatted_resp = pipe(response, error_formatters)
+  File "cytoolz/functoolz.pyx", line 706, in cytoolz.functoolz.pipe
+  File "cytoolz/functoolz.pyx", line 681, in cytoolz.functoolz.c_pipe
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/web3/_utils/contract_error_handling.py", line 161, in raise_contract_logic_error_on_revert
+    raise ContractLogicError(message, data=data)
+web3.exceptions.ContractLogicError: execution reverted: ERC20: transfer amount exceeds balance
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/ostium-service.py", line 252, in open_position
+    result = sdk.ostium.perform_trade(trade_params, at_price=current_price)
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/ostium.py", line 216, in perform_trade
+    raise Exception(
+        f'{reason_string}\n\n{suggestion}' if suggestion != None else reason_string)
+Exception: execution reverted: ERC20: transfer amount exceeds balance
+
+Please top up your account with more USDC
+
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 13:43:10] "[35m[1mPOST /open-position HTTP/1.1[0m" 500 -
