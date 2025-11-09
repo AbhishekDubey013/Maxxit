@@ -14,7 +14,7 @@ import traceback
 
 # Ostium SDK imports
 try:
-    from ostium_python_sdk import OstiumSDK, NetworkConfig
+    from ostium_python_sdk import OstiumSDK
 except ImportError:
     print("ERROR: ostium-python-sdk not installed. Run: pip install ostium-python-sdk")
     exit(1)
