@@ -387,3 +387,304 @@ INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:16:13] "POST /positions HTTP/1.1" 20
 INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:16:33] "POST /positions HTTP/1.1" 200 -
 INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:16:36] "POST /positions HTTP/1.1" 200 -
 INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:16:43] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:17:04] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:17:07] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:17:13] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:17:35] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:17:39] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:17:46] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:18:04] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:18:07] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:18:15] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:18:34] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:18:36] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:18:44] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:19:03] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:19:07] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:19:10] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:19:33] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:19:36] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:19:40] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:20:04] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:20:08] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:20:15] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:20:34] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:20:37] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:20:40] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:21:04] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:21:11] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:21:15] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:21:34] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:21:37] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:21:40] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:22:05] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:22:08] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:22:13] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:22:35] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:22:38] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:22:45] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:23:05] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:23:11] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:23:14] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:23:34] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:23:38] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:23:42] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:24:03] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:24:07] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:24:14] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:24:34] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:24:37] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:24:40] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:25:04] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:25:11] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:25:15] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:25:34] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:25:37] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:25:41] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:26:05] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:26:09] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:26:12] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:26:39] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:26:42] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:26:46] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:27:09] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:27:15] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:27:19] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:27:40] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:27:46] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:27:53] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:28:09] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:28:16] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:28:23] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:28:40] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:28:43] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:28:47] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:29:09] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:47:34] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:47:37] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:47:41] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:47:53] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:47:56] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:48:01] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:48:21] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:48:25] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:48:29] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:48:52] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:48:56] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:48:59] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:49:21] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:49:24] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:49:27] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:49:51] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:49:54] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:49:59] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:50:21] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:50:24] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:50:28] "POST /positions HTTP/1.1" 200 -
+ERROR:__main__:Get positions error: Connection closed
+ERROR:__main__:Traceback (most recent call last):
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/streams.py", line 355, in _wait
+    await waiter
+asyncio.exceptions.CancelledError
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/transport/aiohttp.py", line 331, in execute
+    result = await resp.json(content_type=None)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/client_reqrep.py", line 751, in json
+    await self.read()
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/client_reqrep.py", line 693, in read
+    self._body = await self.content.read()
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/streams.py", line 426, in read
+    block = await self.readany()
+            ^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/streams.py", line 448, in readany
+    await self._wait("readany")
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/streams.py", line 354, in _wait
+    with self._timer:
+         ^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/helpers.py", line 713, in __exit__
+    raise asyncio.TimeoutError from exc_val
+TimeoutError
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/ostium-service.py", line 153, in get_positions
+    result = loop.run_until_complete(sdk.get_open_trades(trader_address=address))
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/base_events.py", line 725, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/sdk.py", line 103, in get_open_trades
+    open_trades = await self.subgraph.get_open_trades(trader_public_address)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/subgraph.py", line 245, in get_open_trades
+    result = await self._execute_query(query, variable_values={"trader": address})
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/subgraph.py", line 46, in _execute_query
+    raise e
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/subgraph.py", line 35, in _execute_query
+    result = await client.execute_async(query, variable_values=variable_values)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/client.py", line 366, in execute_async
+    async with self as session:
+               ^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/client.py", line 814, in __aenter__
+    return await self.connect_async()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/client.py", line 795, in connect_async
+    await self.session.fetch_schema()
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/client.py", line 1661, in fetch_schema
+    execution_result = await self.transport.execute(parse(introspection_query))
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/transport/aiohttp.py", line 338, in execute
+    await raise_response_error(resp, "Not a JSON answer")
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/transport/aiohttp.py", line 323, in raise_response_error
+    result_text = await resp.text()
+                  ^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/client_reqrep.py", line 735, in text
+    await self.read()
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/client_reqrep.py", line 693, in read
+    self._body = await self.content.read()
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/streams.py", line 400, in read
+    raise self._exception
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/ostium-service.py", line 153, in get_positions
+    result = loop.run_until_complete(sdk.get_open_trades(trader_address=address))
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/base_events.py", line 725, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/sdk.py", line 103, in get_open_trades
+    open_trades = await self.subgraph.get_open_trades(trader_public_address)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/subgraph.py", line 245, in get_open_trades
+    result = await self._execute_query(query, variable_values={"trader": address})
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/subgraph.py", line 46, in _execute_query
+    raise e
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/subgraph.py", line 35, in _execute_query
+    result = await client.execute_async(query, variable_values=variable_values)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/client.py", line 366, in execute_async
+    async with self as session:
+               ^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/client.py", line 814, in __aenter__
+    return await self.connect_async()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/client.py", line 795, in connect_async
+    await self.session.fetch_schema()
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/client.py", line 1661, in fetch_schema
+    execution_result = await self.transport.execute(parse(introspection_query))
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/transport/aiohttp.py", line 338, in execute
+    await raise_response_error(resp, "Not a JSON answer")
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/transport/aiohttp.py", line 323, in raise_response_error
+    result_text = await resp.text()
+                  ^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/client_reqrep.py", line 735, in text
+    await self.read()
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/client_reqrep.py", line 693, in read
+    self._body = await self.content.read()
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/streams.py", line 400, in read
+    raise self._exception
+aiohttp.client_exceptions.ClientConnectionError: Connection closed
+
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:50:43] "[35m[1mPOST /positions HTTP/1.1[0m" 500 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:50:46] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:50:52] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:50:56] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:51:00] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:51:21] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:51:25] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:51:28] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:51:52] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:51:54] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:51:58] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:52:21] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:52:26] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:52:30] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:52:52] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:52:54] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:52:58] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:53:22] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:53:25] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:53:28] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:53:52] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:53:55] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:53:59] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:54:22] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:54:24] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:54:28] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:54:51] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:54:54] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:54:57] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:55:21] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:55:24] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:55:27] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:55:52] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:55:55] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:55:58] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:56:22] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:56:25] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:56:28] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:56:53] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:56:56] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:57:01] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:57:21] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:57:24] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:57:29] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:57:52] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:57:55] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:57:58] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:58:21] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:58:24] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:58:28] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:58:51] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:58:54] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:58:57] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:59:21] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:59:24] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:59:27] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:59:52] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:59:55] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:59:58] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:00:21] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:00:25] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:00:28] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:00:51] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:00:54] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:00:57] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:01:21] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:01:24] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:01:27] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:01:51] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:01:54] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:01:57] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:02:21] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:02:24] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:02:27] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:02:54] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:02:57] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:03:01] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:03:21] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:03:24] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:03:27] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:03:51] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:03:54] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:03:57] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:04:21] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:04:25] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:04:29] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:04:51] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:04:54] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:04:58] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:05:21] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:05:24] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:05:27] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:05:52] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:05:55] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:05:58] "POST /positions HTTP/1.1" 200 -
