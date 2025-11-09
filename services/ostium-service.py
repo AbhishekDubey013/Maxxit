@@ -71,7 +71,8 @@ def get_sdk(private_key: str, use_delegation: bool = False) -> OstiumSDK:
         sdk_cache[cache_key] = OstiumSDK(
             network=network,
             private_key=private_key,
-            rpc_url=OSTIUM_RPC_URL
+            rpc_url=OSTIUM_RPC_URL,
+            use_delegation=use_delegation  # CRITICAL: Enable delegation mode!
         )
         logger.info(f"Created new SDK instance (delegation={use_delegation})")
     
@@ -234,7 +235,7 @@ def open_position():
         }
         
         if use_delegation:
-            trade_params['trader'] = user_address
+            trade_params['trader_address'] = user_address  # User's wallet address
             logger.info(f"Trading on behalf of: {user_address}")
         
         # Workaround: Use a reasonable price for testnet trading
@@ -253,15 +254,21 @@ def open_position():
         
         logger.info(f"✅ Position opened: {result}")
         
+        # Convert Web3 AttributeDict to regular dict for JSON serialization
+        tx_hash = ''
+        if isinstance(result, dict):
+            tx_hash = result.get('transactionHash') or result.get('hash') or ''
+            if hasattr(tx_hash, 'hex'):
+                tx_hash = tx_hash.hex()
+        
         return jsonify({
             "success": True,
-            "transactionHash": result.get('transactionHash', result.get('hash', '')),
+            "transactionHash": tx_hash,
             "result": {
                 "market": market,
                 "side": side,
                 "size": size,
                 "leverage": leverage,
-                "fullResult": result
             }
         })
     

@@ -30,14 +30,14 @@ async function testOstiumTrade() {
     console.log(`✅ User Balance: ${balanceData.usdcBalance} USDC, ${balanceData.ethBalance} ETH\n`);
     
     // Step 2: Open a position
-    console.log('Step 2: Opening BTC LONG position ($500, 5x leverage)...');
+    console.log('Step 2: Opening BTC LONG position ($1000, 5x leverage = $5000 position)...');
     const openResponse = await fetch(`${OSTIUM_SERVICE_URL}/open-position`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         privateKey: AGENT_PRIVATE_KEY,
         market: 'BTC',
-        size: 500, // $500 collateral
+        size: 1000, // $1000 collateral = $5000 position size
         side: 'long',
         leverage: 5,
         useDelegation: true,
