@@ -15,8 +15,7 @@ const workers = [
   { name: 'Tweet Ingestion', script: 'workers/tweet-ingestion-worker.ts', interval: TWEET_INGESTION_INTERVAL },
   { name: 'Signal Generator', script: 'workers/signal-generator.ts', interval: SIGNAL_GENERATION_INTERVAL },
   { name: 'Trade Executor', script: 'workers/trade-executor-worker.ts', interval: TRADE_EXECUTION_INTERVAL },
-  { name: 'Position Monitor (Hyperliquid)', script: 'workers/position-monitor-hyperliquid.ts', interval: POSITION_MONITOR_INTERVAL },
-  { name: 'Position Monitor (Ostium)', script: 'workers/position-monitor-ostium.ts', interval: POSITION_MONITOR_INTERVAL }
+  { name: 'Position Monitor (Combined)', script: 'workers/position-monitor-combined.ts', interval: POSITION_MONITOR_INTERVAL }
 ];
 
 function runWorker(worker) {
