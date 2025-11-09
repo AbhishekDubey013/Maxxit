@@ -7,7 +7,7 @@ import StatusBadge from "./StatusBadge";
 interface AgentCardProps {
   id: string;
   name: string;
-  venue: "SPOT" | "GMX" | "HYPERLIQUID";
+  venue: "SPOT" | "GMX" | "HYPERLIQUID" | "OSTIUM";
   status: "ACTIVE" | "PAUSED" | "DRAFT";
   apr30d: number | null;
   sharpe30d: number | null;
@@ -31,6 +31,7 @@ export default function AgentCard({
     SPOT: "bg-chart-4/20 text-chart-4 border-chart-4/30",
     GMX: "bg-chart-2/20 text-chart-2 border-chart-2/30",
     HYPERLIQUID: "bg-chart-3/20 text-chart-3 border-chart-3/30",
+    OSTIUM: "bg-chart-1/20 text-chart-1 border-chart-1/30",
   };
 
   return (
