@@ -143,30 +143,41 @@ export default async function handler(
           }
 
           // Create signal with LunarCrush-derived position sizing
-          const signal = await prisma.signals.create({
-            data: {
-              agent_id: agent.id,
-              token_symbol: tokenSymbol,
-              venue: agent.venue,
-              side: 'LONG', // Simplified - would use sentiment analysis
-              size_model: {
-                type: 'balance-percentage',
-                value: positionSizePercentage, // Dynamic from LunarCrush!
-                impactFactor: post.ct_accounts.impact_factor,
+          // Wrapped in try-catch to handle race condition duplicate errors gracefully
+          try {
+            const signal = await prisma.signals.create({
+              data: {
+                agent_id: agent.id,
+                token_symbol: tokenSymbol,
+                venue: agent.venue,
+                side: 'LONG', // Simplified - would use sentiment analysis
+                size_model: {
+                  type: 'balance-percentage',
+                  value: positionSizePercentage, // Dynamic from LunarCrush!
+                  impactFactor: post.ct_accounts.impact_factor,
+                },
+                risk_model: {
+                  stopLoss: 0.05,
+                  takeProfit: 0.15,
+                },
+                source_tweets: [post.tweet_id],
+                lunarcrush_score: lunarCrushScore,
+                lunarcrush_reasoning: lunarCrushReasoning,
+                lunarcrush_breakdown: lunarCrushBreakdown,
               },
-              risk_model: {
-                stopLoss: 0.05,
-                takeProfit: 0.15,
-              },
-              source_tweets: [post.tweet_id],
-              lunarcrush_score: lunarCrushScore,
-              lunarcrush_reasoning: lunarCrushReasoning,
-              lunarcrush_breakdown: lunarCrushBreakdown,
-            },
-          });
+            });
 
-          signalsCreated.push(signal);
-          console.log(`[SIGNAL] Created signal: ${agent.name} - ${tokenSymbol} with ${positionSizePercentage.toFixed(2)}% position size`);
+            signalsCreated.push(signal);
+            console.log(`[SIGNAL] Created signal: ${agent.name} - ${tokenSymbol} with ${positionSizePercentage.toFixed(2)}% position size`);
+          } catch (createError: any) {
+            // P2002: Unique constraint violation (race condition - another worker created it first)
+            if (createError.code === 'P2002') {
+              console.log(`[SIGNAL] Signal already created by another worker: ${agent.name} - ${tokenSymbol} (race condition handled)`);
+            } else {
+              // Re-throw unexpected errors
+              throw createError;
+            }
+          }
         }
       }
     }
