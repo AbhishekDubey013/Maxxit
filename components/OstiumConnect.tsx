@@ -7,7 +7,7 @@
  * 5. Create deployment
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
 import { usePrivy } from '@privy-io/react-auth';
 import { X, Wallet, Key, Coins, CheckCircle, AlertCircle, Loader2, ExternalLink, Copy } from 'lucide-react';
 import { ethers } from 'ethers';
@@ -37,7 +37,6 @@ export function OstiumConnect({
   const [balance, setBalance] = useState<{ usdc: string; eth: string }>({ usdc: '0', eth: '0' });
   const [copied, setCopied] = useState(false);
   const [serviceAvailable, setServiceAvailable] = useState(true);
-  const [hasAutoConnected, setHasAutoConnected] = useState(false);
 
   // Step 1: Connect Wallet
   const connectWallet = async () => {
@@ -49,7 +48,6 @@ export function OstiumConnect({
       if (!authenticated || !user?.wallet?.address) {
         setLoading(false);
         await login();
-        // After login completes, Privy will update authenticated state
         return;
       }
 
@@ -79,14 +77,6 @@ export function OstiumConnect({
       setLoading(false);
     }
   };
-
-  // Auto-proceed if already authenticated when modal opens
-  useEffect(() => {
-    if (authenticated && user?.wallet?.address && step === 'connect' && !loading && !hasAutoConnected) {
-      setHasAutoConnected(true);
-      connectWallet();
-    }
-  }, [authenticated, user?.wallet?.address, step, loading, hasAutoConnected]);
 
   // Step 2: Generate Agent Wallet
   const generateAgent = async () => {
@@ -307,6 +297,11 @@ export function OstiumConnect({
                   <>
                     <Loader2 className="w-5 h-5 animate-spin" />
                     Connecting...
+                  </>
+                ) : authenticated ? (
+                  <>
+                    <Wallet className="w-5 h-5" />
+                    Continue with Connected Wallet
                   </>
                 ) : (
                   <>
