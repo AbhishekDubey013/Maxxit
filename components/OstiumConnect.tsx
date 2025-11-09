@@ -276,10 +276,7 @@ export function OstiumConnect({
           )}
 
           {/* Step 1: Connect Wallet */}
-          {step === 'connect' && (
-            <>
-            {console.log('[OstiumConnect] Rendering Step 1 (connect)')}
-            <div className="space-y-4">
+          <div className={step === 'connect' ? 'space-y-4' : 'hidden'}>
               <div className="text-center space-y-2">
                 <Wallet className="w-12 h-12 mx-auto text-primary" />
                 <h3 className="text-lg font-semibold">Connect Your Wallet</h3>
@@ -330,14 +327,9 @@ export function OstiumConnect({
                 )}
               </button>
             </div>
-            </>
-          )}
 
           {/* Step 2: Generate Agent */}
-          {step === 'agent' && (
-            <>
-            {console.log('[OstiumConnect] Rendering Step 2 (agent)')}
-            <div className="space-y-4">
+          <div className={step === 'agent' ? 'space-y-4' : 'hidden'}>
               <div className="text-center space-y-2">
                 <Key className="w-12 h-12 mx-auto text-primary" />
                 <h3 className="text-lg font-semibold">Generate Agent Wallet</h3>
@@ -379,14 +371,9 @@ export function OstiumConnect({
                 )}
               </button>
             </div>
-            </>
-          )}
 
           {/* Step 3: Get Testnet USDC */}
-          {step === 'faucet' && (
-            <>
-            {console.log('[OstiumConnect] Rendering Step 3 (faucet)')}
-            <div className="space-y-4">
+          <div className={step === 'faucet' ? 'space-y-4' : 'hidden'}>
               <div className="text-center space-y-2">
                 <Coins className="w-12 h-12 mx-auto text-primary" />
                 <h3 className="text-lg font-semibold">Get Testnet USDC</h3>
@@ -444,14 +431,9 @@ export function OstiumConnect({
                 Already have USDC? Click "Skip" to continue
               </div>
             </div>
-            </>
-          )}
 
           {/* Step 4: Approve Agent */}
-          {step === 'approve' && (
-            <>
-            {console.log('[OstiumConnect] Rendering Step 4 (approve)')}
-            <div className="space-y-4">
+          <div className={step === 'approve' ? 'space-y-4' : 'hidden'}>
               <div className="text-center space-y-2">
                 <CheckCircle className="w-12 h-12 mx-auto text-primary" />
                 <h3 className="text-lg font-semibold">Ready to Trade!</h3>
@@ -502,14 +484,9 @@ export function OstiumConnect({
                 )}
               </button>
             </div>
-            </>
-          )}
 
           {/* Step 5: Complete */}
-          {step === 'complete' && (
-            <>
-            {console.log('[OstiumConnect] Rendering Step 5 (complete)')}
-            <div className="space-y-4">
+          <div className={step === 'complete' ? 'space-y-4' : 'hidden'}>
               <div className="text-center space-y-2">
                 <div className="w-16 h-16 mx-auto bg-green-100 dark:bg-green-900/20 rounded-full flex items-center justify-center">
                   <CheckCircle className="w-10 h-10 text-green-600" />
@@ -542,8 +519,6 @@ export function OstiumConnect({
                 Go to Dashboard
               </button>
             </div>
-            </>
-          )}
         </div>
       </div>
     </div>
