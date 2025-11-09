@@ -135,9 +135,28 @@ export async function monitorOstiumPositions() {
               where: {
                 entry_tx_hash: ostPosition.tradeId,
                 venue: 'OSTIUM',
-                closed_at: null,
               },
             });
+
+            // If position exists but is closed, reopen it
+            if (existingPosition && existingPosition.closed_at) {
+              console.log(`   🔄 Reopening position: ${ostPosition.side.toUpperCase()} ${ostPosition.market} (was incorrectly closed)`);
+              await prisma.positions.update({
+                where: { id: existingPosition.id },
+                data: {
+                  closed_at: null,
+                  exit_price: null,
+                  exit_tx_hash: null,
+                  exit_reason: null,
+                  pnl: null,
+                  status: 'OPEN',
+                  // Update current values
+                  entry_price: ostPosition.entryPrice,
+                  qty: ostPosition.size,
+                },
+              });
+              continue;
+            }
 
             if (!existingPosition) {
               // Auto-discover position - create in DB
