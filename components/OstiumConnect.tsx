@@ -47,6 +47,14 @@ export function OstiumConnect({
     console.log('[OstiumConnect] useEffect: step changed to:', step);
   }, [step]);
 
+  // Track component lifecycle
+  useEffect(() => {
+    console.log('[OstiumConnect] Component MOUNTED');
+    return () => {
+      console.log('[OstiumConnect] Component UNMOUNTING!');
+    };
+  }, []);
+
   // Step 1: Connect Wallet
   const connectWallet = async () => {
     console.log('[OstiumConnect] connectWallet called', { authenticated, wallet: user?.wallet?.address });
@@ -99,14 +107,22 @@ export function OstiumConnect({
       }
 
       console.log('[OstiumConnect] Moving to agent step');
-      setStep('agent');
-      console.log('[OstiumConnect] setStep called with "agent"');
+      
+      // Force re-render by updating multiple states
+      setLoading(true);
+      setTimeout(() => {
+        console.log('[OstiumConnect] Setting step to agent via setTimeout');
+        setStep('agent');
+        setLoading(false);
+        console.log('[OstiumConnect] Step and loading state updated');
+      }, 100);
+      
+      console.log('[OstiumConnect] setStep scheduled');
+      return; // Skip finally block
     } catch (err: any) {
       console.error('[OstiumConnect] Error:', err);
       setError(err.message || 'Failed to connect wallet');
-    } finally {
       setLoading(false);
-      console.log('[OstiumConnect] connectWallet finished, loading=false');
     }
   };
 
