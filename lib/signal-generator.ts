@@ -25,7 +25,7 @@ interface SignalGeneratorInput {
   tweetSentiment: 'bullish' | 'bearish' | 'neutral';
   tweetConfidence: number;
   tokenSymbol: string;
-  venue: 'SPOT' | 'GMX' | 'HYPERLIQUID';
+  venue: 'SPOT' | 'GMX' | 'HYPERLIQUID' | 'OSTIUM';
   marketIndicators?: {
     rsi?: number;
     macd?: { value: number; signal: number; histogram: number };
@@ -96,7 +96,7 @@ export class SignalGenerator {
    * Build the LLM prompt with all context
    */
   private buildPrompt(input: SignalGeneratorInput): string {
-    const isPerpetual = input.venue === 'GMX' || input.venue === 'HYPERLIQUID';
+    const isPerpetual = input.venue === 'GMX' || input.venue === 'HYPERLIQUID' || input.venue === 'OSTIUM';
     const leverageInfo = isPerpetual ? 'You MUST specify leverage between 1-10x.' : 'No leverage (spot trading).';
 
     const indicatorsText = input.marketIndicators ? `
@@ -315,7 +315,7 @@ Respond ONLY with the JSON object, no other text.`;
   private fallbackSignal(input: SignalGeneratorInput): TradingSignal {
     console.log('[SignalGen] Using rule-based fallback');
 
-    const isPerpetual = input.venue === 'GMX' || input.venue === 'HYPERLIQUID';
+    const isPerpetual = input.venue === 'GMX' || input.venue === 'HYPERLIQUID' || input.venue === 'OSTIUM';
     
     // Determine side from sentiment
     const side = input.tweetSentiment === 'bearish' ? 'SHORT' : 'LONG';
