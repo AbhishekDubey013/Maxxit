@@ -84,11 +84,13 @@ export function OstiumConnect({
 
       console.log('[OstiumConnect] Moving to agent step');
       setStep('agent');
+      console.log('[OstiumConnect] setStep called with "agent"');
     } catch (err: any) {
       console.error('[OstiumConnect] Error:', err);
       setError(err.message || 'Failed to connect wallet');
     } finally {
       setLoading(false);
+      console.log('[OstiumConnect] connectWallet finished, loading=false');
     }
   };
 
@@ -278,6 +280,8 @@ export function OstiumConnect({
 
           {/* Step 1: Connect Wallet */}
           {step === 'connect' && (
+            <>
+            {console.log('[OstiumConnect] Rendering Step 1 (connect)')}
             <div className="space-y-4">
               <div className="text-center space-y-2">
                 <Wallet className="w-12 h-12 mx-auto text-primary" />
@@ -329,10 +333,13 @@ export function OstiumConnect({
                 )}
               </button>
             </div>
+            </>
           )}
 
           {/* Step 2: Generate Agent */}
           {step === 'agent' && (
+            <>
+            {console.log('[OstiumConnect] Rendering Step 2 (agent)')}
             <div className="space-y-4">
               <div className="text-center space-y-2">
                 <Key className="w-12 h-12 mx-auto text-primary" />
@@ -375,10 +382,13 @@ export function OstiumConnect({
                 )}
               </button>
             </div>
+            </>
           )}
 
           {/* Step 3: Get Testnet USDC */}
           {step === 'faucet' && (
+            <>
+            {console.log('[OstiumConnect] Rendering Step 3 (faucet)')}
             <div className="space-y-4">
               <div className="text-center space-y-2">
                 <Coins className="w-12 h-12 mx-auto text-primary" />
@@ -437,10 +447,13 @@ export function OstiumConnect({
                 Already have USDC? Click "Skip" to continue
               </div>
             </div>
+            </>
           )}
 
           {/* Step 4: Approve Agent */}
           {step === 'approve' && (
+            <>
+            {console.log('[OstiumConnect] Rendering Step 4 (approve)')}
             <div className="space-y-4">
               <div className="text-center space-y-2">
                 <CheckCircle className="w-12 h-12 mx-auto text-primary" />
@@ -492,10 +505,13 @@ export function OstiumConnect({
                 )}
               </button>
             </div>
+            </>
           )}
 
           {/* Step 5: Complete */}
           {step === 'complete' && (
+            <>
+            {console.log('[OstiumConnect] Rendering Step 5 (complete)')}
             <div className="space-y-4">
               <div className="text-center space-y-2">
                 <div className="w-16 h-16 mx-auto bg-green-100 dark:bg-green-900/20 rounded-full flex items-center justify-center">
@@ -529,6 +545,7 @@ export function OstiumConnect({
                 Go to Dashboard
               </button>
             </div>
+            </>
           )}
         </div>
       </div>
