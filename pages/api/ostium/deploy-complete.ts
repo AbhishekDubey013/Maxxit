@@ -16,41 +16,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
-    // 1. Check if user already has an agent wallet assigned (from Hyperliquid or other venues)
-    const existingDeployment = await prisma.agent_deployments.findFirst({
-      where: {
-        safeWallet: userWallet.toLowerCase(),
-        hyperliquidAgentAddress: { not: null },
-      },
-      select: {
-        hyperliquidAgentAddress: true,
-      },
-    });
+    console.log(`[Ostium Deploy] Starting deployment for agent: ${agentId}, user: ${userWallet}`);
 
-    let agentAddress: string;
-
-    if (existingDeployment?.hyperliquidAgentAddress) {
-      // Reuse existing agent wallet
-      agentAddress = existingDeployment.hyperliquidAgentAddress;
-      console.log(`[Ostium Deploy] Reusing existing agent wallet: ${agentAddress} for user: ${userWallet}`);
-    } else {
-      // Assign new agent wallet from pool
-      const agentWallet = await assignWalletToUser(userWallet);
-      
-      if (!agentWallet) {
-        return res.status(500).json({ error: 'No available agent wallets in pool' });
-      }
-
-      agentAddress = agentWallet.address;
-      console.log(`[Ostium Deploy] Assigned new agent wallet: ${agentAddress} to user: ${userWallet}`);
+    // 1. Assign agent wallet from pool
+    const agentWallet = await assignWalletToUser(userWallet);
+    
+    if (!agentWallet) {
+      return res.status(500).json({ error: 'No available agent wallets in pool. Please contact support.' });
     }
+
+    const agentAddress = agentWallet.address;
+    console.log(`[Ostium Deploy] Assigned agent wallet: ${agentAddress} to user: ${userWallet}`);
 
     // 2. Create deployment in database
     const deployment = await prisma.agent_deployments.create({
       data: {
         agentId,
-        safeWallet: userWallet, // User's Arbitrum wallet
-        hyperliquidAgentAddress: agentAddress, // Reuse same agent for Ostium
+        safeWallet: userWallet,
+        hyperliquidAgentAddress: agentAddress,
         status: 'ACTIVE',
         moduleEnabled: true,
       },
