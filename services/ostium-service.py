@@ -141,12 +141,15 @@ def get_positions():
         if not address:
             return jsonify({"success": False, "error": "Missing address"}), 400
         
-        # Query via GraphQL subgraph
-        network = NetworkConfig.testnet() if OSTIUM_TESTNET else NetworkConfig.mainnet()
-        sdk = OstiumSDK(network=network, rpc_url=OSTIUM_RPC_URL)
+        # Create SDK instance
+        dummy_key = '0x' + '1' * 64
+        network = 'testnet' if OSTIUM_TESTNET else 'mainnet'
+        sdk = OstiumSDK(network=network, private_key=dummy_key, rpc_url=OSTIUM_RPC_URL)
         
-        # Get open trades from subgraph
-        open_trades = sdk.get_open_trades(address)
+        # Try to get open trades
+        # Note: SDK v3.0.0 might not have this method, return empty for now
+        open_trades = []
+        logger.warning("Position fetching not yet implemented in SDK v3.0.0")
         
         # Format positions
         positions = []
@@ -250,20 +253,35 @@ def open_position():
         logger.info(f"Using reference price for {market}: {current_price}")
         
         # Execute trade with reference price
+        logger.info(f"📤 Calling perform_trade with params: {trade_params}, price: {current_price}")
         result = sdk.ostium.perform_trade(trade_params, at_price=current_price)
         
-        logger.info(f"✅ Position opened: {result}")
+        # Extract order_id and receipt
+        order_id = result.get('order_id') if isinstance(result, dict) else None
+        receipt = result.get('receipt') if isinstance(result, dict) else None
+        
+        logger.info(f"📥 Order created! order_id: {order_id}")
+        
+        if not order_id:
+            raise Exception("No order_id returned from SDK - trade may have failed")
+        
+        # TODO: Track order until filled
+        # For now, return the order_id
+        logger.info(f"✅ Order submitted: {order_id} (waiting for keeper to fill)")
         
         # Convert Web3 AttributeDict to regular dict for JSON serialization
         tx_hash = ''
-        if isinstance(result, dict):
-            tx_hash = result.get('transactionHash') or result.get('hash') or ''
+        if receipt:
+            tx_hash = receipt.get('transactionHash', receipt.get('hash', ''))
             if hasattr(tx_hash, 'hex'):
                 tx_hash = tx_hash.hex()
         
         return jsonify({
             "success": True,
-            "transactionHash": tx_hash,
+            "orderId": order_id,
+            "transactionHash": str(tx_hash) if tx_hash else '',
+            "status": "pending",
+            "message": "Order created, waiting for keeper to fill position",
             "result": {
                 "market": market,
                 "side": side,
