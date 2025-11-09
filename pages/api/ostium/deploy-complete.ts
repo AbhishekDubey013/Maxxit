@@ -66,12 +66,27 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     console.log(`[Ostium Deploy] Created deployment: ${deployment.id}`);
 
+    // 3. Approve agent on Ostium smart contracts
+    console.log(`[Ostium Deploy] Approving agent ${agentAddress} for user ${userWallet}...`);
+    
+    try {
+      // Get user's private key to sign approval
+      // In production, this should be done via wallet connection on frontend
+      // For now, we'll skip and let user approve manually or via UI
+      console.log(`[Ostium Deploy] ⚠️  Agent approval pending - user must approve via UI`);
+    } catch (approvalError: any) {
+      console.error(`[Ostium Deploy] Approval failed:`, approvalError);
+      // Don't fail the deployment, just warn
+    }
+
     return res.status(200).json({
       success: true,
       deploymentId: deployment.id,
       agentAddress,
       userWallet,
       message: 'Ostium agent deployed successfully',
+      needsApproval: true,
+      approvalNote: 'Agent needs to be approved on Ostium smart contracts before trading',
     });
   } catch (error: any) {
     console.error('[Ostium Deploy Complete] Error:', error);

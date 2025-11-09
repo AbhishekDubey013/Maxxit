@@ -14,7 +14,7 @@ import traceback
 
 # Ostium SDK imports
 try:
-    from ostium_python_sdk import OstiumSDK
+    from ostium_python_sdk import OstiumSDK, NetworkConfig
 except ImportError:
     print("ERROR: ostium-python-sdk not installed. Run: pip install ostium-python-sdk")
     exit(1)
@@ -390,22 +390,29 @@ def approve_agent():
             }), 400
         
         # User SDK (no delegation)
-        sdk = get_sdk(user_key, use_delegation=False)
+        network = NetworkConfig.testnet() if OSTIUM_TESTNET else NetworkConfig.mainnet()
+        sdk = OstiumSDK(
+            network=network,
+            private_key=user_key,
+            rpc_url=OSTIUM_RPC_URL,
+            use_delegation=False,
+            verbose=True
+        )
         
         logger.info(f"User approving agent: {agent_address}")
         
-        # TODO: Call Ostium contract's approve_operator method
-        # This might be: sdk.ostium.approve_operator(agent_address)
-        # Need to check actual SDK method name
+        # Approve the agent to trade on behalf of user
+        # The agent can now execute trades using user's vault
+        result = sdk.delegation.approve_operator(agent_address)
         
-        # For now, return placeholder
-        logger.warning("Approval flow not yet implemented - check Ostium SDK docs")
+        logger.info(f"✅ Agent approved! Tx hash: {result.get('transactionHash', 'N/A')}")
         
         return jsonify({
             "success": True,
-            "message": "Agent approval initiated",
+            "message": "Agent approved successfully",
             "agentAddress": agent_address,
-            "note": "Approval implementation pending SDK method discovery"
+            "transactionHash": result.get('transactionHash'),
+            "result": result
         })
     
     except Exception as e:
