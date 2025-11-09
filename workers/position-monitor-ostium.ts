@@ -129,18 +129,19 @@ export async function monitorOstiumPositions() {
         // Discover and track new positions
         for (const ostPosition of ostiumPositions) {
           try {
-            // Check if position exists in DB by matching deployment + market + open status
+            // Check if position exists in DB by matching entry_tx_hash (tradeId)
+            // This prevents duplicates across multiple deployments for the same wallet
             const existingPosition = await prisma.positions.findFirst({
               where: {
-                deployment_id: deployment.id,
-                token_symbol: ostPosition.market,
+                entry_tx_hash: ostPosition.tradeId,
+                venue: 'OSTIUM',
                 closed_at: null,
               },
             });
 
             if (!existingPosition) {
               // Auto-discover position - create in DB
-              console.log(`   ✨ Discovered new position: ${ostPosition.side.toUpperCase()} ${ostPosition.market}`);
+              console.log(`   ✨ Discovered new position: ${ostPosition.side.toUpperCase()} ${ostPosition.market} (Trade ID: ${ostPosition.tradeId})`);
               
               // Create a "discovered" signal for this position
               const discoveredSignal = await prisma.signals.create({
@@ -149,13 +150,16 @@ export async function monitorOstiumPositions() {
                   venue: 'OSTIUM',
                   token_symbol: ostPosition.market,
                   side: ostPosition.side.toUpperCase(),
-                  confidence: 1.0,
                   size_model: {
                     type: 'fixed-usdc',
                     value: ostPosition.size,
                     leverage: ostPosition.leverage,
                   },
-                  source: 'DISCOVERED',
+                  risk_model: {
+                    type: 'trailing-stop',
+                    trailingPercent: 1,
+                  },
+                  source_tweets: ['DISCOVERED_FROM_OSTIUM'],
                 },
               });
 
@@ -175,7 +179,6 @@ export async function monitorOstiumPositions() {
                     trailingPercent: 1, // 1% trailing stop
                     highestPrice: null,
                   },
-                  source: 'DISCOVERED',
                 },
               });
 
@@ -201,14 +204,15 @@ export async function monitorOstiumPositions() {
         // Monitor each position
         for (const position of dbPositions) {
           try {
-            // Find matching position on Ostium
+            // Find matching position on Ostium by tradeId (more precise than market+side)
             const ostPosition = ostiumPositions.find(
-              p => p.market === position.token_symbol && p.side.toUpperCase() === position.side
+              p => p.tradeId === position.entry_tx_hash || 
+                   (p.market === position.token_symbol && p.side.toUpperCase() === position.side)
             );
 
             // Position closed externally?
             if (!ostPosition) {
-              console.log(`   ⚠️  Position ${position.token_symbol} ${position.side} no longer on Ostium - marking as closed`);
+              console.log(`   ⚠️  Position ${position.token_symbol} ${position.side} (TX: ${position.entry_tx_hash}) no longer on Ostium - marking as closed`);
               
               await prisma.positions.update({
                 where: { id: position.id },
