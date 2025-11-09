@@ -36,6 +36,7 @@ export function OstiumConnect({
   const [agentAddress, setAgentAddress] = useState<string>('');
   const [balance, setBalance] = useState<{ usdc: string; eth: string }>({ usdc: '0', eth: '0' });
   const [copied, setCopied] = useState(false);
+  const [serviceAvailable, setServiceAvailable] = useState(true);
 
   // Step 1: Connect Wallet
   const connectWallet = async () => {
@@ -64,6 +65,7 @@ export function OstiumConnect({
           usdc: balanceData.usdcBalance || '0',
           eth: balanceData.ethBalance || '0',
         });
+        setServiceAvailable(balanceData.serviceAvailable !== false);
       }
 
       setStep('agent');
@@ -245,6 +247,16 @@ export function OstiumConnect({
             <div className="mb-4 flex items-start gap-2 p-3 text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 rounded-md">
               <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
               <span>{error}</span>
+            </div>
+          )}
+
+          {!serviceAvailable && (
+            <div className="mb-4 flex items-start gap-2 p-3 text-sm text-yellow-600 dark:text-yellow-400 bg-yellow-50 dark:bg-yellow-900/20 rounded-md">
+              <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+              <div>
+                <div className="font-semibold">Ostium Service Unavailable</div>
+                <div className="text-xs mt-1">Balance checks and faucet may not work. You can still create the deployment.</div>
+              </div>
             </div>
           )}
 
