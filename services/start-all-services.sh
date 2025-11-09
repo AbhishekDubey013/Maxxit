@@ -1,13 +1,14 @@
 #!/bin/bash
 
-# Start all Python services (Hyperliquid + Twitter Proxy)
+# Start all Python services (Hyperliquid + Ostium + Twitter Proxy)
 # For Render/local deployment
 
 echo "🚀 Starting All Python Services..."
 
-# Determine port (Render sets PORT env var)
+# Determine ports (Render sets PORT env var)
 HYPERLIQUID_PORT=${PORT:-5001}
-TWITTER_PORT=5002
+OSTIUM_PORT=5002
+TWITTER_PORT=5003
 
 # Load environment variables if .env exists
 if [ -f ../.env ]; then
@@ -27,6 +28,16 @@ echo "✅ Hyperliquid service started (PID: $HYPERLIQUID_PID)"
 # Wait for Hyperliquid to start
 sleep 3
 
+# Start Ostium service
+echo "Starting Ostium service on port $OSTIUM_PORT..."
+cd "$SERVICES_DIR"
+PORT=$OSTIUM_PORT python3 ostium-service.py &
+OSTIUM_PID=$!
+echo "✅ Ostium service started (PID: $OSTIUM_PID)"
+
+# Wait for Ostium to start
+sleep 3
+
 # Start Twitter proxy
 echo "Starting Twitter proxy on port $TWITTER_PORT..."
 cd "$SERVICES_DIR"
@@ -40,18 +51,20 @@ echo "  ✅ ALL SERVICES RUNNING"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 echo "Hyperliquid Service: http://0.0.0.0:$HYPERLIQUID_PORT"
+echo "Ostium Service:      http://0.0.0.0:$OSTIUM_PORT"
 echo "Twitter Proxy:       http://0.0.0.0:$TWITTER_PORT"
 echo ""
 echo "Health checks:"
 echo "  curl http://localhost:$HYPERLIQUID_PORT/health"
+echo "  curl http://localhost:$OSTIUM_PORT/health"
 echo "  curl http://localhost:$TWITTER_PORT/health"
 echo ""
 echo "Press Ctrl+C to stop all services"
 echo ""
 
 # Handle shutdown gracefully
-trap "kill $HYPERLIQUID_PID $TWITTER_PID 2>/dev/null" EXIT
+trap "kill $HYPERLIQUID_PID $OSTIUM_PID $TWITTER_PID 2>/dev/null" EXIT
 
-# Wait for both processes
+# Wait for all processes
 wait
 
