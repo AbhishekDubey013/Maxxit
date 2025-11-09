@@ -9,3 +9,9 @@
  * Running on http://192.168.1.19:5002
 2025-11-09 08:33:48,892 [INFO] [33mPress CTRL+C to quit[0m
 2025-11-09 08:33:55,207 [INFO] 127.0.0.1 - - [09/Nov/2025 08:33:55] "GET /health HTTP/1.1" 200 -
+2025-11-09 12:59:02,219 [INFO] 🚀 Ostium Service Starting...
+2025-11-09 12:59:02,219 [INFO]    Network: TESTNET
+2025-11-09 12:59:02,219 [INFO]    RPC URL: https://sepolia-rollup.arbitrum.io/rpc
+2025-11-09 12:59:02,220 [INFO] 🚀 Starting Ostium Service on port 5002
+2025-11-09 12:59:02,220 [INFO]    Network: TESTNET (Arbitrum Sepolia)
+2025-11-09 12:59:10,313 [INFO] 127.0.0.1 - - [09/Nov/2025 12:59:10] "GET /health HTTP/1.1" 200 -
