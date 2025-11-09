@@ -18,15 +18,39 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     console.log(`[Ostium Deploy] Starting deployment for agent: ${agentId}, user: ${userWallet}`);
 
-    // 1. Assign agent wallet from pool
-    const agentWallet = await assignWalletToUser(userWallet);
-    
-    if (!agentWallet) {
-      return res.status(500).json({ error: 'No available agent wallets in pool. Please contact support.' });
-    }
+    // 1. Check if user already has ANY deployment with an agent wallet
+    const existingDeployment = await prisma.agent_deployments.findFirst({
+      where: {
+        safeWallet: {
+          equals: userWallet,
+          mode: 'insensitive',
+        },
+        hyperliquidAgentAddress: { not: null },
+      },
+      select: {
+        hyperliquidAgentAddress: true,
+      },
+    });
 
-    const agentAddress = agentWallet.address;
-    console.log(`[Ostium Deploy] Assigned agent wallet: ${agentAddress} to user: ${userWallet}`);
+    let agentAddress: string;
+
+    if (existingDeployment?.hyperliquidAgentAddress) {
+      // Reuse existing agent wallet
+      agentAddress = existingDeployment.hyperliquidAgentAddress;
+      console.log(`[Ostium Deploy] Reusing existing agent wallet: ${agentAddress}`);
+    } else {
+      // Try to assign from pool
+      const agentWallet = await assignWalletToUser(userWallet);
+      
+      if (!agentWallet) {
+        return res.status(500).json({ 
+          error: 'No available agent wallets. Please deploy a Hyperliquid agent first or contact support.' 
+        });
+      }
+
+      agentAddress = agentWallet.address;
+      console.log(`[Ostium Deploy] Assigned new agent wallet: ${agentAddress}`);
+    }
 
     // 2. Create deployment in database
     const deployment = await prisma.agent_deployments.create({
