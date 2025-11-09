@@ -27,6 +27,8 @@ export function OstiumConnect({
   onClose,
   onSuccess,
 }: OstiumConnectProps) {
+  console.log('[OstiumConnect] Component rendered/mounted', { agentId, agentName });
+  
   const { user, authenticated, login } = usePrivy();
   const [step, setStep] = useState<Step>('connect');
   const [loading, setLoading] = useState(false);
@@ -37,6 +39,8 @@ export function OstiumConnect({
   const [balance, setBalance] = useState<{ usdc: string; eth: string }>({ usdc: '0', eth: '0' });
   const [copied, setCopied] = useState(false);
   const [serviceAvailable, setServiceAvailable] = useState(true);
+  
+  console.log('[OstiumConnect] Current state:', { step, loading, authenticated, userWallet: user?.wallet?.address });
 
   // Step 1: Connect Wallet
   const connectWallet = async () => {
@@ -299,7 +303,11 @@ export function OstiumConnect({
               </div>
 
               <button
-                onClick={connectWallet}
+                onClick={(e) => {
+                  console.log('[OstiumConnect] BUTTON CLICKED!', { loading, authenticated, step });
+                  e.preventDefault();
+                  connectWallet();
+                }}
                 disabled={loading}
                 className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-primary text-primary-foreground rounded-md font-medium hover:bg-primary/90 disabled:opacity-50"
               >

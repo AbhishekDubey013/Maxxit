@@ -1,0 +1,11 @@
+2025-11-09 08:33:43,880 [INFO] 🚀 Ostium Service Starting...
+2025-11-09 08:33:43,880 [INFO]    Network: TESTNET
+2025-11-09 08:33:43,880 [INFO]    RPC URL: https://sepolia-rollup.arbitrum.io/rpc
+2025-11-09 08:33:43,881 [INFO] 🚀 Starting Ostium Service on port 5002
+2025-11-09 08:33:43,881 [INFO]    Network: TESTNET (Arbitrum Sepolia)
+2025-11-09 08:33:48,892 [INFO] [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5002
+ * Running on http://192.168.1.19:5002
+2025-11-09 08:33:48,892 [INFO] [33mPress CTRL+C to quit[0m
+2025-11-09 08:33:55,207 [INFO] 127.0.0.1 - - [09/Nov/2025 08:33:55] "GET /health HTTP/1.1" 200 -
