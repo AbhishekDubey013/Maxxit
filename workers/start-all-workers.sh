@@ -20,6 +20,7 @@ pkill -f "signal-generator.ts" 2>/dev/null
 pkill -f "trade-executor-worker.ts" 2>/dev/null
 pkill -f "position-monitor-hyperliquid.ts" 2>/dev/null
 pkill -f "position-monitor-ostium.ts" 2>/dev/null
+pkill -f "position-monitor-combined.ts" 2>/dev/null
 sleep 2
 
 # Create logs directory if it doesn't exist
@@ -54,19 +55,12 @@ echo "   ✅ PID: $EXECUTOR_WORKER_PID (logs/trade-executor.log)"
 
 sleep 2
 
-# 4. Position Monitor Worker - Hyperliquid (every 1 min)
-echo "📈 Starting Position Monitor Worker (Hyperliquid)..."
-npx tsx workers/position-monitor-hyperliquid.ts > logs/position-monitor.log 2>&1 &
+# 4. Combined Position Monitor Worker (Sequential: Hyperliquid → Ostium)
+echo "📈 Starting Combined Position Monitor Worker (Sequential)..."
+npx tsx workers/position-monitor-combined.ts > logs/position-monitor.log 2>&1 &
 MONITOR_WORKER_PID=$!
 echo "   ✅ PID: $MONITOR_WORKER_PID (logs/position-monitor.log)"
-
-sleep 2
-
-# 5. Position Monitor Worker - Ostium (every 1 min)
-echo "📈 Starting Position Monitor Worker (Ostium)..."
-npx tsx workers/position-monitor-ostium.ts > logs/position-monitor-ostium.log 2>&1 &
-MONITOR_OSTIUM_WORKER_PID=$!
-echo "   ✅ PID: $MONITOR_OSTIUM_WORKER_PID (logs/position-monitor-ostium.log)"
+echo "   ℹ️  Runs Hyperliquid then Ostium sequentially (no race conditions)"
 
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
@@ -77,8 +71,7 @@ echo "Worker PIDs:"
 echo "  Tweet Ingestion: $TWEET_WORKER_PID"
 echo "  Signal Generator: $SIGNAL_WORKER_PID"
 echo "  Trade Executor: $EXECUTOR_WORKER_PID"
-echo "  Position Monitor (Hyperliquid): $MONITOR_WORKER_PID"
-echo "  Position Monitor (Ostium): $MONITOR_OSTIUM_WORKER_PID"
+echo "  Position Monitor (Combined): $MONITOR_WORKER_PID"
 echo ""
 echo "Monitor logs:"
 echo "  tail -f logs/*.log"
@@ -94,7 +87,6 @@ echo "$TWEET_WORKER_PID" > logs/tweet-worker.pid
 echo "$SIGNAL_WORKER_PID" > logs/signal-worker.pid
 echo "$EXECUTOR_WORKER_PID" > logs/executor-worker.pid
 echo "$MONITOR_WORKER_PID" > logs/monitor-worker.pid
-echo "$MONITOR_OSTIUM_WORKER_PID" > logs/monitor-ostium-worker.pid
 
 echo "Workers are running in the background. Press Ctrl+C to return to shell."
 echo "Workers will continue running after you exit."

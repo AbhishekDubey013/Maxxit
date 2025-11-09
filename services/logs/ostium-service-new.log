@@ -813,3 +813,237 @@ INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:44:14] "POST /positions HTTP/1.1" 20
 INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:44:38] "POST /positions HTTP/1.1" 200 -
 INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:44:42] "POST /positions HTTP/1.1" 200 -
 INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:44:45] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:45:08] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:45:11] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:45:15] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:45:39] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:45:42] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:45:45] "POST /positions HTTP/1.1" 200 -
+ERROR:__main__:Get positions error: Connection closed
+ERROR:__main__:Traceback (most recent call last):
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/streams.py", line 355, in _wait
+    await waiter
+asyncio.exceptions.CancelledError
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/transport/aiohttp.py", line 331, in execute
+    result = await resp.json(content_type=None)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/client_reqrep.py", line 751, in json
+    await self.read()
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/client_reqrep.py", line 693, in read
+    self._body = await self.content.read()
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/streams.py", line 426, in read
+    block = await self.readany()
+            ^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/streams.py", line 448, in readany
+    await self._wait("readany")
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/streams.py", line 354, in _wait
+    with self._timer:
+         ^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/helpers.py", line 713, in __exit__
+    raise asyncio.TimeoutError from exc_val
+TimeoutError
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/ostium-service.py", line 153, in get_positions
+    result = loop.run_until_complete(sdk.get_open_trades(trader_address=address))
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/base_events.py", line 725, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/sdk.py", line 103, in get_open_trades
+    open_trades = await self.subgraph.get_open_trades(trader_public_address)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/subgraph.py", line 245, in get_open_trades
+    result = await self._execute_query(query, variable_values={"trader": address})
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/subgraph.py", line 46, in _execute_query
+    raise e
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/subgraph.py", line 35, in _execute_query
+    result = await client.execute_async(query, variable_values=variable_values)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/client.py", line 366, in execute_async
+    async with self as session:
+               ^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/client.py", line 814, in __aenter__
+    return await self.connect_async()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/client.py", line 795, in connect_async
+    await self.session.fetch_schema()
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/client.py", line 1661, in fetch_schema
+    execution_result = await self.transport.execute(parse(introspection_query))
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/transport/aiohttp.py", line 338, in execute
+    await raise_response_error(resp, "Not a JSON answer")
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/transport/aiohttp.py", line 323, in raise_response_error
+    result_text = await resp.text()
+                  ^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/client_reqrep.py", line 735, in text
+    await self.read()
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/client_reqrep.py", line 693, in read
+    self._body = await self.content.read()
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/streams.py", line 400, in read
+    raise self._exception
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/ostium-service.py", line 153, in get_positions
+    result = loop.run_until_complete(sdk.get_open_trades(trader_address=address))
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/base_events.py", line 725, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/sdk.py", line 103, in get_open_trades
+    open_trades = await self.subgraph.get_open_trades(trader_public_address)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/subgraph.py", line 245, in get_open_trades
+    result = await self._execute_query(query, variable_values={"trader": address})
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/subgraph.py", line 46, in _execute_query
+    raise e
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/subgraph.py", line 35, in _execute_query
+    result = await client.execute_async(query, variable_values=variable_values)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/client.py", line 366, in execute_async
+    async with self as session:
+               ^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/client.py", line 814, in __aenter__
+    return await self.connect_async()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/client.py", line 795, in connect_async
+    await self.session.fetch_schema()
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/client.py", line 1661, in fetch_schema
+    execution_result = await self.transport.execute(parse(introspection_query))
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/transport/aiohttp.py", line 338, in execute
+    await raise_response_error(resp, "Not a JSON answer")
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/transport/aiohttp.py", line 323, in raise_response_error
+    result_text = await resp.text()
+                  ^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/client_reqrep.py", line 735, in text
+    await self.read()
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/client_reqrep.py", line 693, in read
+    self._body = await self.content.read()
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/streams.py", line 400, in read
+    raise self._exception
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/ostium-service.py", line 153, in get_positions
+    result = loop.run_until_complete(sdk.get_open_trades(trader_address=address))
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/base_events.py", line 725, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/sdk.py", line 103, in get_open_trades
+    open_trades = await self.subgraph.get_open_trades(trader_public_address)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/subgraph.py", line 245, in get_open_trades
+    result = await self._execute_query(query, variable_values={"trader": address})
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/subgraph.py", line 46, in _execute_query
+    raise e
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/subgraph.py", line 35, in _execute_query
+    result = await client.execute_async(query, variable_values=variable_values)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/client.py", line 366, in execute_async
+    async with self as session:
+               ^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/client.py", line 814, in __aenter__
+    return await self.connect_async()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/client.py", line 795, in connect_async
+    await self.session.fetch_schema()
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/client.py", line 1661, in fetch_schema
+    execution_result = await self.transport.execute(parse(introspection_query))
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/transport/aiohttp.py", line 338, in execute
+    await raise_response_error(resp, "Not a JSON answer")
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/transport/aiohttp.py", line 323, in raise_response_error
+    result_text = await resp.text()
+                  ^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/client_reqrep.py", line 735, in text
+    await self.read()
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/client_reqrep.py", line 693, in read
+    self._body = await self.content.read()
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/streams.py", line 400, in read
+    raise self._exception
+aiohttp.client_exceptions.ClientConnectionError: Connection closed
+
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:46:03] "[35m[1mPOST /positions HTTP/1.1[0m" 500 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:46:06] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:46:09] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:46:12] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:46:16] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:46:38] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:46:44] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:46:48] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:47:09] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:47:15] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:47:18] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:47:41] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:47:46] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:47:50] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:48:07] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:48:11] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:48:17] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:48:38] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:48:42] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:48:46] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:49:08] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:49:11] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:49:15] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:49:38] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:49:41] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:49:46] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:50:08] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:50:11] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:50:14] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:50:38] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:50:41] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:50:44] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:51:08] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:51:12] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:51:15] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:51:38] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:51:42] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:51:47] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:52:10] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:52:13] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:52:17] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:52:40] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:52:42] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:52:48] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:53:08] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:53:11] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:53:15] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:53:38] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:53:41] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:53:44] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:54:09] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:54:12] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:54:17] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:54:38] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:54:41] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:54:46] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:55:09] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:55:13] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:55:17] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:55:38] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:55:41] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:55:45] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:56:08] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:56:11] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:56:14] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:56:39] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:56:42] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:56:45] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:57:09] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:57:14] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:57:18] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:57:40] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:57:42] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:57:46] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:58:08] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:58:12] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 18:58:16] "POST /positions HTTP/1.1" 200 -
