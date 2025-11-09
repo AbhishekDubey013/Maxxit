@@ -7,7 +7,7 @@
  * 5. Create deployment
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { usePrivy } from '@privy-io/react-auth';
 import { X, Wallet, Key, Coins, CheckCircle, AlertCircle, Loader2, ExternalLink, Copy } from 'lucide-react';
 import { ethers } from 'ethers';
@@ -41,6 +41,11 @@ export function OstiumConnect({
   const [serviceAvailable, setServiceAvailable] = useState(true);
   
   console.log('[OstiumConnect] Current state:', { step, loading, authenticated, userWallet: user?.wallet?.address });
+
+  // Watch for step changes
+  useEffect(() => {
+    console.log('[OstiumConnect] useEffect: step changed to:', step);
+  }, [step]);
 
   // Step 1: Connect Wallet
   const connectWallet = async () => {
