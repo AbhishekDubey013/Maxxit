@@ -5,8 +5,8 @@
 Flask==3.0.0
 flask-cors==4.0.0
 
-# Ostium SDK
-ostium-python-sdk==0.1.21
+# Ostium SDK (v3.0.0+ required for get_open_trades method)
+ostium-python-sdk==3.0.0
 
 # Web3 (usually included with ostium-python-sdk but explicit for safety)
 web3==6.11.3

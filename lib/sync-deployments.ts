@@ -44,9 +44,9 @@ export async function syncAllDeployments() {
     for (const deployment of deployments) {
       if (!deployment.safe_wallet) continue;
 
-      // Skip Hyperliquid deployments (they don't use Safe modules)
-      if (deployment.agents.venue === 'HYPERLIQUID') {
-        console.log(`[SyncDeployments] Skipping ${deployment.agents.name} (Hyperliquid venue)`);
+      // Skip Hyperliquid and Ostium deployments (they don't use Safe modules)
+      if (deployment.agents.venue === 'HYPERLIQUID' || deployment.agents.venue === 'OSTIUM') {
+        console.log(`[SyncDeployments] Skipping ${deployment.agents.name} (${deployment.agents.venue} venue - no Safe modules)`);
         continue;
       }
 
