@@ -174,3 +174,174 @@ INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 16:19:33] "POST /positions HTTP/1.1" 20
 INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 16:19:56] "POST /positions HTTP/1.1" 200 -
 INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 16:20:01] "POST /positions HTTP/1.1" 200 -
 INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 16:20:06] "POST /positions HTTP/1.1" 200 -
+/Users/abhishekdubey/Downloads/Maxxit/services/ostium-service.py:89: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+  "timestamp": datetime.utcnow().isoformat()
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 16:44:21] "GET /health HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 16:44:21] "[33mGET /tweets/aixbt_agent?max_results=15 HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 16:44:22] "[33mGET /tweets/Abhishe42402615?max_results=15 HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 16:44:32] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 16:44:35] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 16:44:39] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 16:45:02] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 16:45:05] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 16:45:09] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 16:45:30] "POST /positions HTTP/1.1" 200 -
+ERROR:__main__:Get positions error: Response payload is not completed: <ContentLengthError: 400, message='Not enough data to satisfy content length header.'>
+ERROR:__main__:Traceback (most recent call last):
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/client_proto.py", line 144, in connection_lost
+    uncompleted = self._parser.feed_eof()
+  File "aiohttp/_http_parser.pyx", line 509, in aiohttp._http_parser.HttpParser.feed_eof
+aiohttp.http_exceptions.ContentLengthError: 400, message:
+  Not enough data to satisfy content length header.
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/ostium-service.py", line 153, in get_positions
+    result = loop.run_until_complete(sdk.get_open_trades(trader_address=address))
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/base_events.py", line 725, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/sdk.py", line 103, in get_open_trades
+    open_trades = await self.subgraph.get_open_trades(trader_public_address)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/subgraph.py", line 245, in get_open_trades
+    result = await self._execute_query(query, variable_values={"trader": address})
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/subgraph.py", line 46, in _execute_query
+    raise e
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/subgraph.py", line 35, in _execute_query
+    result = await client.execute_async(query, variable_values=variable_values)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/client.py", line 366, in execute_async
+    async with self as session:
+               ^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/client.py", line 814, in __aenter__
+    return await self.connect_async()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/client.py", line 795, in connect_async
+    await self.session.fetch_schema()
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/client.py", line 1661, in fetch_schema
+    execution_result = await self.transport.execute(parse(introspection_query))
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/transport/aiohttp.py", line 338, in execute
+    await raise_response_error(resp, "Not a JSON answer")
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/transport/aiohttp.py", line 323, in raise_response_error
+    result_text = await resp.text()
+                  ^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/client_reqrep.py", line 735, in text
+    await self.read()
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/client_reqrep.py", line 693, in read
+    self._body = await self.content.read()
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/streams.py", line 400, in read
+    raise self._exception
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/transport/aiohttp.py", line 331, in execute
+    result = await resp.json(content_type=None)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/client_reqrep.py", line 751, in json
+    await self.read()
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/client_reqrep.py", line 693, in read
+    self._body = await self.content.read()
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/streams.py", line 426, in read
+    block = await self.readany()
+            ^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/streams.py", line 448, in readany
+    await self._wait("readany")
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/streams.py", line 355, in _wait
+    await waiter
+aiohttp.client_exceptions.ClientPayloadError: Response payload is not completed: <ContentLengthError: 400, message='Not enough data to satisfy content length header.'>
+
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 16:46:47] "[35m[1mPOST /positions HTTP/1.1[0m" 500 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 16:46:49] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 16:46:57] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 16:46:59] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 16:47:03] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 16:47:26] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 16:47:29] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 16:47:36] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 16:47:56] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 16:47:59] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 16:48:06] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 16:48:30] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 16:48:33] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 16:48:37] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 16:49:01] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 16:49:04] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 16:49:07] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 16:49:30] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 16:49:33] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 16:49:36] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 16:49:56] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 16:49:59] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 16:50:03] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 16:50:29] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 16:50:32] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 16:50:39] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 16:50:57] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 16:51:00] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 16:51:08] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 16:51:31] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 16:51:35] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 16:51:39] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 16:52:01] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 16:52:07] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 16:52:15] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 16:52:26] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 16:52:29] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 16:52:36] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 16:52:59] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 16:53:02] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 16:53:06] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:01:33] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:01:35] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:01:43] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:01:50] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:01:53] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:01:58] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:02:21] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:02:24] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:02:31] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:02:55] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:03:01] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:03:08] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:03:20] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:03:23] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:03:27] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:03:51] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:03:58] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:04:03] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:04:25] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:04:33] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:04:41] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:04:51] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:04:54] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:04:57] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:05:21] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:05:27] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:05:31] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:05:55] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:05:58] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:06:02] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:06:24] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:06:29] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:06:34] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:07:08] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:07:14] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:07:21] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:07:37] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:07:44] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:07:51] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:08:03] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:08:06] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:08:13] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:08:34] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:08:42] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:08:45] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:09:04] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:09:11] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:09:15] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:09:34] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:09:41] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 17:09:44] "POST /positions HTTP/1.1" 200 -
