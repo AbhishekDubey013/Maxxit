@@ -11,6 +11,11 @@ ostium-python-sdk==0.1.21
 # Web3 (usually included with ostium-python-sdk but explicit for safety)
 web3==6.11.3
 
+# SDK Missing Dependencies (required but not declared by ostium-python-sdk)
+setuptools>=65.0.0
+humanize>=4.0.0
+gql[requests]>=4.0.0
+
 # Utilities
 python-dotenv==1.0.0
 requests==2.31.0
