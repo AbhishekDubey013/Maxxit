@@ -162,46 +162,57 @@ export async function monitorOstiumPositions() {
               // Auto-discover position - create in DB
               console.log(`   ✨ Discovered new position: ${ostPosition.side.toUpperCase()} ${ostPosition.market} (Trade ID: ${ostPosition.tradeId})`);
               
-              // Create a "discovered" signal for this position
-              const discoveredSignal = await prisma.signals.create({
-                data: {
-                  agent_id: deployment.agent_id,
-                  venue: 'OSTIUM',
-                  token_symbol: ostPosition.market,
-                  side: ostPosition.side.toUpperCase(),
-                  size_model: {
-                    type: 'fixed-usdc',
-                    value: ostPosition.size,
-                    leverage: ostPosition.leverage,
+              try {
+                // Create a "discovered" signal for this position
+                // Wrapped in try-catch to handle race condition with other workers
+                const discoveredSignal = await prisma.signals.create({
+                  data: {
+                    agent_id: deployment.agent_id,
+                    venue: 'OSTIUM',
+                    token_symbol: ostPosition.market,
+                    side: ostPosition.side.toUpperCase(),
+                    size_model: {
+                      type: 'fixed-usdc',
+                      value: ostPosition.size,
+                      leverage: ostPosition.leverage,
+                    },
+                    risk_model: {
+                      type: 'trailing-stop',
+                      trailingPercent: 1,
+                    },
+                    source_tweets: ['DISCOVERED_FROM_OSTIUM'],
                   },
-                  risk_model: {
-                    type: 'trailing-stop',
-                    trailingPercent: 1,
-                  },
-                  source_tweets: ['DISCOVERED_FROM_OSTIUM'],
-                },
-              });
+                });
 
-              // Create position record
-              await prisma.positions.create({
-                data: {
-                  deployment_id: deployment.id,
-                  signal_id: discoveredSignal.id,
-                  venue: 'OSTIUM',
-                  token_symbol: ostPosition.market,
-                  side: ostPosition.side.toUpperCase(),
-                  entry_price: ostPosition.entryPrice,
-                  qty: ostPosition.size,
-                  entry_tx_hash: ostPosition.tradeId || 'OST-DISCOVERED-' + Date.now(),
-                  trailing_params: {
-                    enabled: true,
-                    trailingPercent: 1, // 1% trailing stop
-                    highestPrice: null,
+                // Create position record
+                await prisma.positions.create({
+                  data: {
+                    deployment_id: deployment.id,
+                    signal_id: discoveredSignal.id,
+                    venue: 'OSTIUM',
+                    token_symbol: ostPosition.market,
+                    side: ostPosition.side.toUpperCase(),
+                    entry_price: ostPosition.entryPrice,
+                    qty: ostPosition.size,
+                    entry_tx_hash: ostPosition.tradeId || 'OST-DISCOVERED-' + Date.now(),
+                    trailing_params: {
+                      enabled: true,
+                      trailingPercent: 1, // 1% trailing stop
+                      highestPrice: null,
+                    },
                   },
-                },
-              });
+                });
 
-              console.log(`   ✅ Position added to database`);
+                console.log(`   ✅ Position added to database`);
+              } catch (createError: any) {
+                // P2002: Unique constraint violation (another worker discovered this position first)
+                if (createError.code === 'P2002') {
+                  console.log(`   ℹ️  Position already discovered by another worker (race condition handled)`);
+                } else {
+                  // Re-throw unexpected errors
+                  throw createError;
+                }
+              }
             }
           } catch (discoverError: any) {
             console.error(`   ❌ Error processing position ${ostPosition.market}:`, discoverError.message);
