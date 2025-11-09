@@ -56,6 +56,7 @@ export default function CreateAgent() {
   const [ostiumModalOpen, setOstiumModalOpen] = useState(false);
   const [ostiumAgentId, setOstiumAgentId] = useState('');
   const [ostiumAgentName, setOstiumAgentName] = useState('');
+  const [ostiumIsProcessing, setOstiumIsProcessing] = useState(false);
   
   // Proof of Intent state
   const [proofOfIntent, setProofOfIntent] = useState<{
