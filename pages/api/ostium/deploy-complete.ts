@@ -14,21 +14,41 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
-    // 1. Assign agent wallet from pool to user
-    const agentWallet = await assignWalletToUser(userWallet);
-    
-    if (!agentWallet) {
-      return res.status(500).json({ error: 'No available agent wallets in pool' });
-    }
+    // 1. Check if user already has an agent wallet assigned (from Hyperliquid or other venues)
+    const existingDeployment = await prisma.agent_deployments.findFirst({
+      where: {
+        safeWallet: userWallet.toLowerCase(),
+        hyperliquidAgentAddress: { not: null },
+      },
+      select: {
+        hyperliquidAgentAddress: true,
+      },
+    });
 
-    console.log(`[Ostium Deploy] Assigned agent wallet: ${agentWallet.address} to user: ${userWallet}`);
+    let agentAddress: string;
+
+    if (existingDeployment?.hyperliquidAgentAddress) {
+      // Reuse existing agent wallet
+      agentAddress = existingDeployment.hyperliquidAgentAddress;
+      console.log(`[Ostium Deploy] Reusing existing agent wallet: ${agentAddress} for user: ${userWallet}`);
+    } else {
+      // Assign new agent wallet from pool
+      const agentWallet = await assignWalletToUser(userWallet);
+      
+      if (!agentWallet) {
+        return res.status(500).json({ error: 'No available agent wallets in pool' });
+      }
+
+      agentAddress = agentWallet.address;
+      console.log(`[Ostium Deploy] Assigned new agent wallet: ${agentAddress} to user: ${userWallet}`);
+    }
 
     // 2. Create deployment in database
     const deployment = await prisma.agent_deployments.create({
       data: {
         agentId,
         safeWallet: userWallet, // User's Arbitrum wallet
-        hyperliquidAgentAddress: agentWallet.address, // TODO: Add ostium_agent_address column
+        hyperliquidAgentAddress: agentAddress, // Reuse same agent for Ostium
         status: 'ACTIVE',
         moduleEnabled: true,
       },
@@ -39,9 +59,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(200).json({
       success: true,
       deploymentId: deployment.id,
-      agentAddress: agentWallet.address,
+      agentAddress,
       userWallet,
-      message: 'Ostium agent deployed successfully - Agent wallet assigned from pool',
+      message: 'Ostium agent deployed successfully',
     });
   } catch (error: any) {
     console.error('[Ostium Deploy Complete] Error:', error);
