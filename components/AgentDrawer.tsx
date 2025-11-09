@@ -3,6 +3,8 @@ import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'rec
 import { db } from '../client/src/lib/db';
 import { usePrivy } from '@privy-io/react-auth';
 import { Rocket } from 'lucide-react';
+import { HyperliquidConnect } from './HyperliquidConnect';
+import { OstiumConnect } from './OstiumConnect';
 
 interface PnlSnapshot {
   day: string;
@@ -12,15 +14,40 @@ interface PnlSnapshot {
 interface AgentDrawerProps {
   agentId: string;
   agentName: string;
+  agentVenue?: string;
   onClose: () => void;
 }
 
-export function AgentDrawer({ agentId, agentName, onClose }: AgentDrawerProps) {
+export function AgentDrawer({ agentId, agentName, agentVenue, onClose }: AgentDrawerProps) {
   const { authenticated, user, login } = usePrivy();
   const [data, setData] = useState<PnlSnapshot[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDeployed, setIsDeployed] = useState(false);
   const [deploymentId, setDeploymentId] = useState<string | null>(null);
+  const [venue, setVenue] = useState<string>(agentVenue || '');
+  const [hyperliquidModalOpen, setHyperliquidModalOpen] = useState(false);
+  const [ostiumModalOpen, setOstiumModalOpen] = useState(false);
+
+  // Fetch agent venue if not provided
+  useEffect(() => {
+    async function fetchAgentVenue() {
+      if (venue) return; // Already have venue
+      
+      try {
+        const agents = await db.get('agents', {
+          'id': `eq.${agentId}`,
+          'select': 'venue',
+        });
+        
+        if (agents && agents.length > 0) {
+          setVenue(agents[0].venue);
+        }
+      } catch (error) {
+        console.error('Error fetching agent venue:', error);
+      }
+    }
+    fetchAgentVenue();
+  }, [agentId, venue]);
 
   useEffect(() => {
     async function fetchData() {
@@ -76,8 +103,15 @@ export function AgentDrawer({ agentId, agentName, onClose }: AgentDrawerProps) {
       return;
     }
 
-    // Navigate to the deployment page where user can enter Safe wallet
-    window.location.href = `/deploy-agent/${agentId}`;
+    // Handle different venues
+    if (venue === 'HYPERLIQUID') {
+      setHyperliquidModalOpen(true);
+    } else if (venue === 'OSTIUM') {
+      setOstiumModalOpen(true);
+    } else {
+      // For SPOT/GMX, navigate to Safe wallet deployment page
+      window.location.href = `/deploy-agent/${agentId}`;
+    }
   };
 
   return (
@@ -127,7 +161,11 @@ export function AgentDrawer({ agentId, agentName, onClose }: AgentDrawerProps) {
                 data-testid="button-deploy-agent"
               >
                 <Rocket className="h-5 w-5" />
-                Deploy Agent & Connect Safe Wallet
+                {venue === 'HYPERLIQUID' 
+                  ? 'Deploy Hyperliquid Agent' 
+                  : venue === 'OSTIUM'
+                  ? 'Deploy Ostium Agent'
+                  : 'Deploy Agent & Connect Safe Wallet'}
               </button>
             ) : (
               <button
@@ -185,6 +223,34 @@ export function AgentDrawer({ agentId, agentName, onClose }: AgentDrawerProps) {
           </div>
         </div>
       </div>
+
+      {/* Hyperliquid Setup Modal */}
+      {hyperliquidModalOpen && (
+        <HyperliquidConnect
+          agentId={agentId}
+          agentName={agentName}
+          onClose={() => setHyperliquidModalOpen(false)}
+          onSuccess={() => {
+            setHyperliquidModalOpen(false);
+            setIsDeployed(true);
+            onClose(); // Close the drawer
+          }}
+        />
+      )}
+
+      {/* Ostium Setup Modal */}
+      {ostiumModalOpen && (
+        <OstiumConnect
+          agentId={agentId}
+          agentName={agentName}
+          onClose={() => setOstiumModalOpen(false)}
+          onSuccess={() => {
+            setOstiumModalOpen(false);
+            setIsDeployed(true);
+            onClose(); // Close the drawer
+          }}
+        />
+      )}
     </div>
   );
 }

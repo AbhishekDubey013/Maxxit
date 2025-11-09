@@ -244,6 +244,7 @@ export default function Home() {
         <AgentDrawer
           agentId={selectedAgent.id}
           agentName={selectedAgent.name}
+          agentVenue={selectedAgent.venue}
           onClose={() => setSelectedAgent(null)}
         />
       )}
