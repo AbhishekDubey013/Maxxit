@@ -83,22 +83,7 @@ export default async function handler(
           // Skip non-ACTIVE agents
           if (agent.status !== 'ACTIVE') continue;
 
-          // 4. Check venue availability
-          const venueStatus = await prisma.venues_status.findUnique({
-            where: {
-              venue_token_symbol: {
-                venue: agent.venue,
-                token_symbol: tokenSymbol,
-              },
-            },
-          });
-
-          if (!venueStatus) {
-            console.log(`[SIGNAL] Skipping ${tokenSymbol} on ${agent.venue} - not available`);
-            continue;
-          }
-
-          // 5. Check for duplicate (same agent, token, 6h bucket)
+          // Check for duplicate (same agent, token, 6h bucket)
           const currentBucket = bucket6hUtc(new Date());
           const existing = await prisma.signals.findFirst({
             where: {
