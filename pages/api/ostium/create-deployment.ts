@@ -22,7 +22,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       where: {
         agent_id: agentId,
         user_wallet: userWallet,
-        venue: 'OSTIUM',
       },
     });
 
@@ -42,8 +41,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         user_wallet: userWallet,
         safe_wallet: userWallet, // For Ostium, safe_wallet = user's Arbitrum wallet
         hyperliquid_agent_address: agentAddress, // Reusing this field for Ostium agent
-        venue: 'OSTIUM',
         status: 'ACTIVE',
+        module_enabled: true, // Ostium doesn't need Safe module
       },
     });
 

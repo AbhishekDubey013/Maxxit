@@ -10,6 +10,7 @@ import { Header } from '@components/Header';
 import { usePrivy } from '@privy-io/react-auth';
 import { createProofOfIntentWithMetaMask } from '@lib/proof-of-intent';
 import { HyperliquidConnect } from '@components/HyperliquidConnect';
+import { OstiumConnect } from '@components/OstiumConnect';
 
 const wizardSchema = insertAgentSchema.extend({
   description: z.string().max(500).optional(),
@@ -52,6 +53,9 @@ export default function CreateAgent() {
   const [hyperliquidModalOpen, setHyperliquidModalOpen] = useState(false);
   const [hyperliquidAgentId, setHyperliquidAgentId] = useState('');
   const [hyperliquidAgentName, setHyperliquidAgentName] = useState('');
+  const [ostiumModalOpen, setOstiumModalOpen] = useState(false);
+  const [ostiumAgentId, setOstiumAgentId] = useState('');
+  const [ostiumAgentName, setOstiumAgentName] = useState('');
   
   // Proof of Intent state
   const [proofOfIntent, setProofOfIntent] = useState<{
@@ -345,9 +349,11 @@ export default function CreateAgent() {
         setHyperliquidAgentName(formData.name);
         setHyperliquidModalOpen(true);
       } else if (formData.venue === 'OSTIUM') {
-        // For Ostium, redirect to deployment page with venue param
-        console.log('Navigating to Ostium deployment:', `/deploy-agent/${createdAgentId}`);
-        window.location.href = `/deploy-agent/${createdAgentId}?venue=ostium`;
+        // For Ostium, open dedicated connection modal
+        console.log('Opening Ostium modal for agent:', createdAgentId);
+        setOstiumAgentId(createdAgentId);
+        setOstiumAgentName(formData.name);
+        setOstiumModalOpen(true);
       } else {
         // For other venues (SPOT, GMX), use standard Safe wallet deployment
         console.log('Navigating to standard deployment:', `/deploy-agent/${createdAgentId}`);
@@ -1172,6 +1178,20 @@ export default function CreateAgent() {
           onSuccess={() => {
             console.log('Hyperliquid setup complete!');
             setHyperliquidModalOpen(false);
+            router.push('/my-deployments');
+          }}
+        />
+      )}
+
+      {/* Ostium Setup Modal */}
+      {ostiumModalOpen && (
+        <OstiumConnect
+          agentId={ostiumAgentId}
+          agentName={ostiumAgentName}
+          onClose={() => setOstiumModalOpen(false)}
+          onSuccess={() => {
+            console.log('Ostium setup complete!');
+            setOstiumModalOpen(false);
             router.push('/my-deployments');
           }}
         />
