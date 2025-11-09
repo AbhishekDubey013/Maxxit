@@ -337,6 +337,44 @@ export default function CreateAgent() {
     }
   };
 
+  const deployOstiumAgent = async (agentId: string) => {
+    try {
+      setIsSubmitting(true);
+      setError(null);
+
+      if (!authenticated || !user?.wallet?.address) {
+        alert('Please connect your wallet first');
+        await login();
+        return;
+      }
+
+      const userWallet = user.wallet.address;
+      console.log('[Ostium Deploy] Starting deployment for agent:', agentId, 'user wallet:', userWallet);
+
+      const response = await fetch('/api/ostium/deploy-complete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ agentId, userWallet }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to deploy Ostium agent');
+      }
+
+      console.log('[Ostium Deploy] Success:', data);
+      alert(`✅ Ostium agent deployed successfully!\nAgent Address: ${data.agentAddress}`);
+      router.push('/my-deployments');
+    } catch (err: any) {
+      console.error('[Ostium Deploy] Error:', err);
+      setError(err.message || 'Failed to deploy Ostium agent');
+      alert(`Failed to deploy: ${err.message}`);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handleDeploy = () => {
     console.log('Deploy clicked! Agent ID:', createdAgentId, 'Venue:', formData.venue);
     if (createdAgentId) {
@@ -350,11 +388,9 @@ export default function CreateAgent() {
         setHyperliquidAgentName(formData.name);
         setHyperliquidModalOpen(true);
       } else if (formData.venue === 'OSTIUM') {
-        // For Ostium, open dedicated connection modal
-        console.log('Opening Ostium modal for agent:', createdAgentId);
-        setOstiumAgentId(createdAgentId);
-        setOstiumAgentName(formData.name);
-        setOstiumModalOpen(true);
+        // For Ostium, deploy directly
+        console.log('Deploying Ostium agent directly:', createdAgentId);
+        deployOstiumAgent(createdAgentId);
       } else {
         // For other venues (SPOT, GMX), use standard Safe wallet deployment
         console.log('Navigating to standard deployment:', `/deploy-agent/${createdAgentId}`);

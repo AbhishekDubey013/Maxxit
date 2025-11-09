@@ -107,7 +107,34 @@ export function AgentDrawer({ agentId, agentName, agentVenue, onClose }: AgentDr
     if (venue === 'HYPERLIQUID') {
       setHyperliquidModalOpen(true);
     } else if (venue === 'OSTIUM') {
-      setOstiumModalOpen(true);
+      // Deploy Ostium directly
+      try {
+        setLoading(true);
+        const userWallet = user.wallet.address;
+        console.log('[Ostium Deploy from Drawer] Starting deployment for agent:', agentId, 'user wallet:', userWallet);
+
+        const response = await fetch('/api/ostium/deploy-complete', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ agentId, userWallet }),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Failed to deploy Ostium agent');
+        }
+
+        console.log('[Ostium Deploy from Drawer] Success:', data);
+        alert(`✅ Ostium agent deployed successfully!\nAgent Address: ${data.agentAddress}`);
+        setIsDeployed(true);
+        onClose(); // Close drawer
+      } catch (err: any) {
+        console.error('[Ostium Deploy from Drawer] Error:', err);
+        alert(`Failed to deploy: ${err.message}`);
+      } finally {
+        setLoading(false);
+      }
     } else {
       // For SPOT/GMX, navigate to Safe wallet deployment page
       window.location.href = `/deploy-agent/${agentId}`;
