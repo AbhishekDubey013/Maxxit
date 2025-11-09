@@ -67,6 +67,7 @@ model agents {
   proof_of_intent_timestamp DateTime?               @db.Timestamptz(6)
   agent_accounts            agent_accounts[]
   agent_deployments         agent_deployments[]
+  agent_research_institutes agent_research_institutes[]
   impact_factor_history     impact_factor_history[]
   pnl_snapshots             pnl_snapshots[]
   signals                   signals[]
@@ -306,6 +307,49 @@ model venues_status {
   @@index([venue, token_symbol])
 }
 
+model research_institutes {
+  id                       String                     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name                     String                     @unique
+  description              String?
+  logo_url                 String?
+  website_url              String?
+  x_handle                 String?
+  is_active                Boolean                    @default(true)
+  created_at               DateTime                   @default(now()) @db.Timestamptz(6)
+  agent_research_institutes agent_research_institutes[]
+  research_signals         research_signals[]
+}
+
+model research_signals {
+  id                   String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  institute_id         String               @db.Uuid
+  signal_text          String
+  source_url           String?
+  extracted_token      String?
+  extracted_side       String?
+  extracted_leverage   Int?
+  is_valid_signal      Boolean?
+  processed_for_trades Boolean              @default(false)
+  created_at           DateTime             @default(now()) @db.Timestamptz(6)
+  research_institutes  research_institutes  @relation(fields: [institute_id], references: [id], onDelete: Cascade)
+
+  @@index([institute_id, created_at])
+  @@index([processed_for_trades])
+}
+
+model agent_research_institutes {
+  id                  String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  agent_id            String              @db.Uuid
+  institute_id        String              @db.Uuid
+  created_at          DateTime            @default(now()) @db.Timestamptz(6)
+  agents              agents              @relation(fields: [agent_id], references: [id], onDelete: Cascade)
+  research_institutes research_institutes @relation(fields: [institute_id], references: [id], onDelete: Cascade)
+
+  @@unique([agent_id, institute_id])
+  @@index([agent_id])
+  @@index([institute_id])
+}
+
 enum agent_status_t {
   DRAFT
   ACTIVE
@@ -343,4 +387,12 @@ model user_hyperliquid_wallets {
 
   @@index([user_wallet])
   @@index([agent_address])
+}
+
+model wallet_pool {
+  id                      String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  address                 String    @unique
+  private_key             String
+  assigned_to_user_wallet String?
+  created_at              DateTime? @default(now()) @db.Timestamptz(6)
 }
