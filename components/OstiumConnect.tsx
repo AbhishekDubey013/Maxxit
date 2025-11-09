@@ -70,16 +70,27 @@ export function OstiumConnect({
       });
 
       console.log('[OstiumConnect] Balance response:', balanceResponse.status);
-      if (balanceResponse.ok) {
-        const balanceData = await balanceResponse.json();
-        console.log('[OstiumConnect] Balance data:', balanceData);
-        setBalance({
-          usdc: balanceData.usdcBalance || '0',
-          eth: balanceData.ethBalance || '0',
-        });
-        setServiceAvailable(balanceData.serviceAvailable !== false);
-      } else {
-        console.error('[OstiumConnect] Balance fetch failed:', await balanceResponse.text());
+      
+      try {
+        if (balanceResponse.ok) {
+          const balanceData = await balanceResponse.json();
+          console.log('[OstiumConnect] Balance data:', JSON.stringify(balanceData));
+          console.log('[OstiumConnect] About to set balance state...');
+          
+          setBalance({
+            usdc: balanceData.usdcBalance || '0',
+            eth: balanceData.ethBalance || '0',
+          });
+          console.log('[OstiumConnect] Balance state set');
+          
+          setServiceAvailable(balanceData.serviceAvailable !== false);
+          console.log('[OstiumConnect] Service availability set');
+        } else {
+          console.error('[OstiumConnect] Balance fetch failed:', await balanceResponse.text());
+        }
+      } catch (balanceError: any) {
+        console.error('[OstiumConnect] Error processing balance:', balanceError);
+        // Continue anyway - balance is not critical
       }
 
       console.log('[OstiumConnect] Moving to agent step');
