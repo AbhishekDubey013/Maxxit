@@ -1,26 +1,18 @@
 /Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/web3/__init__.py:2: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
   import pkg_resources
-2025-11-09 13:06:30,727 [INFO] 🚀 Ostium Service Starting...
-2025-11-09 13:06:30,727 [INFO]    Network: TESTNET
-2025-11-09 13:06:30,727 [INFO]    RPC URL: https://sepolia-rollup.arbitrum.io/rpc
-2025-11-09 13:06:30,728 [INFO] 🚀 Starting Ostium Service on port 5002
-2025-11-09 13:06:30,728 [INFO]    Network: TESTNET (Arbitrum Sepolia)
+2025-11-09 13:14:32,022 [INFO] 🚀 Ostium Service Starting...
+2025-11-09 13:14:32,022 [INFO]    Network: TESTNET
+2025-11-09 13:14:32,022 [INFO]    RPC URL: https://sepolia-rollup.arbitrum.io/rpc
+2025-11-09 13:14:32,024 [INFO] 🚀 Starting Ostium Service on port 5002
+2025-11-09 13:14:32,024 [INFO]    Network: TESTNET (Arbitrum Sepolia)
  * Serving Flask app 'ostium-service'
  * Debug mode: off
-2025-11-09 13:06:35,736 [INFO] [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+2025-11-09 13:14:37,028 [INFO] [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
  * Running on all addresses (0.0.0.0)
  * Running on http://127.0.0.1:5002
  * Running on http://192.168.1.19:5002
-2025-11-09 13:06:35,736 [INFO] [33mPress CTRL+C to quit[0m
-/Users/abhishekdubey/Downloads/Maxxit/services/ostium-service.py:73: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
-  "timestamp": datetime.utcnow().isoformat()
-2025-11-09 13:06:36,092 [INFO] 127.0.0.1 - - [09/Nov/2025 13:06:36] "GET /health HTTP/1.1" 200 -
-2025-11-09 13:06:52,519 [INFO] User approving agent: 0xdef7EaB0e799D4d7e6902223F8A70A08a9b38F61
-2025-11-09 13:06:52,519 [ERROR] Approval error: 'OstiumSDK' object has no attribute 'delegation'
-2025-11-09 13:06:52,520 [ERROR] Traceback (most recent call last):
-  File "/Users/abhishekdubey/Downloads/Maxxit/services/ostium-service.py", line 402, in approve_agent
-    result = sdk.delegation.approve_operator(agent_address)
-             ^^^^^^^^^^^^^^
-AttributeError: 'OstiumSDK' object has no attribute 'delegation'
-
-2025-11-09 13:06:52,520 [INFO] 127.0.0.1 - - [09/Nov/2025 13:06:52] "[35m[1mPOST /approve-agent HTTP/1.1[0m" 500 -
+2025-11-09 13:14:37,028 [INFO] [33mPress CTRL+C to quit[0m
+2025-11-09 13:14:38,367 [INFO] User approving agent: 0xdef7EaB0e799D4d7e6902223F8A70A08a9b38F61
+2025-11-09 13:14:39,784 [INFO] Transaction sent: 0x2711124aec2971e7b1c6407f1ed6979fddef53603659c8273ecea92bfd1d5aad
+2025-11-09 13:14:40,692 [INFO] ✅ Agent approved! Tx hash: 0x2711124aec2971e7b1c6407f1ed6979fddef53603659c8273ecea92bfd1d5aad
+2025-11-09 13:14:40,692 [INFO] 127.0.0.1 - - [09/Nov/2025 13:14:40] "POST /approve-agent HTTP/1.1" 200 -

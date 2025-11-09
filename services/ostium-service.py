@@ -397,32 +397,49 @@ def approve_agent():
         
         logger.info(f"User approving agent: {agent_address}")
         
-        # TODO: Implement direct contract interaction for delegation
-        # For now, we'll note that the agent needs to be manually approved on Ostium contracts
-        # The SDK doesn't have delegation.approve_operator() method yet
-        # User needs to:
-        # 1. Go to Ostium UI or use their delegation contract directly
-        # 2. Approve the agent address to trade on their behalf
+        # Call setDelegate on the Ostium Trading contract
+        trading_contract = sdk.ostium.ostium_trading_contract
+        web3 = sdk.ostium.web3
         
-        logger.warning(f"⚠️  Delegation approval not yet implemented in SDK")
-        logger.info(f"📋 Manual approval needed:")
-        logger.info(f"   User: {sdk.private_key[:10]}...")
-        logger.info(f"   Agent: {agent_address}")
-        logger.info(f"   Action: User must approve agent on Ostium smart contracts")
+        # Get user account
+        user_account = web3.eth.account.from_key(user_key)
         
-        return jsonify({
-            "success": False,
-            "message": "Delegation approval not yet implemented in Ost SDK",
-            "note": "The Ostium Python SDK does not yet have delegation.approve_operator() method",
-            "agentAddress": agent_address,
-            "manualSteps": [
-                "1. Connect user wallet to Ostium UI",
-                "2. Navigate to delegation/operator approval section",
-                "3. Approve agent address: " + agent_address,
-                "4. Agent will then be able to trade on user's behalf"
-            ],
-            "documentation": "For non-custodial trading, Ostium uses smart contract delegation. SDK support pending."
-        }), 501  # 501 Not Implemented
+        # Build the transaction
+        tx = trading_contract.functions.setDelegate(agent_address).build_transaction({
+            'from': user_account.address,
+            'nonce': web3.eth.get_transaction_count(user_account.address),
+            'gas': 200000,
+            'gasPrice': web3.eth.gas_price,
+        })
+        
+        # Sign the transaction
+        signed_tx = web3.eth.account.sign_transaction(tx, user_key)
+        
+        # Send the transaction
+        tx_hash = web3.eth.send_raw_transaction(signed_tx.rawTransaction)
+        
+        # Wait for receipt
+        logger.info(f"Transaction sent: {tx_hash.hex()}")
+        receipt = web3.eth.wait_for_transaction_receipt(tx_hash, timeout=120)
+        
+        if receipt['status'] == 1:
+            logger.info(f"✅ Agent approved! Tx hash: {tx_hash.hex()}")
+            
+            return jsonify({
+                "success": True,
+                "message": "Agent approved successfully on Ostium smart contracts",
+                "agentAddress": agent_address,
+                "transactionHash": tx_hash.hex(),
+                "blockNumber": receipt['blockNumber'],
+                "gasUsed": receipt['gasUsed']
+            })
+        else:
+            logger.error(f"Transaction failed: {tx_hash.hex()}")
+            return jsonify({
+                "success": False,
+                "error": "Transaction reverted",
+                "transactionHash": tx_hash.hex()
+            }), 500
     
     except Exception as e:
         logger.error(f"Approval error: {str(e)}")
