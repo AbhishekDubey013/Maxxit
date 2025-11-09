@@ -40,38 +40,48 @@ export function OstiumConnect({
 
   // Step 1: Connect Wallet
   const connectWallet = async () => {
+    console.log('[OstiumConnect] connectWallet called', { authenticated, wallet: user?.wallet?.address });
     setLoading(true);
     setError('');
 
     try {
       // If not authenticated, trigger login
       if (!authenticated || !user?.wallet?.address) {
+        console.log('[OstiumConnect] Not authenticated, calling login');
         setLoading(false);
         await login();
         return;
       }
 
       const address = user.wallet.address;
+      console.log('[OstiumConnect] User wallet:', address);
       setUserWallet(address);
 
       // Check balance
+      console.log('[OstiumConnect] Fetching balance...');
       const balanceResponse = await fetch('/api/ostium/balance', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ address }),
       });
 
+      console.log('[OstiumConnect] Balance response:', balanceResponse.status);
       if (balanceResponse.ok) {
         const balanceData = await balanceResponse.json();
+        console.log('[OstiumConnect] Balance data:', balanceData);
         setBalance({
           usdc: balanceData.usdcBalance || '0',
           eth: balanceData.ethBalance || '0',
         });
         setServiceAvailable(balanceData.serviceAvailable !== false);
+      } else {
+        console.error('[OstiumConnect] Balance fetch failed:', await balanceResponse.text());
       }
 
+      console.log('[OstiumConnect] Moving to agent step');
       setStep('agent');
     } catch (err: any) {
+      console.error('[OstiumConnect] Error:', err);
       setError(err.message || 'Failed to connect wallet');
     } finally {
       setLoading(false);
