@@ -15,7 +15,6 @@ import traceback
 # Ostium SDK imports
 try:
     from ostium_python_sdk import OstiumSDK
-    from ostium_python_sdk.config import NetworkConfig
 except ImportError:
     print("ERROR: ostium-python-sdk not installed. Run: pip install ostium-python-sdk")
     exit(1)
@@ -53,13 +52,11 @@ def get_sdk(private_key: str, use_delegation: bool = False) -> OstiumSDK:
     cache_key = f"{private_key[:10]}_{use_delegation}"
     
     if cache_key not in sdk_cache:
-        network = NetworkConfig.testnet() if OSTIUM_TESTNET else NetworkConfig.mainnet()
+        network = 'testnet' if OSTIUM_TESTNET else 'mainnet'
         sdk_cache[cache_key] = OstiumSDK(
             network=network,
             private_key=private_key,
-            rpc_url=OSTIUM_RPC_URL,
-            use_delegation=use_delegation,
-            verbose=False
+            rpc_url=OSTIUM_RPC_URL
         )
         logger.info(f"Created new SDK instance (delegation={use_delegation})")
     
@@ -91,7 +88,7 @@ def get_balance():
             return jsonify({"success": False, "error": "Missing address"}), 400
         
         # Use a dummy key for read-only operations
-        network = NetworkConfig.testnet() if OSTIUM_TESTNET else NetworkConfig.mainnet()
+        network = 'testnet' if OSTIUM_TESTNET else 'mainnet'
         sdk = OstiumSDK(network=network, rpc_url=OSTIUM_RPC_URL)
         
         # Get balances
@@ -391,30 +388,41 @@ def approve_agent():
             }), 400
         
         # User SDK (no delegation)
-        network = NetworkConfig.testnet() if OSTIUM_TESTNET else NetworkConfig.mainnet()
+        network = 'testnet' if OSTIUM_TESTNET else 'mainnet'
         sdk = OstiumSDK(
             network=network,
             private_key=user_key,
-            rpc_url=OSTIUM_RPC_URL,
-            use_delegation=False,
-            verbose=True
+            rpc_url=OSTIUM_RPC_URL
         )
         
         logger.info(f"User approving agent: {agent_address}")
         
-        # Approve the agent to trade on behalf of user
-        # The agent can now execute trades using user's vault
-        result = sdk.delegation.approve_operator(agent_address)
+        # TODO: Implement direct contract interaction for delegation
+        # For now, we'll note that the agent needs to be manually approved on Ostium contracts
+        # The SDK doesn't have delegation.approve_operator() method yet
+        # User needs to:
+        # 1. Go to Ostium UI or use their delegation contract directly
+        # 2. Approve the agent address to trade on their behalf
         
-        logger.info(f"✅ Agent approved! Tx hash: {result.get('transactionHash', 'N/A')}")
+        logger.warning(f"⚠️  Delegation approval not yet implemented in SDK")
+        logger.info(f"📋 Manual approval needed:")
+        logger.info(f"   User: {sdk.private_key[:10]}...")
+        logger.info(f"   Agent: {agent_address}")
+        logger.info(f"   Action: User must approve agent on Ostium smart contracts")
         
         return jsonify({
-            "success": True,
-            "message": "Agent approved successfully",
+            "success": False,
+            "message": "Delegation approval not yet implemented in Ost SDK",
+            "note": "The Ostium Python SDK does not yet have delegation.approve_operator() method",
             "agentAddress": agent_address,
-            "transactionHash": result.get('transactionHash'),
-            "result": result
-        })
+            "manualSteps": [
+                "1. Connect user wallet to Ostium UI",
+                "2. Navigate to delegation/operator approval section",
+                "3. Approve agent address: " + agent_address,
+                "4. Agent will then be able to trade on user's behalf"
+            ],
+            "documentation": "For non-custodial trading, Ostium uses smart contract delegation. SDK support pending."
+        }), 501  # 501 Not Implemented
     
     except Exception as e:
         logger.error(f"Approval error: {str(e)}")
