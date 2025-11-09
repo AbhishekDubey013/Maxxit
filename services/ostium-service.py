@@ -146,23 +146,37 @@ def get_positions():
         network = 'testnet' if OSTIUM_TESTNET else 'mainnet'
         sdk = OstiumSDK(network=network, private_key=dummy_key, rpc_url=OSTIUM_RPC_URL)
         
-        # Try to get open trades
-        # Note: SDK v3.0.0 might not have this method, return empty for now
+        # Get open trades using SDK (it's async, so we need to run it)
+        import asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        result = loop.run_until_complete(sdk.get_open_trades(trader_address=address))
+        loop.close()
+        
+        # Parse result - SDK returns tuple (trades_list, trader_address)
         open_trades = []
-        logger.warning("Position fetching not yet implemented in SDK v3.0.0")
+        if isinstance(result, tuple) and len(result) > 0:
+            open_trades = result[0] if isinstance(result[0], list) else []
         
         # Format positions
         positions = []
         for trade in open_trades:
-            positions.append({
-                "market": trade.get('pairIndex'),
-                "side": "long" if trade.get('buy') else "short",
-                "size": float(trade.get('positionSize', 0)),
-                "entryPrice": float(trade.get('openPrice', 0)),
-                "leverage": float(trade.get('leverage', 1)),
-                "unrealizedPnl": float(trade.get('pnl', 0)),
-                "tradeId": trade.get('index')
-            })
+            try:
+                pair_info = trade.get('pair', {})
+                market_symbol = f"{pair_info.get('from', 'UNKNOWN')}/{pair_info.get('to', 'USD')}"
+                
+                positions.append({
+                    "market": market_symbol,
+                    "side": "long" if trade.get('isBuy') else "short",
+                    "size": float(int(trade.get('collateral', 0)) / 1e6),  # Collateral in USDC
+                    "entryPrice": float(int(trade.get('openPrice', 0)) / 1e18),  # Price
+                    "leverage": float(int(trade.get('leverage', 0)) / 100),  # Leverage
+                    "unrealizedPnl": 0.0,  # TODO: Calculate PnL
+                    "tradeId": trade.get('tradeID', trade.get('index', '0'))
+                })
+            except Exception as parse_error:
+                logger.error(f"Error parsing trade: {parse_error}")
+                continue
         
         logger.info(f"Found {len(positions)} open positions for {address}")
         
