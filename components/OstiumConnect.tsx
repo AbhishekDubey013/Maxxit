@@ -44,8 +44,12 @@ export function OstiumConnect({
     setError('');
 
     try {
+      // If not authenticated, trigger login
       if (!authenticated || !user?.wallet?.address) {
+        setLoading(false);
         await login();
+        // After login completes, Privy will update authenticated state
+        // We don't return here - let the user click again or we check in useEffect
         return;
       }
 
@@ -75,6 +79,14 @@ export function OstiumConnect({
       setLoading(false);
     }
   };
+
+  // Auto-proceed if already authenticated when modal opens
+  useEffect(() => {
+    if (authenticated && user?.wallet?.address && step === 'connect') {
+      connectWallet();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authenticated, user?.wallet?.address]);
 
   // Step 2: Generate Agent Wallet
   const generateAgent = async () => {
