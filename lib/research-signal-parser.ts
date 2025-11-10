@@ -3,8 +3,6 @@
  * Uses LLM to extract structured trading signals from research institute text
  */
 
-import Anthropic from '@anthropic-ai/sdk';
-
 export interface ResearchSignalInput {
   instituteId: string;
   instituteName: string;
@@ -20,10 +18,6 @@ export interface ParsedSignal {
   reasoning: string;
   confidence: 'HIGH' | 'MEDIUM' | 'LOW';
 }
-
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-});
 
 const SIGNAL_PARSER_PROMPT = `You are a professional trading signal parser. Your job is to extract structured data from research institute trading signals.
 
@@ -58,30 +52,52 @@ export async function parseResearchSignal(
     console.log(`[ResearchParser] Parsing signal from ${input.instituteName}`);
     console.log(`[ResearchParser] Text: "${input.signalText.substring(0, 100)}..."`);
 
-    const response = await anthropic.messages.create({
-      model: 'claude-3-5-sonnet-20241022',
-      max_tokens: 500,
-      temperature: 0.3, // Lower temperature for more consistent parsing
-      system: SIGNAL_PARSER_PROMPT,
-      messages: [
-        {
-          role: 'user',
-          content: `Signal from ${input.instituteName}:
+    // Use Perplexity API (compatible with OpenAI format)
+    const apiKey = process.env.PERPLEXITY_API_KEY;
+    if (!apiKey) {
+      throw new Error('PERPLEXITY_API_KEY not found in environment');
+    }
+
+    const response = await fetch('https://api.perplexity.ai/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: 'sonar',
+        messages: [
+          {
+            role: 'system',
+            content: SIGNAL_PARSER_PROMPT,
+          },
+          {
+            role: 'user',
+            content: `Signal from ${input.instituteName}:
 
 "${input.signalText}"
 
 Extract trading signal data as JSON.`,
-        },
-      ],
+          },
+        ],
+        max_tokens: 500,
+        temperature: 0.3,
+      }),
     });
 
-    const content = response.content[0];
-    if (content.type !== 'text') {
-      throw new Error('Unexpected response type from Claude');
+    if (!response.ok) {
+      throw new Error(`Perplexity API error: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content;
+    
+    if (!content) {
+      throw new Error('No content in Perplexity response');
     }
 
     // Parse LLM response
-    const jsonMatch = content.text.match(/\{[\s\S]*\}/);
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
       console.log('[ResearchParser] ❌ No JSON found in response');
       return {
