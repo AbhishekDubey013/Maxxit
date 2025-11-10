@@ -1,6 +1,6 @@
 # Ostium Complete Flow - Step-by-Step Checklist
 
-**For Junior Developer Testing**  
+**For Developer Testing**  
 Follow these steps **in order** to test the complete Ostium trading pipeline.
 
 ---
