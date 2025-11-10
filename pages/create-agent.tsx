@@ -12,23 +12,13 @@ import { createProofOfIntentWithMetaMask } from '@lib/proof-of-intent';
 import { HyperliquidConnect } from '@components/HyperliquidConnect';
 import { OstiumConnect } from '@components/OstiumConnect';
 import { OstiumApproval } from '@components/OstiumApproval';
+import { ResearchInstituteSelector } from '@components/ResearchInstituteSelector';
 
 const wizardSchema = insertAgentSchema.extend({
   description: z.string().max(500).optional(),
 });
 
 type WizardFormData = z.infer<typeof wizardSchema>;
-
-const WEIGHT_LABELS = [
-  'CT Account Impact Factor',
-  'RSI Threshold',
-  'MACD Signal Strength',
-  'Volume Momentum',
-  'Position Sizing Aggressiveness',
-  'Stop Loss Tightness',
-  'Take Profit Target',
-  'Risk-Reward Ratio',
-];
 
 type CtAccount = {
   id: string;
@@ -78,6 +68,9 @@ export default function CreateAgent() {
   const [newCtFollowers, setNewCtFollowers] = useState('');
   const [addingCtAccount, setAddingCtAccount] = useState(false);
 
+  // Research Institutes state
+  const [selectedResearchInstitutes, setSelectedResearchInstitutes] = useState<string[]>([]);
+
   const {
     register,
     handleSubmit,
@@ -92,7 +85,7 @@ export default function CreateAgent() {
       name: '',
       description: '',
       venue: 'SPOT',
-      weights: [50, 50, 50, 50, 50, 50, 50, 50],
+      weights: [50, 50, 50, 50, 50, 50, 50, 50], // Legacy - not used anymore
       status: 'DRAFT',
       creatorWallet: '',
       profitReceiverAddress: '',
@@ -239,9 +232,15 @@ export default function CreateAgent() {
       // Find first step with errors
       if (errors.name) setStep(1);
       else if (errors.venue) setStep(2);
-      else if (errors.weights) setStep(3);
       else if (errors.creatorWallet) setStep(5);
       setError('Please fix the validation errors before submitting');
+      return;
+    }
+
+    // Validate research institutes selection
+    if (selectedResearchInstitutes.length === 0) {
+      setError('Please select at least one research institute');
+      setStep(3);
       return;
     }
 
@@ -324,6 +323,39 @@ export default function CreateAgent() {
           console.error('❌ Failed to link CT accounts:', linkError);
           setError(`Agent created but some CT accounts failed to link: ${linkError.message}`);
           // Don't return here - still show the deploy modal
+        }
+
+        // Link selected research institutes to the agent
+        console.log('🔗 LINKING RESEARCH INSTITUTES - Starting...', selectedResearchInstitutes);
+        
+        if (selectedResearchInstitutes.length > 0) {
+          const instituteLinkPromises = selectedResearchInstitutes.map(async (instituteId) => {
+            console.log('  Linking research institute:', instituteId);
+            const response = await fetch(`/api/agents/${agentId}/research-institutes`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ institute_id: instituteId }),
+            });
+            
+            if (!response.ok) {
+              const error = await response.json().catch(() => ({ error: 'Failed to link institute' }));
+              console.error('  Failed to link institute:', instituteId, error);
+              throw new Error(error.error || `Failed to link institute ${instituteId}`);
+            }
+            
+            const result = await response.json();
+            console.log('  Successfully linked:', result);
+            return result;
+          });
+          
+          try {
+            await Promise.all(instituteLinkPromises);
+            console.log('✅ All research institutes linked successfully');
+          } catch (instituteLinkError: any) {
+            console.error('❌ Failed to link research institutes:', instituteLinkError);
+            setError(`Agent created but some research institutes failed to link: ${instituteLinkError.message}`);
+            // Don't return here - still show the deploy modal
+          }
         }
         
         setCreatedAgentId(agentId);
@@ -424,7 +456,12 @@ export default function CreateAgent() {
     } else if (step === 2) {
       isValid = await trigger('venue');
     } else if (step === 3) {
-      isValid = await trigger('weights');
+      // Validate research institute selection
+      if (selectedResearchInstitutes.length === 0) {
+        setError('Please select at least one research institute');
+        return;
+      }
+      isValid = true;
     } else if (step === 4) {
       // Validate CT account selection
       if (selectedCtAccounts.size === 0) {
@@ -645,47 +682,25 @@ export default function CreateAgent() {
             </div>
           )}
 
-          {/* Step 3: Strategy Weights */}
+          {/* Step 3: Research Institutes */}
           {step === 3 && (
             <div className="space-y-6">
               <h2 className="text-2xl font-semibold text-foreground mb-4">
-                Configure Strategy Weights
+                Select Research Institutes
               </h2>
               <p className="text-sm text-muted-foreground mb-6">
-                Adjust these weights to customize your agent's trading behavior. Each weight ranges from 0 to 100.
+                Choose which research institutes your agent should follow. The agent will automatically execute their trading signals with a fixed 5% position size per trade.
               </p>
 
-              <div className="space-y-6">
-                {WEIGHT_LABELS.map((label, index) => (
-                  <div key={index}>
-                    <div className="flex justify-between mb-2">
-                      <label className="text-sm font-medium text-foreground">
-                        {label}
-                      </label>
-                      <span className="text-sm text-primary font-semibold" data-testid={`text-weight-${index}`}>
-                        {formData.weights?.[index] ?? 50}
-                      </span>
-                    </div>
-                    <input
-                      type="range"
-                      min="0"
-                      max="100"
-                      value={formData.weights?.[index] ?? 50}
-                      onChange={(e) => {
-                        const newWeights = [...(formData.weights || [])];
-                        newWeights[index] = parseInt(e.target.value);
-                        setValue('weights', newWeights, { shouldValidate: true });
-                      }}
-                      className="w-full"
-                      data-testid={`input-weight-${index}`}
-                    />
-                  </div>
-                ))}
-                {/* Hidden input to register weights with RHF */}
-                <input type="hidden" {...register('weights')} />
-              </div>
-              {errors.weights && (
-                <p className="text-sm text-destructive mt-2">{errors.weights.message}</p>
+              <ResearchInstituteSelector
+                selectedIds={selectedResearchInstitutes}
+                onChange={setSelectedResearchInstitutes}
+              />
+
+              {selectedResearchInstitutes.length === 0 && (
+                <p className="text-sm text-yellow-600 mt-2">
+                  ⚠️ Please select at least one research institute to continue.
+                </p>
               )}
 
               <div className="flex gap-4">
@@ -1138,15 +1153,22 @@ export default function CreateAgent() {
                 </div>
 
                 <div className="p-4 bg-background border border-border rounded-md">
-                  <h3 className="text-sm font-medium text-muted-foreground mb-2">Strategy Weights</h3>
-                  <div className="grid grid-cols-2 gap-2 text-sm">
-                    {WEIGHT_LABELS.map((label, index) => (
-                      <div key={index} className="flex justify-between">
-                        <span className="text-muted-foreground">{label}:</span>
-                        <span className="text-foreground font-semibold">{formData.weights?.[index]}</span>
-                      </div>
-                    ))}
+                  <h3 className="text-sm font-medium text-muted-foreground mb-1">Research Institutes</h3>
+                  <div className="space-y-2 mt-2">
+                    {selectedResearchInstitutes.length > 0 ? (
+                      selectedResearchInstitutes.map(instituteId => (
+                        <div key={instituteId} className="flex items-center gap-2 text-sm">
+                          <Building2 className="h-4 w-4 text-primary" />
+                          <span className="text-foreground">Research Institute {instituteId.substring(0, 8)}...</span>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-sm text-muted-foreground italic">No institutes selected</p>
+                    )}
                   </div>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Fixed 5% position size per trade from institute signals
+                  </p>
                 </div>
               </div>
 
