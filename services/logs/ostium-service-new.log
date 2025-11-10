@@ -1674,3 +1674,959 @@ INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 22:37:23] "POST /positions HTTP/1.1" 20
 INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 22:37:43] "POST /positions HTTP/1.1" 200 -
 INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 22:37:46] "POST /positions HTTP/1.1" 200 -
 INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 22:37:51] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 22:38:13] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 22:38:16] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 22:38:19] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 22:38:45] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 22:38:49] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 22:38:53] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 22:39:13] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 22:39:17] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 22:39:21] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 22:39:45] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 22:39:49] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 22:39:56] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 22:40:14] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 22:40:17] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 22:40:20] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 22:40:43] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 22:40:47] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 22:40:51] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 22:41:13] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 22:41:17] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 22:41:22] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 22:41:44] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 22:41:48] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 22:41:52] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 22:42:13] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 22:42:16] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 22:42:19] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 22:42:43] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 22:42:48] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 22:42:51] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 22:43:13] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 22:43:17] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 22:43:21] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 22:43:45] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 22:43:48] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 22:43:51] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 22:44:14] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 22:44:18] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 22:44:21] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 22:44:44] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 22:44:46] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 22:44:51] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 22:45:14] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 22:45:17] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 22:45:20] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 22:45:43] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 22:45:46] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 22:45:51] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 22:46:13] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 22:46:16] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 23:07:11] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 23:07:15] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 23:07:20] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 23:07:39] "POST /positions HTTP/1.1" 200 -
+ERROR:__main__:Get positions error: [Errno 60] Operation timed out
+ERROR:__main__:Traceback (most recent call last):
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/selector_events.py", line 980, in _read_ready__get_buffer
+    nbytes = self._sock.recv_into(buf)
+TimeoutError: [Errno 60] Operation timed out
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/ostium-service.py", line 153, in get_positions
+    result = loop.run_until_complete(sdk.get_open_trades(trader_address=address))
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/base_events.py", line 725, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/sdk.py", line 103, in get_open_trades
+    open_trades = await self.subgraph.get_open_trades(trader_public_address)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/subgraph.py", line 245, in get_open_trades
+    result = await self._execute_query(query, variable_values={"trader": address})
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/subgraph.py", line 46, in _execute_query
+    raise e
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/subgraph.py", line 35, in _execute_query
+    result = await client.execute_async(query, variable_values=variable_values)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/client.py", line 367, in execute_async
+    return await session.execute(
+           ^^^^^^^^^^^^^^^^^^^^^^
+    ...<7 lines>...
+    )
+    ^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/client.py", line 1628, in execute
+    result = await self._execute(
+             ^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/client.py", line 1537, in _execute
+    result = await self.transport.execute(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<4 lines>...
+    )
+    ^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/transport/aiohttp.py", line 308, in execute
+    async with self.session.post(self.url, ssl=self.ssl, **post_args) as resp:
+               ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/client.py", line 1510, in __aenter__
+    self._resp: _RetType = await self._coro
+                           ^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/client.py", line 779, in _request
+    resp = await handler(req)
+           ^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/client.py", line 757, in _connect_and_send_request
+    await resp.start(conn)
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/client_reqrep.py", line 539, in start
+    message, payload = await protocol.read()  # type: ignore[union-attr]
+                       ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/streams.py", line 680, in read
+    await self._waiter
+aiohttp.client_exceptions.ClientOSError: [Errno 60] Operation timed out
+
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 23:07:43] "[35m[1mPOST /positions HTTP/1.1[0m" 500 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 23:07:43] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 23:07:48] "POST /positions HTTP/1.1" 200 -
+ERROR:__main__:Get positions error: [Errno 60] Operation timed out
+ERROR:__main__:Traceback (most recent call last):
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/selector_events.py", line 980, in _read_ready__get_buffer
+    nbytes = self._sock.recv_into(buf)
+TimeoutError: [Errno 60] Operation timed out
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/ostium-service.py", line 153, in get_positions
+    result = loop.run_until_complete(sdk.get_open_trades(trader_address=address))
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/base_events.py", line 725, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/sdk.py", line 103, in get_open_trades
+    open_trades = await self.subgraph.get_open_trades(trader_public_address)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/subgraph.py", line 245, in get_open_trades
+    result = await self._execute_query(query, variable_values={"trader": address})
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/subgraph.py", line 46, in _execute_query
+    raise e
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/subgraph.py", line 35, in _execute_query
+    result = await client.execute_async(query, variable_values=variable_values)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/client.py", line 367, in execute_async
+    return await session.execute(
+           ^^^^^^^^^^^^^^^^^^^^^^
+    ...<7 lines>...
+    )
+    ^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/client.py", line 1628, in execute
+    result = await self._execute(
+             ^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/client.py", line 1537, in _execute
+    result = await self.transport.execute(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<4 lines>...
+    )
+    ^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/transport/aiohttp.py", line 308, in execute
+    async with self.session.post(self.url, ssl=self.ssl, **post_args) as resp:
+               ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/client.py", line 1510, in __aenter__
+    self._resp: _RetType = await self._coro
+                           ^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/client.py", line 779, in _request
+    resp = await handler(req)
+           ^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/client.py", line 757, in _connect_and_send_request
+    await resp.start(conn)
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/client_reqrep.py", line 539, in start
+    message, payload = await protocol.read()  # type: ignore[union-attr]
+                       ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/streams.py", line 680, in read
+    await self._waiter
+aiohttp.client_exceptions.ClientOSError: [Errno 60] Operation timed out
+
+INFO:werkzeug:127.0.0.1 - - [09/Nov/2025 23:59:22] "[35m[1mPOST /positions HTTP/1.1[0m" 500 -
+ERROR:__main__:Get positions error: [Errno 60] Operation timed out
+ERROR:__main__:Traceback (most recent call last):
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/selector_events.py", line 980, in _read_ready__get_buffer
+    nbytes = self._sock.recv_into(buf)
+TimeoutError: [Errno 60] Operation timed out
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/ostium-service.py", line 153, in get_positions
+    result = loop.run_until_complete(sdk.get_open_trades(trader_address=address))
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/base_events.py", line 725, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/sdk.py", line 103, in get_open_trades
+    open_trades = await self.subgraph.get_open_trades(trader_public_address)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/subgraph.py", line 245, in get_open_trades
+    result = await self._execute_query(query, variable_values={"trader": address})
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/subgraph.py", line 46, in _execute_query
+    raise e
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/subgraph.py", line 35, in _execute_query
+    result = await client.execute_async(query, variable_values=variable_values)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/client.py", line 366, in execute_async
+    async with self as session:
+               ^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/client.py", line 814, in __aenter__
+    return await self.connect_async()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/client.py", line 795, in connect_async
+    await self.session.fetch_schema()
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/client.py", line 1661, in fetch_schema
+    execution_result = await self.transport.execute(parse(introspection_query))
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/transport/aiohttp.py", line 308, in execute
+    async with self.session.post(self.url, ssl=self.ssl, **post_args) as resp:
+               ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/client.py", line 1510, in __aenter__
+    self._resp: _RetType = await self._coro
+                           ^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/client.py", line 779, in _request
+    resp = await handler(req)
+           ^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/client.py", line 757, in _connect_and_send_request
+    await resp.start(conn)
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/client_reqrep.py", line 539, in start
+    message, payload = await protocol.read()  # type: ignore[union-attr]
+                       ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/streams.py", line 680, in read
+    await self._waiter
+aiohttp.client_exceptions.ClientOSError: [Errno 60] Operation timed out
+
+INFO:werkzeug:127.0.0.1 - - [10/Nov/2025 01:58:19] "[35m[1mPOST /positions HTTP/1.1[0m" 500 -
+INFO:werkzeug:127.0.0.1 - - [10/Nov/2025 03:02:21] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [10/Nov/2025 03:11:09] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [10/Nov/2025 06:17:38] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [10/Nov/2025 06:17:41] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [10/Nov/2025 06:17:45] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [10/Nov/2025 06:18:06] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [10/Nov/2025 06:18:09] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [10/Nov/2025 06:18:13] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [10/Nov/2025 06:18:36] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [10/Nov/2025 06:18:39] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [10/Nov/2025 06:18:42] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [10/Nov/2025 06:19:07] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [10/Nov/2025 06:19:09] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [10/Nov/2025 06:19:12] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [10/Nov/2025 06:19:37] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [10/Nov/2025 06:19:40] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [10/Nov/2025 06:19:43] "POST /positions HTTP/1.1" 200 -
+ERROR:__main__:Get positions error: Connection closed
+ERROR:__main__:Traceback (most recent call last):
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/streams.py", line 355, in _wait
+    await waiter
+asyncio.exceptions.CancelledError
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/transport/aiohttp.py", line 331, in execute
+    result = await resp.json(content_type=None)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/client_reqrep.py", line 751, in json
+    await self.read()
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/client_reqrep.py", line 693, in read
+    self._body = await self.content.read()
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/streams.py", line 426, in read
+    block = await self.readany()
+            ^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/streams.py", line 448, in readany
+    await self._wait("readany")
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/streams.py", line 354, in _wait
+    with self._timer:
+         ^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/helpers.py", line 713, in __exit__
+    raise asyncio.TimeoutError from exc_val
+TimeoutError
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/ostium-service.py", line 153, in get_positions
+    result = loop.run_until_complete(sdk.get_open_trades(trader_address=address))
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/base_events.py", line 725, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/sdk.py", line 103, in get_open_trades
+    open_trades = await self.subgraph.get_open_trades(trader_public_address)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/subgraph.py", line 245, in get_open_trades
+    result = await self._execute_query(query, variable_values={"trader": address})
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/subgraph.py", line 46, in _execute_query
+    raise e
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/subgraph.py", line 35, in _execute_query
+    result = await client.execute_async(query, variable_values=variable_values)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/client.py", line 366, in execute_async
+    async with self as session:
+               ^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/client.py", line 814, in __aenter__
+    return await self.connect_async()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/client.py", line 795, in connect_async
+    await self.session.fetch_schema()
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/client.py", line 1661, in fetch_schema
+    execution_result = await self.transport.execute(parse(introspection_query))
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/transport/aiohttp.py", line 338, in execute
+    await raise_response_error(resp, "Not a JSON answer")
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/transport/aiohttp.py", line 323, in raise_response_error
+    result_text = await resp.text()
+                  ^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/client_reqrep.py", line 735, in text
+    await self.read()
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/client_reqrep.py", line 693, in read
+    self._body = await self.content.read()
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/streams.py", line 400, in read
+    raise self._exception
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/ostium-service.py", line 153, in get_positions
+    result = loop.run_until_complete(sdk.get_open_trades(trader_address=address))
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/base_events.py", line 725, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/sdk.py", line 103, in get_open_trades
+    open_trades = await self.subgraph.get_open_trades(trader_public_address)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/subgraph.py", line 245, in get_open_trades
+    result = await self._execute_query(query, variable_values={"trader": address})
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/subgraph.py", line 46, in _execute_query
+    raise e
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/subgraph.py", line 35, in _execute_query
+    result = await client.execute_async(query, variable_values=variable_values)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/client.py", line 366, in execute_async
+    async with self as session:
+               ^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/client.py", line 814, in __aenter__
+    return await self.connect_async()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/client.py", line 795, in connect_async
+    await self.session.fetch_schema()
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/client.py", line 1661, in fetch_schema
+    execution_result = await self.transport.execute(parse(introspection_query))
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/transport/aiohttp.py", line 338, in execute
+    await raise_response_error(resp, "Not a JSON answer")
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/transport/aiohttp.py", line 323, in raise_response_error
+    result_text = await resp.text()
+                  ^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/client_reqrep.py", line 735, in text
+    await self.read()
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/client_reqrep.py", line 693, in read
+    self._body = await self.content.read()
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/streams.py", line 400, in read
+    raise self._exception
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/ostium-service.py", line 153, in get_positions
+    result = loop.run_until_complete(sdk.get_open_trades(trader_address=address))
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/base_events.py", line 725, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/sdk.py", line 103, in get_open_trades
+    open_trades = await self.subgraph.get_open_trades(trader_public_address)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/subgraph.py", line 245, in get_open_trades
+    result = await self._execute_query(query, variable_values={"trader": address})
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/subgraph.py", line 46, in _execute_query
+    raise e
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/subgraph.py", line 35, in _execute_query
+    result = await client.execute_async(query, variable_values=variable_values)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/client.py", line 366, in execute_async
+    async with self as session:
+               ^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/client.py", line 814, in __aenter__
+    return await self.connect_async()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/client.py", line 795, in connect_async
+    await self.session.fetch_schema()
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/client.py", line 1661, in fetch_schema
+    execution_result = await self.transport.execute(parse(introspection_query))
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/transport/aiohttp.py", line 338, in execute
+    await raise_response_error(resp, "Not a JSON answer")
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/transport/aiohttp.py", line 323, in raise_response_error
+    result_text = await resp.text()
+                  ^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/client_reqrep.py", line 735, in text
+    await self.read()
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/client_reqrep.py", line 693, in read
+    self._body = await self.content.read()
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/streams.py", line 400, in read
+    raise self._exception
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/ostium-service.py", line 153, in get_positions
+    result = loop.run_until_complete(sdk.get_open_trades(trader_address=address))
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/base_events.py", line 725, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/sdk.py", line 103, in get_open_trades
+    open_trades = await self.subgraph.get_open_trades(trader_public_address)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/subgraph.py", line 245, in get_open_trades
+    result = await self._execute_query(query, variable_values={"trader": address})
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/subgraph.py", line 46, in _execute_query
+    raise e
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/subgraph.py", line 35, in _execute_query
+    result = await client.execute_async(query, variable_values=variable_values)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/client.py", line 366, in execute_async
+    async with self as session:
+               ^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/client.py", line 814, in __aenter__
+    return await self.connect_async()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/client.py", line 795, in connect_async
+    await self.session.fetch_schema()
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/client.py", line 1661, in fetch_schema
+    execution_result = await self.transport.execute(parse(introspection_query))
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/transport/aiohttp.py", line 338, in execute
+    await raise_response_error(resp, "Not a JSON answer")
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/transport/aiohttp.py", line 323, in raise_response_error
+    result_text = await resp.text()
+                  ^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/client_reqrep.py", line 735, in text
+    await self.read()
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/client_reqrep.py", line 693, in read
+    self._body = await self.content.read()
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/streams.py", line 400, in read
+    raise self._exception
+aiohttp.client_exceptions.ClientConnectionError: Connection closed
+
+INFO:werkzeug:127.0.0.1 - - [10/Nov/2025 06:19:45] "[35m[1mPOST /positions HTTP/1.1[0m" 500 -
+ERROR:__main__:Get positions error: Connection closed
+ERROR:__main__:Traceback (most recent call last):
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/streams.py", line 355, in _wait
+    await waiter
+asyncio.exceptions.CancelledError
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/transport/aiohttp.py", line 331, in execute
+    result = await resp.json(content_type=None)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/client_reqrep.py", line 751, in json
+    await self.read()
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/client_reqrep.py", line 693, in read
+    self._body = await self.content.read()
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/streams.py", line 426, in read
+    block = await self.readany()
+            ^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/streams.py", line 448, in readany
+    await self._wait("readany")
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/streams.py", line 354, in _wait
+    with self._timer:
+         ^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/helpers.py", line 713, in __exit__
+    raise asyncio.TimeoutError from exc_val
+TimeoutError
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/ostium-service.py", line 153, in get_positions
+    result = loop.run_until_complete(sdk.get_open_trades(trader_address=address))
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/base_events.py", line 725, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/sdk.py", line 103, in get_open_trades
+    open_trades = await self.subgraph.get_open_trades(trader_public_address)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/subgraph.py", line 245, in get_open_trades
+    result = await self._execute_query(query, variable_values={"trader": address})
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/subgraph.py", line 46, in _execute_query
+    raise e
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/subgraph.py", line 35, in _execute_query
+    result = await client.execute_async(query, variable_values=variable_values)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/client.py", line 366, in execute_async
+    async with self as session:
+               ^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/client.py", line 814, in __aenter__
+    return await self.connect_async()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/client.py", line 795, in connect_async
+    await self.session.fetch_schema()
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/client.py", line 1661, in fetch_schema
+    execution_result = await self.transport.execute(parse(introspection_query))
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/transport/aiohttp.py", line 338, in execute
+    await raise_response_error(resp, "Not a JSON answer")
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/transport/aiohttp.py", line 323, in raise_response_error
+    result_text = await resp.text()
+                  ^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/client_reqrep.py", line 735, in text
+    await self.read()
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/client_reqrep.py", line 693, in read
+    self._body = await self.content.read()
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/streams.py", line 400, in read
+    raise self._exception
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/ostium-service.py", line 153, in get_positions
+    result = loop.run_until_complete(sdk.get_open_trades(trader_address=address))
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/base_events.py", line 725, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/sdk.py", line 103, in get_open_trades
+    open_trades = await self.subgraph.get_open_trades(trader_public_address)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/subgraph.py", line 245, in get_open_trades
+    result = await self._execute_query(query, variable_values={"trader": address})
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/subgraph.py", line 46, in _execute_query
+    raise e
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/subgraph.py", line 35, in _execute_query
+    result = await client.execute_async(query, variable_values=variable_values)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/client.py", line 366, in execute_async
+    async with self as session:
+               ^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/client.py", line 814, in __aenter__
+    return await self.connect_async()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/client.py", line 795, in connect_async
+    await self.session.fetch_schema()
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/client.py", line 1661, in fetch_schema
+    execution_result = await self.transport.execute(parse(introspection_query))
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/transport/aiohttp.py", line 338, in execute
+    await raise_response_error(resp, "Not a JSON answer")
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/transport/aiohttp.py", line 323, in raise_response_error
+    result_text = await resp.text()
+                  ^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/client_reqrep.py", line 735, in text
+    await self.read()
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/client_reqrep.py", line 693, in read
+    self._body = await self.content.read()
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/streams.py", line 400, in read
+    raise self._exception
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/ostium-service.py", line 153, in get_positions
+    result = loop.run_until_complete(sdk.get_open_trades(trader_address=address))
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/base_events.py", line 725, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/sdk.py", line 103, in get_open_trades
+    open_trades = await self.subgraph.get_open_trades(trader_public_address)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/subgraph.py", line 245, in get_open_trades
+    result = await self._execute_query(query, variable_values={"trader": address})
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/subgraph.py", line 46, in _execute_query
+    raise e
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/subgraph.py", line 35, in _execute_query
+    result = await client.execute_async(query, variable_values=variable_values)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/client.py", line 366, in execute_async
+    async with self as session:
+               ^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/client.py", line 814, in __aenter__
+    return await self.connect_async()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/client.py", line 795, in connect_async
+    await self.session.fetch_schema()
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/client.py", line 1661, in fetch_schema
+    execution_result = await self.transport.execute(parse(introspection_query))
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/transport/aiohttp.py", line 338, in execute
+    await raise_response_error(resp, "Not a JSON answer")
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/transport/aiohttp.py", line 323, in raise_response_error
+    result_text = await resp.text()
+                  ^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/client_reqrep.py", line 735, in text
+    await self.read()
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/client_reqrep.py", line 693, in read
+    self._body = await self.content.read()
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/streams.py", line 400, in read
+    raise self._exception
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/ostium-service.py", line 153, in get_positions
+    result = loop.run_until_complete(sdk.get_open_trades(trader_address=address))
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/base_events.py", line 725, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/sdk.py", line 103, in get_open_trades
+    open_trades = await self.subgraph.get_open_trades(trader_public_address)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/subgraph.py", line 245, in get_open_trades
+    result = await self._execute_query(query, variable_values={"trader": address})
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/subgraph.py", line 46, in _execute_query
+    raise e
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/subgraph.py", line 35, in _execute_query
+    result = await client.execute_async(query, variable_values=variable_values)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/client.py", line 366, in execute_async
+    async with self as session:
+               ^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/client.py", line 814, in __aenter__
+    return await self.connect_async()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/client.py", line 795, in connect_async
+    await self.session.fetch_schema()
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/client.py", line 1661, in fetch_schema
+    execution_result = await self.transport.execute(parse(introspection_query))
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/transport/aiohttp.py", line 338, in execute
+    await raise_response_error(resp, "Not a JSON answer")
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/transport/aiohttp.py", line 323, in raise_response_error
+    result_text = await resp.text()
+                  ^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/client_reqrep.py", line 735, in text
+    await self.read()
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/client_reqrep.py", line 693, in read
+    self._body = await self.content.read()
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/streams.py", line 400, in read
+    raise self._exception
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/ostium-service.py", line 153, in get_positions
+    result = loop.run_until_complete(sdk.get_open_trades(trader_address=address))
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/base_events.py", line 725, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/sdk.py", line 103, in get_open_trades
+    open_trades = await self.subgraph.get_open_trades(trader_public_address)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/subgraph.py", line 245, in get_open_trades
+    result = await self._execute_query(query, variable_values={"trader": address})
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/subgraph.py", line 46, in _execute_query
+    raise e
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/subgraph.py", line 35, in _execute_query
+    result = await client.execute_async(query, variable_values=variable_values)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/client.py", line 366, in execute_async
+    async with self as session:
+               ^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/client.py", line 814, in __aenter__
+    return await self.connect_async()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/client.py", line 795, in connect_async
+    await self.session.fetch_schema()
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/client.py", line 1661, in fetch_schema
+    execution_result = await self.transport.execute(parse(introspection_query))
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/transport/aiohttp.py", line 338, in execute
+    await raise_response_error(resp, "Not a JSON answer")
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/transport/aiohttp.py", line 323, in raise_response_error
+    result_text = await resp.text()
+                  ^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/client_reqrep.py", line 735, in text
+    await self.read()
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/client_reqrep.py", line 693, in read
+    self._body = await self.content.read()
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/streams.py", line 400, in read
+    raise self._exception
+aiohttp.client_exceptions.ClientConnectionError: Connection closed
+
+INFO:werkzeug:127.0.0.1 - - [10/Nov/2025 06:19:46] "[35m[1mPOST /positions HTTP/1.1[0m" 500 -
+INFO:werkzeug:127.0.0.1 - - [10/Nov/2025 06:19:48] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [10/Nov/2025 06:19:50] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [10/Nov/2025 06:19:53] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [10/Nov/2025 06:20:06] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [10/Nov/2025 06:20:09] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [10/Nov/2025 06:20:13] "POST /positions HTTP/1.1" 200 -
+ERROR:__main__:Get positions error: Connection closed
+ERROR:__main__:Traceback (most recent call last):
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/streams.py", line 355, in _wait
+    await waiter
+asyncio.exceptions.CancelledError
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/transport/aiohttp.py", line 331, in execute
+    result = await resp.json(content_type=None)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/client_reqrep.py", line 751, in json
+    await self.read()
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/client_reqrep.py", line 693, in read
+    self._body = await self.content.read()
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/streams.py", line 426, in read
+    block = await self.readany()
+            ^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/streams.py", line 448, in readany
+    await self._wait("readany")
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/streams.py", line 354, in _wait
+    with self._timer:
+         ^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/helpers.py", line 713, in __exit__
+    raise asyncio.TimeoutError from exc_val
+TimeoutError
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/ostium-service.py", line 153, in get_positions
+    result = loop.run_until_complete(sdk.get_open_trades(trader_address=address))
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/base_events.py", line 725, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/sdk.py", line 103, in get_open_trades
+    open_trades = await self.subgraph.get_open_trades(trader_public_address)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/subgraph.py", line 245, in get_open_trades
+    result = await self._execute_query(query, variable_values={"trader": address})
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/subgraph.py", line 46, in _execute_query
+    raise e
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/subgraph.py", line 35, in _execute_query
+    result = await client.execute_async(query, variable_values=variable_values)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/client.py", line 366, in execute_async
+    async with self as session:
+               ^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/client.py", line 814, in __aenter__
+    return await self.connect_async()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/client.py", line 795, in connect_async
+    await self.session.fetch_schema()
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/client.py", line 1661, in fetch_schema
+    execution_result = await self.transport.execute(parse(introspection_query))
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/transport/aiohttp.py", line 338, in execute
+    await raise_response_error(resp, "Not a JSON answer")
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/transport/aiohttp.py", line 323, in raise_response_error
+    result_text = await resp.text()
+                  ^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/client_reqrep.py", line 735, in text
+    await self.read()
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/client_reqrep.py", line 693, in read
+    self._body = await self.content.read()
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/streams.py", line 400, in read
+    raise self._exception
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/ostium-service.py", line 153, in get_positions
+    result = loop.run_until_complete(sdk.get_open_trades(trader_address=address))
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/base_events.py", line 725, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/sdk.py", line 103, in get_open_trades
+    open_trades = await self.subgraph.get_open_trades(trader_public_address)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/subgraph.py", line 245, in get_open_trades
+    result = await self._execute_query(query, variable_values={"trader": address})
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/subgraph.py", line 46, in _execute_query
+    raise e
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/subgraph.py", line 35, in _execute_query
+    result = await client.execute_async(query, variable_values=variable_values)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/client.py", line 366, in execute_async
+    async with self as session:
+               ^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/client.py", line 814, in __aenter__
+    return await self.connect_async()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/client.py", line 795, in connect_async
+    await self.session.fetch_schema()
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/client.py", line 1661, in fetch_schema
+    execution_result = await self.transport.execute(parse(introspection_query))
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/transport/aiohttp.py", line 338, in execute
+    await raise_response_error(resp, "Not a JSON answer")
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/transport/aiohttp.py", line 323, in raise_response_error
+    result_text = await resp.text()
+                  ^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/client_reqrep.py", line 735, in text
+    await self.read()
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/client_reqrep.py", line 693, in read
+    self._body = await self.content.read()
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/streams.py", line 400, in read
+    raise self._exception
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/ostium-service.py", line 153, in get_positions
+    result = loop.run_until_complete(sdk.get_open_trades(trader_address=address))
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/base_events.py", line 725, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/sdk.py", line 103, in get_open_trades
+    open_trades = await self.subgraph.get_open_trades(trader_public_address)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/subgraph.py", line 245, in get_open_trades
+    result = await self._execute_query(query, variable_values={"trader": address})
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/subgraph.py", line 46, in _execute_query
+    raise e
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/subgraph.py", line 35, in _execute_query
+    result = await client.execute_async(query, variable_values=variable_values)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/client.py", line 366, in execute_async
+    async with self as session:
+               ^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/client.py", line 814, in __aenter__
+    return await self.connect_async()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/client.py", line 795, in connect_async
+    await self.session.fetch_schema()
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/client.py", line 1661, in fetch_schema
+    execution_result = await self.transport.execute(parse(introspection_query))
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/transport/aiohttp.py", line 338, in execute
+    await raise_response_error(resp, "Not a JSON answer")
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/transport/aiohttp.py", line 323, in raise_response_error
+    result_text = await resp.text()
+                  ^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/client_reqrep.py", line 735, in text
+    await self.read()
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/client_reqrep.py", line 693, in read
+    self._body = await self.content.read()
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/streams.py", line 400, in read
+    raise self._exception
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/ostium-service.py", line 153, in get_positions
+    result = loop.run_until_complete(sdk.get_open_trades(trader_address=address))
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/base_events.py", line 725, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/sdk.py", line 103, in get_open_trades
+    open_trades = await self.subgraph.get_open_trades(trader_public_address)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/subgraph.py", line 245, in get_open_trades
+    result = await self._execute_query(query, variable_values={"trader": address})
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/subgraph.py", line 46, in _execute_query
+    raise e
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/subgraph.py", line 35, in _execute_query
+    result = await client.execute_async(query, variable_values=variable_values)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/client.py", line 366, in execute_async
+    async with self as session:
+               ^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/client.py", line 814, in __aenter__
+    return await self.connect_async()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/client.py", line 795, in connect_async
+    await self.session.fetch_schema()
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/client.py", line 1661, in fetch_schema
+    execution_result = await self.transport.execute(parse(introspection_query))
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/transport/aiohttp.py", line 338, in execute
+    await raise_response_error(resp, "Not a JSON answer")
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/transport/aiohttp.py", line 323, in raise_response_error
+    result_text = await resp.text()
+                  ^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/client_reqrep.py", line 735, in text
+    await self.read()
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/client_reqrep.py", line 693, in read
+    self._body = await self.content.read()
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/streams.py", line 400, in read
+    raise self._exception
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/ostium-service.py", line 153, in get_positions
+    result = loop.run_until_complete(sdk.get_open_trades(trader_address=address))
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/base_events.py", line 725, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/sdk.py", line 103, in get_open_trades
+    open_trades = await self.subgraph.get_open_trades(trader_public_address)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/subgraph.py", line 245, in get_open_trades
+    result = await self._execute_query(query, variable_values={"trader": address})
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/subgraph.py", line 46, in _execute_query
+    raise e
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/subgraph.py", line 35, in _execute_query
+    result = await client.execute_async(query, variable_values=variable_values)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/client.py", line 366, in execute_async
+    async with self as session:
+               ^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/client.py", line 814, in __aenter__
+    return await self.connect_async()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/client.py", line 795, in connect_async
+    await self.session.fetch_schema()
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/client.py", line 1661, in fetch_schema
+    execution_result = await self.transport.execute(parse(introspection_query))
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/transport/aiohttp.py", line 338, in execute
+    await raise_response_error(resp, "Not a JSON answer")
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/transport/aiohttp.py", line 323, in raise_response_error
+    result_text = await resp.text()
+                  ^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/client_reqrep.py", line 735, in text
+    await self.read()
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/client_reqrep.py", line 693, in read
+    self._body = await self.content.read()
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/streams.py", line 400, in read
+    raise self._exception
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/ostium-service.py", line 153, in get_positions
+    result = loop.run_until_complete(sdk.get_open_trades(trader_address=address))
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/base_events.py", line 725, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/sdk.py", line 103, in get_open_trades
+    open_trades = await self.subgraph.get_open_trades(trader_public_address)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/subgraph.py", line 245, in get_open_trades
+    result = await self._execute_query(query, variable_values={"trader": address})
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/subgraph.py", line 46, in _execute_query
+    raise e
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/ostium_python_sdk/subgraph.py", line 35, in _execute_query
+    result = await client.execute_async(query, variable_values=variable_values)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/client.py", line 366, in execute_async
+    async with self as session:
+               ^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/client.py", line 814, in __aenter__
+    return await self.connect_async()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/client.py", line 795, in connect_async
+    await self.session.fetch_schema()
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/client.py", line 1661, in fetch_schema
+    execution_result = await self.transport.execute(parse(introspection_query))
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/transport/aiohttp.py", line 338, in execute
+    await raise_response_error(resp, "Not a JSON answer")
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/gql/transport/aiohttp.py", line 323, in raise_response_error
+    result_text = await resp.text()
+                  ^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/client_reqrep.py", line 735, in text
+    await self.read()
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/client_reqrep.py", line 693, in read
+    self._body = await self.content.read()
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/aiohttp/streams.py", line 400, in read
+    raise self._exception
+aiohttp.client_exceptions.ClientConnectionError: Connection closed
+
+INFO:werkzeug:127.0.0.1 - - [10/Nov/2025 06:20:19] "[35m[1mPOST /positions HTTP/1.1[0m" 500 -
+INFO:werkzeug:127.0.0.1 - - [10/Nov/2025 06:20:22] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [10/Nov/2025 06:20:25] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [10/Nov/2025 06:20:36] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [10/Nov/2025 06:20:39] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [10/Nov/2025 06:20:42] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [10/Nov/2025 06:21:07] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [10/Nov/2025 06:21:10] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [10/Nov/2025 06:21:14] "POST /positions HTTP/1.1" 200 -
