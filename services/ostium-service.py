@@ -7,6 +7,7 @@ Similar to hyperliquid-service.py but for Arbitrum-based Ostium
 
 from flask import Flask, request, jsonify
 from flask_cors import CORS
+from web3 import Web3
 import os
 import logging
 from datetime import datetime
@@ -103,6 +104,12 @@ def get_balance():
         if not address:
             return jsonify({"success": False, "error": "Missing address"}), 400
         
+        # Convert to checksummed address
+        try:
+            address = Web3.to_checksum_address(address)
+        except Exception as e:
+            return jsonify({"success": False, "error": f"Invalid address format: {str(e)}"}), 400
+        
         # Use a dummy key for read-only operations  
         # SDK requires a private key even for read operations
         dummy_key = '0x' + '1' * 64
@@ -140,6 +147,12 @@ def get_positions():
         
         if not address:
             return jsonify({"success": False, "error": "Missing address"}), 400
+        
+        # Convert to checksummed address
+        try:
+            address = Web3.to_checksum_address(address)
+        except Exception as e:
+            return jsonify({"success": False, "error": f"Invalid address format: {str(e)}"}), 400
         
         # Create SDK instance
         dummy_key = '0x' + '1' * 64
@@ -194,79 +207,124 @@ def get_positions():
 @app.route('/open-position', methods=['POST'])
 def open_position():
     """
-    Open a position on Ostium
-    Body: {
-        "privateKey": "0x...",        # Agent's private key
-        "market": "BTC-USD",           # Trading pair
-        "size": 0.01,                  # Position size
+    Open a position on Ostium (supports both formats)
+    Format 1 (agent-based):
+    {
+        "agentAddress": "0x...",      # Agent's wallet address (agent's private key from env)
+        "userAddress": "0x...",        # User's wallet (trading on behalf of)
+        "market": "HYPE",              # Token symbol
         "side": "long",                # "long" or "short"
-        "leverage": 10,                # Leverage multiplier
-        "useDelegation": false,        # Whether trading on behalf of user
-        "userAddress": "0x..."         # Required if useDelegation=true
+        "collateral": 100,             # Collateral in USDC
+        "leverage": 3                  # Leverage multiplier
+    }
+    Format 2 (legacy):
+    {
+        "privateKey": "0x...",
+        "market": "BTC",
+        "size": 0.01,
+        "side": "long",
+        "leverage": 10,
+        "useDelegation": false,
+        "userAddress": "0x..."
     }
     """
     try:
         data = request.json
+        
+        # Support both agentAddress and privateKey formats
+        agent_address = data.get('agentAddress')
         private_key = data.get('privateKey')
+        
+        # If agentAddress is provided, get private key from env
+        if agent_address:
+            # Get agent's private key from environment
+            agent_pk = os.getenv('EXECUTOR_PRIVATE_KEY')
+            if not agent_pk:
+                return jsonify({
+                    "success": False,
+                    "error": "EXECUTOR_PRIVATE_KEY not configured"
+                }), 500
+            private_key = agent_pk
+            use_delegation = True
+        else:
+            use_delegation = data.get('useDelegation', False)
+        
+        # Handle collateral vs size
+        collateral = data.get('collateral')
+        size = data.get('size')
+        position_size = float(collateral) if collateral is not None else float(size) if size is not None else None
+        
         market = data.get('market')
-        size = float(data.get('size'))
         side = data.get('side', 'long')
         leverage = float(data.get('leverage', 10))
-        use_delegation = data.get('useDelegation', False)
         user_address = data.get('userAddress')
         
         # Validation
-        if not all([private_key, market, size]):
+        if not all([private_key, market, position_size]):
             return jsonify({
                 "success": False,
-                "error": "Missing required fields: privateKey, market, size"
+                "error": "Missing required fields"
             }), 400
         
         if use_delegation and not user_address:
             return jsonify({
                 "success": False,
-                "error": "userAddress required when useDelegation=true"
+                "error": "userAddress required for delegation"
             }), 400
+        
+        # Checksum addresses
+        if user_address:
+            try:
+                user_address = Web3.to_checksum_address(user_address)
+            except:
+                return jsonify({"success": False, "error": "Invalid userAddress format"}), 400
         
         # Get SDK instance
         sdk = get_sdk(private_key, use_delegation)
         
-        logger.info(f"Opening {side} position: {size} {market} (leverage: {leverage}x, delegation: {use_delegation})")
+        logger.info(f"Opening {side} position: {position_size} USDC on {market} (leverage: {leverage}x, delegation: {use_delegation})")
+        if use_delegation:
+            logger.info(f"Trading on behalf of: {user_address}")
         
-        # Prepare trade parameters  
-        # Ostium SDK expects 'collateral' (the margin amount in USDC) and 'asset_type' (market pair index)
-        # Map market symbols to pair indices (0=BTC, 1=ETH, etc.)
+        # Map market symbols to pair indices
         market_indices = {
             'BTC': 0,
             'ETH': 1,
             'SOL': 2,
+            'HYPE': 3,  # Add HYPE support
         }
         
+        asset_index = market_indices.get(market.upper())
+        if asset_index is None:
+            return jsonify({
+                "success": False,
+                "error": f"Market not available for {market}"
+            }), 400
+        
         trade_params = {
-            'asset_type': market_indices.get(market.upper(), 0),  # Pair index
-            'collateral': size,  # Margin in USDC
-            'direction': side.lower() == 'long',  # True for long, False for short
+            'asset_type': asset_index,
+            'collateral': position_size,
+            'direction': side.lower() == 'long',
             'leverage': leverage,
-            'tp': 0,  # Take profit (0 = none)
-            'sl': 0,  # Stop loss (0 = none)
+            'tp': 0,
+            'sl': 0,
         }
         
         if use_delegation:
-            trade_params['trader_address'] = user_address  # User's wallet address
-            logger.info(f"Trading on behalf of: {user_address}")
+            trade_params['trader_address'] = user_address
         
-        # Workaround: Use a reasonable price for testnet trading
-        # In production, fetch from a reliable oracle
+        # Price defaults (for testnet)
         price_defaults = {
-            'BTC': 90000.0,  # Approximate BTC price
-            'ETH': 3000.0,   # Approximate ETH price  
-            'SOL': 200.0,    # Approximate SOL price
+            'BTC': 90000.0,
+            'ETH': 3000.0,
+            'SOL': 200.0,
+            'HYPE': 15.0,  # Add HYPE price
         }
         current_price = price_defaults.get(market.upper(), 100.0)
         
-        logger.info(f"Using reference price for {market}: {current_price}")
+        logger.info(f"Using reference price for {market}: ${current_price}")
         
-        # Execute trade with reference price
+        # Execute trade
         logger.info(f"📤 Calling perform_trade with params: {trade_params}, price: {current_price}")
         result = sdk.ostium.perform_trade(trade_params, at_price=current_price)
         
@@ -293,13 +351,15 @@ def open_position():
         return jsonify({
             "success": True,
             "orderId": order_id,
+            "tradeId": str(order_id),  # Alias for compatibility
             "transactionHash": str(tx_hash) if tx_hash else '',
+            "txHash": str(tx_hash) if tx_hash else '',  # Alias for compatibility
             "status": "pending",
             "message": "Order created, waiting for keeper to fill position",
             "result": {
                 "market": market,
                 "side": side,
-                "size": size,
+                "collateral": position_size,
                 "leverage": leverage,
             }
         })
