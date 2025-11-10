@@ -188,9 +188,10 @@ export async function executeTradesForSignals() {
                 err.error?.includes('minimum order size')
               );
               
-              // Check for market not available errors
+              // Check for market not available errors (multiple formats)
               const marketNotAvailableError = errorData.errors.find((err: any) => 
-                err.error?.includes('Market not available for')
+                err.error?.includes('Market not available for') || 
+                err.error?.includes('is not available on')
               );
               
               if (hasMinimumError) {
@@ -202,9 +203,13 @@ export async function executeTradesForSignals() {
                   }
                 });
               } else if (marketNotAvailableError) {
-                // Extract token name from error message
-                const tokenMatch = marketNotAvailableError.error.match(/Market not available for (\w+)/);
-                const tokenName = tokenMatch ? tokenMatch[1] : signal.token_symbol;
+                // Extract token name from error message (multiple formats)
+                let tokenName = signal.token_symbol;
+                const tokenMatch1 = marketNotAvailableError.error.match(/Market not available for (\w+)/);
+                const tokenMatch2 = marketNotAvailableError.error.match(/Market (\w+) is not available on/);
+                if (tokenMatch1) tokenName = tokenMatch1[1];
+                if (tokenMatch2) tokenName = tokenMatch2[1];
+                
                 const skipReason = `Market ${tokenName} not available on ${signal.venue}`;
                 
                 console.log(`[TradeWorker] 🚫 Marking signal ${signal.id} as skipped (market not available)`);
