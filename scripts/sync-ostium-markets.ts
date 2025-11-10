@@ -9,38 +9,46 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 async function syncOstiumMarkets() {
-  console.log('🔄 Syncing Ostium Markets from Service...\n');
+  console.log('🔄 Syncing Ostium Markets from SDK...\n');
   
   try {
-    const ostiumServiceUrl = process.env.OSTIUM_SERVICE_URL || 'http://localhost:5002';
+    // Call Python script to fetch all markets from SDK
+    const { exec } = await import('child_process');
+    const { promisify } = await import('util');
+    const execAsync = promisify(exec);
     
-    // Fetch markets from Ostium Python service
-    const response = await fetch(`${ostiumServiceUrl}/available-markets?refresh=true`);
+    const scriptPath = './services/fetch-all-ostium-markets.py';
+    const { stdout, stderr } = await execAsync(`cd services && source venv/bin/activate && python3 ../services/fetch-all-ostium-markets.py`);
     
-    if (!response.ok) {
-      throw new Error(`Failed to fetch markets: ${response.statusText}`);
+    if (stderr && !stderr.includes('UserWarning')) {
+      console.error('Python stderr:', stderr);
     }
     
-    const data = await response.json();
+    const data = JSON.parse(stdout);
     
     if (!data.success || !data.markets) {
-      throw new Error('Invalid response from Ostium service');
+      throw new Error(data.error || 'Invalid response from Python script');
     }
     
-    console.log(`📊 Found ${data.count} markets from Ostium\n`);
+    console.log(`📊 Found ${data.count} markets from Ostium SDK\n`);
     
     let created = 0;
     let updated = 0;
     let errors = 0;
     
-    for (const [symbol, marketInfo] of Object.entries(data.markets as any)) {
+    for (const market of data.markets) {
       try {
+        const symbol = market.symbol || `UNKNOWN_${market.index}`;
         const marketData = {
           venue: 'OSTIUM' as const,
           token_symbol: symbol,
-          market_name: marketInfo.name,
-          market_index: marketInfo.index,
-          is_active: marketInfo.available,
+          market_name: market.name,
+          market_index: market.index,
+          is_active: market.isMarketOpen !== false, // Default to true if not specified
+          min_position: market.minLevPos ? parseFloat(market.minLevPos) : null,
+          max_leverage: market.maxLeverage ? parseInt(market.maxLeverage) : null,
+          group: market.group || null,
+          current_price: market.currentPrice ? parseFloat(market.currentPrice) : null,
           last_synced: new Date(),
         };
         
@@ -56,6 +64,10 @@ async function syncOstiumMarkets() {
             market_name: marketData.market_name,
             market_index: marketData.market_index,
             is_active: marketData.is_active,
+            min_position: marketData.min_position,
+            max_leverage: marketData.max_leverage,
+            group: marketData.group,
+            current_price: marketData.current_price,
             last_synced: marketData.last_synced,
           },
           create: marketData,
@@ -67,9 +79,11 @@ async function syncOstiumMarkets() {
           updated++;
         }
         
-        console.log(`  ✅ ${symbol} (Index: ${marketInfo.index}) - ${marketInfo.name}`);
+        const statusIcon = marketData.is_active ? '✅' : '⏸️';
+        const groupLabel = marketData.group ? `[${marketData.group}]` : '';
+        console.log(`  ${statusIcon} ${symbol} (Index: ${market.index}) - ${market.name} ${groupLabel}`);
       } catch (error: any) {
-        console.error(`  ❌ ${symbol}: ${error.message}`);
+        console.error(`  ❌ ${market.symbol || market.index}: ${error.message}`);
         errors++;
       }
     }
