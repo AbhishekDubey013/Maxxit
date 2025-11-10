@@ -1,0 +1,22 @@
+/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/web3/__init__.py:2: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+WARNING:root:Could not apply monkey-patch: cannot import name 'SignedTransaction' from 'web3.types' (/Users/abhishekdubey/Downloads/Maxxit/services/venv/lib/python3.13/site-packages/web3/types.py)
+ * Serving Flask app 'ostium-service'
+ * Debug mode: off
+INFO:werkzeug:[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5002
+ * Running on http://192.168.1.19:5002
+INFO:werkzeug:[33mPress CTRL+C to quit[0m
+INFO:werkzeug:127.0.0.1 - - [10/Nov/2025 06:49:31] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [10/Nov/2025 06:49:33] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [10/Nov/2025 06:49:36] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [10/Nov/2025 06:50:00] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [10/Nov/2025 06:50:03] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [10/Nov/2025 06:50:05] "POST /balance HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [10/Nov/2025 06:50:06] "POST /positions HTTP/1.1" 200 -
+WARNING:__main__:Unknown market HYPE, attempting trade anyway...
+INFO:werkzeug:127.0.0.1 - - [10/Nov/2025 06:50:11] "POST /open-position HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [10/Nov/2025 06:50:30] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [10/Nov/2025 06:50:33] "POST /positions HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [10/Nov/2025 06:50:38] "POST /positions HTTP/1.1" 200 -

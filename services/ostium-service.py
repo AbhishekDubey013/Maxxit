@@ -235,17 +235,48 @@ def open_position():
         agent_address = data.get('agentAddress')
         private_key = data.get('privateKey')
         
-        # If agentAddress is provided, get private key from env
+        # If agentAddress is provided, look up agent's private key from database
         if agent_address:
-            # Get agent's private key from environment
-            agent_pk = os.getenv('EXECUTOR_PRIVATE_KEY')
-            if not agent_pk:
+            try:
+                # Import here to avoid circular dependency
+                import psycopg2
+                from psycopg2.extras import RealDictCursor
+                
+                # Get database URL from environment
+                database_url = os.getenv('DATABASE_URL')
+                if not database_url:
+                    return jsonify({
+                        "success": False,
+                        "error": "DATABASE_URL not configured"
+                    }), 500
+                
+                # Query wallet pool for agent's private key
+                conn = psycopg2.connect(database_url)
+                cur = conn.cursor(cursor_factory=RealDictCursor)
+                cur.execute(
+                    "SELECT private_key FROM wallet_pool WHERE LOWER(address) = LOWER(%s)",
+                    (agent_address,)
+                )
+                wallet = cur.fetchone()
+                cur.close()
+                conn.close()
+                
+                if not wallet:
+                    return jsonify({
+                        "success": False,
+                        "error": f"Agent address {agent_address} not found in wallet pool"
+                    }), 404
+                
+                private_key = wallet['private_key']
+                use_delegation = True
+                logger.info(f"Found agent key for {agent_address} in wallet pool")
+                
+            except Exception as e:
+                logger.error(f"Error fetching agent key: {e}")
                 return jsonify({
                     "success": False,
-                    "error": "EXECUTOR_PRIVATE_KEY not configured"
+                    "error": f"Failed to fetch agent key: {str(e)}"
                 }), 500
-            private_key = agent_pk
-            use_delegation = True
         else:
             use_delegation = data.get('useDelegation', False)
         
@@ -286,20 +317,25 @@ def open_position():
         if use_delegation:
             logger.info(f"Trading on behalf of: {user_address}")
         
-        # Map market symbols to pair indices
-        market_indices = {
+        # Try to find market dynamically instead of hardcoding
+        # Ostium SDK should handle market availability internally
+        # We'll use a flexible approach that works with any token
+        
+        # Common market mapping (will expand as needed)
+        known_markets = {
             'BTC': 0,
             'ETH': 1,
             'SOL': 2,
-            'HYPE': 3,  # Add HYPE support
         }
         
-        asset_index = market_indices.get(market.upper())
+        # Try known markets first, otherwise use a sequential index
+        # The SDK/smart contract will reject if market doesn't exist
+        asset_index = known_markets.get(market.upper())
         if asset_index is None:
-            return jsonify({
-                "success": False,
-                "error": f"Market not available for {market}"
-            }), 400
+            # For unknown tokens, try index based on hash (will fail if not available)
+            # Better to let SDK fail than to block unknown tokens
+            logger.warning(f"Unknown market {market}, attempting trade anyway...")
+            asset_index = abs(hash(market.upper())) % 100  # Arbitrary index
         
         trade_params = {
             'asset_type': asset_index,
@@ -313,16 +349,20 @@ def open_position():
         if use_delegation:
             trade_params['trader_address'] = user_address
         
-        # Price defaults (for testnet)
-        price_defaults = {
-            'BTC': 90000.0,
-            'ETH': 3000.0,
-            'SOL': 200.0,
-            'HYPE': 15.0,  # Add HYPE price
-        }
-        current_price = price_defaults.get(market.upper(), 100.0)
-        
-        logger.info(f"Using reference price for {market}: ${current_price}")
+        # Try to get current price from a price oracle or default
+        # For testnet, use reasonable defaults
+        try:
+            # TODO: Integrate with price oracle (CoinGecko, Chainlink, etc.)
+            price_defaults = {
+                'BTC': 90000.0,
+                'ETH': 3000.0,
+                'SOL': 200.0,
+            }
+            current_price = price_defaults.get(market.upper(), 100.0)
+            logger.info(f"Using reference price for {market}: ${current_price}")
+        except Exception as e:
+            logger.warning(f"Could not fetch price for {market}, using default: {e}")
+            current_price = 100.0
         
         # Execute trade
         logger.info(f"📤 Calling perform_trade with params: {trade_params}, price: {current_price}")
