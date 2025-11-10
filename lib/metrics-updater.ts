@@ -24,7 +24,19 @@ export async function updateAgentMetrics(agentId: string): Promise<MetricsUpdate
   try {
     console.log(`[MetricsUpdater] Updating metrics for agent ${agentId}`);
 
-    // Get all closed positions for this agent
+    // Get agent's venue to filter positions correctly
+    const agent = await prisma.agents.findUnique({
+      where: { id: agentId },
+      select: { venue: true, name: true },
+    });
+
+    if (!agent) {
+      return { success: false, error: 'Agent not found' };
+    }
+
+    console.log(`[MetricsUpdater] Agent: ${agent.name} on ${agent.venue}`);
+
+    // Get all closed positions for this agent AND venue
     const deployments = await prisma.agent_deployments.findMany({
       where: { agent_id: agentId },
       select: { id: true },
@@ -32,9 +44,11 @@ export async function updateAgentMetrics(agentId: string): Promise<MetricsUpdate
 
     const deploymentIds = deployments.map(d => d.id);
 
+    // 🔧 FIX: Filter positions by VENUE to prevent cross-venue APR contamination
     const positions = await prisma.positions.findMany({
       where: {
         deployment_id: { in: deploymentIds },
+        venue: agent.venue, // ✅ Only positions from THIS venue
         closed_at: { not: null },
       },
       orderBy: { closed_at: 'desc' },
