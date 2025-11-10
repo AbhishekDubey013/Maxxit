@@ -307,6 +307,26 @@ model venues_status {
   @@index([venue, token_symbol])
 }
 
+model venue_markets {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  venue         venue_t
+  token_symbol  String   // e.g., "BTC", "ETH", "HYPE"
+  market_name   String   // e.g., "BTC/USD", "ETH/USD"
+  market_index  Int?     // For Ostium: market index (0, 1, 41, etc.), For Hyperliquid: null or sequential
+  is_active     Boolean  @default(true)
+  min_position  Decimal? @db.Decimal(20, 8) // Minimum position size in USD
+  max_leverage  Int?     // Maximum leverage allowed
+  group         String?  // Market group: "crypto", "forex", "stocks", "commodities", "indices"
+  current_price Decimal? @db.Decimal(20, 8) // Last known price (for reference)
+  last_synced   DateTime @default(now()) @db.Timestamptz(6)
+  metadata      Json?    // Additional venue-specific data
+
+  @@unique([venue, token_symbol])
+  @@index([venue, token_symbol])
+  @@index([venue, is_active])
+  @@index([last_synced])
+}
+
 model research_institutes {
   id                       String                     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   name                     String                     @unique

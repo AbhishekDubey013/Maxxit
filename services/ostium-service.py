@@ -62,6 +62,13 @@ logger.info(f"   RPC URL: {OSTIUM_RPC_URL}")
 # SDK Cache
 sdk_cache = {}
 
+# Available Markets Cache
+available_markets_cache = {
+    'markets': None,
+    'last_updated': None,
+    'ttl': 300  # 5 minutes cache
+}
+
 
 def get_sdk(private_key: str, use_delegation: bool = False) -> OstiumSDK:
     """Get or create SDK instance with caching"""
@@ -78,6 +85,78 @@ def get_sdk(private_key: str, use_delegation: bool = False) -> OstiumSDK:
         logger.info(f"Created new SDK instance (delegation={use_delegation})")
     
     return sdk_cache[cache_key]
+
+
+def get_available_markets(refresh=False):
+    """
+    Fetch available markets from Database API
+    Returns dict: {
+        'BTC': {'index': 0, 'name': 'BTC/USD', 'available': True},
+        'ETH': {'index': 1, 'name': 'ETH/USD', 'available': True},
+        ...
+    }
+    """
+    import time
+    import requests
+    
+    # Check cache
+    if not refresh and available_markets_cache['markets'] is not None:
+        if available_markets_cache['last_updated'] is not None:
+            age = time.time() - available_markets_cache['last_updated']
+            if age < available_markets_cache['ttl']:
+                return available_markets_cache['markets']
+    
+    logger.info("Fetching available markets from database API...")
+    
+    try:
+        # Fetch from database API
+        api_url = os.getenv('NEXTJS_API_URL', 'http://localhost:3000')
+        response = requests.get(f"{api_url}/api/venue-markets/available?venue=OSTIUM", timeout=10)
+        
+        if response.status_code == 200:
+            data = response.json()
+            if data.get('success') and data.get('markets'):
+                markets = data['markets']
+                available_markets_cache['markets'] = markets
+                available_markets_cache['last_updated'] = time.time()
+                logger.info(f"✅ Loaded {len(markets)} available markets from database")
+                return markets
+        
+        # If API call fails, use fallback
+        raise Exception(f"API returned status {response.status_code}")
+        
+    except Exception as e:
+        logger.error(f"Failed to fetch markets from API: {e}")
+        # Return known markets as fallback
+        fallback = {
+            'BTC': {'index': 0, 'name': 'BTC/USD', 'available': True},
+            'ETH': {'index': 1, 'name': 'ETH/USD', 'available': True},
+            'SOL': {'index': 9, 'name': 'SOL/USD', 'available': True},
+            'HYPE': {'index': 41, 'name': 'HYPE/USD', 'available': True},
+            'XRP': {'index': 39, 'name': 'XRP/USD', 'available': True},
+            'LINK': {'index': 42, 'name': 'LINK/USD', 'available': True},
+            'ADA': {'index': 43, 'name': 'ADA/USD', 'available': True},
+        }
+        available_markets_cache['markets'] = fallback
+        available_markets_cache['last_updated'] = time.time()
+        logger.info(f"⚠️  Using fallback markets ({len(fallback)} markets)")
+        return fallback
+
+
+def validate_market(token_symbol: str):
+    """
+    Validate if a market is available on Ostium
+    Returns: (asset_index, is_available, market_name)
+    """
+    token_symbol = token_symbol.upper()
+    markets = get_available_markets()
+    
+    if token_symbol in markets:
+        market_info = markets[token_symbol]
+        return market_info['index'], True, market_info['name']
+    else:
+        # Market not found
+        return None, False, None
 
 
 @app.route('/health', methods=['GET'])
@@ -321,21 +400,20 @@ def open_position():
         # Ostium SDK should handle market availability internally
         # We'll use a flexible approach that works with any token
         
-        # Common market mapping (will expand as needed)
-        known_markets = {
-            'BTC': 0,
-            'ETH': 1,
-            'SOL': 2,
-        }
+        # Validate market availability using the validation function
+        asset_index, is_available, market_name = validate_market(market)
         
-        # Try known markets first, otherwise use a sequential index
-        # The SDK/smart contract will reject if market doesn't exist
-        asset_index = known_markets.get(market.upper())
-        if asset_index is None:
-            # For unknown tokens, try index based on hash (will fail if not available)
-            # Better to let SDK fail than to block unknown tokens
-            logger.warning(f"Unknown market {market}, attempting trade anyway...")
-            asset_index = abs(hash(market.upper())) % 100  # Arbitrary index
+        if not is_available:
+            available_markets_list = ', '.join(get_available_markets().keys())
+            error_msg = f"Market {market} is not available on Ostium. Available markets: {available_markets_list}"
+            logger.warning(error_msg)
+            return jsonify({
+                "success": False,
+                "error": error_msg,
+                "availableMarkets": list(get_available_markets().keys())
+            }), 400
+        
+        logger.info(f"✅ Market validated: {market_name} (index: {asset_index})")
         
         trade_params = {
             'asset_type': asset_index,
@@ -687,6 +765,56 @@ def get_market_info():
     
     except Exception as e:
         logger.error(f"Market info error: {str(e)}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+
+
+@app.route('/available-markets', methods=['GET'])
+def available_markets():
+    """
+    Get list of available trading markets
+    GET /available-markets?refresh=true (optional: refresh cache)
+    Returns: { "success": true, "markets": { "BTC": {...}, "ETH": {...}, ... }, "count": 3 }
+    """
+    try:
+        refresh = request.args.get('refresh', 'false').lower() == 'true'
+        markets = get_available_markets(refresh=refresh)
+        return jsonify({
+            "success": True,
+            "markets": markets,
+            "count": len(markets)
+        })
+    except Exception as e:
+        logger.error(f"Failed to fetch markets: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route('/validate-market', methods=['POST'])
+def validate_market_endpoint():
+    """
+    Validate if a specific market is available
+    Body: { "market": "BTC" }
+    Returns: { "success": true, "market": "BTC", "isAvailable": true, "marketName": "BTC/USD", "assetIndex": 0 }
+    """
+    try:
+        data = request.json
+        market = data.get('market', '').upper()
+        
+        if not market:
+            return jsonify({"success": False, "error": "Missing market parameter"}), 400
+        
+        asset_index, is_available, market_name = validate_market(market)
+        
+        return jsonify({
+            "success": True,
+            "market": market,
+            "isAvailable": is_available,
+            "marketName": market_name,
+            "assetIndex": asset_index
+        })
+    except Exception as e:
+        logger.error(f"Market validation error: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
 
 
