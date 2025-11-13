@@ -22,11 +22,11 @@ model agent_accounts {
 }
 
 model agent_deployments {
-  id                              String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  agent_id                        String            @db.Uuid
+  id                              String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  agent_id                        String                @db.Uuid
   user_wallet                     String
   safe_wallet                     String
-  status                          agent_status_t    @default(ACTIVE)
+  status                          deployment_status_t   @default(ACTIVE)
   sub_active                      Boolean           @default(true)
   sub_started_at                  DateTime          @default(now()) @db.Timestamptz(6)
   trial_ends_at                   DateTime?         @db.Timestamptz(6)
@@ -374,6 +374,12 @@ enum agent_status_t {
   DRAFT
   PUBLIC
   PRIVATE
+}
+
+enum deployment_status_t {
+  ACTIVE
+  PAUSED
+  CANCELLED
 }
 
 enum bill_kind_t {
