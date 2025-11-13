@@ -6,7 +6,7 @@ const router = Router();
 
 // Schema for agent creation (matching shared/schema.ts)
 const VenueEnum = z.enum(["SPOT", "GMX", "HYPERLIQUID", "OSTIUM", "MULTI"]);
-const StatusEnum = z.enum(["DRAFT", "ACTIVE", "PAUSED"]);
+const StatusEnum = z.enum(["DRAFT", "PUBLIC", "PRIVATE"]); // Changed from ACTIVE/PAUSED to PUBLIC/PRIVATE
 
 const insertAgentSchema = z.object({
   creator_wallet: z.string(),
@@ -14,7 +14,7 @@ const insertAgentSchema = z.object({
   name: z.string().min(1),
   description: z.string().optional(),
   venue: VenueEnum.default("MULTI"),
-  status: StatusEnum.default("DRAFT"),
+  status: StatusEnum.default("PUBLIC"), // Default to PUBLIC
   weights: z.array(z.number()).optional(),
   proof_of_intent_message: z.string().optional(),
   proof_of_intent_signature: z.string().optional(),

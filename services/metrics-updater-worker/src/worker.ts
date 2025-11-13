@@ -45,9 +45,9 @@ async function updateAllAgentMetrics() {
   console.log(`Started at: ${new Date().toISOString()}\n`);
 
   try {
-    // Get all active agents
+    // Get all public agents (public agents are actively trading)
     const agents = await prisma.agents.findMany({
-      where: { status: 'ACTIVE' },
+      where: { status: 'PUBLIC' },
       select: { id: true, name: true, venue: true },
     });
 

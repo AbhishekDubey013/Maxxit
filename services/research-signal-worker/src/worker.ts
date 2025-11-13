@@ -69,7 +69,7 @@ async function generateResearchSignals() {
           where: {
             research_institute_id: institute.id,
             agents: {
-              status: 'ACTIVE',
+              status: 'PUBLIC', // Only generate signals for public agents
             },
           },
           include: {

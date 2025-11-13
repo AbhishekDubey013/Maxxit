@@ -55,7 +55,7 @@ model agents {
   creator_wallet            String
   name                      String
   venue                     venue_t
-  status                    agent_status_t          @default(DRAFT)
+  status                    agent_status_t          @default(PUBLIC)
   weights                   Int[]                   @db.SmallInt
   apr_30d                   Float?                  @db.Real
   apr_90d                   Float?                  @db.Real
@@ -372,8 +372,8 @@ model agent_research_institutes {
 
 enum agent_status_t {
   DRAFT
-  ACTIVE
-  PAUSED
+  PUBLIC
+  PRIVATE
 }
 
 enum bill_kind_t {

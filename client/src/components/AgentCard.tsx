@@ -7,8 +7,8 @@ import StatusBadge from "./StatusBadge";
 interface AgentCardProps {
   id: string;
   name: string;
-  venue: "SPOT" | "GMX" | "HYPERLIQUID" | "OSTIUM";
-  status: "ACTIVE" | "PAUSED" | "DRAFT";
+  venue: "SPOT" | "GMX" | "HYPERLIQUID" | "OSTIUM" | "MULTI";
+  status: "PUBLIC" | "PRIVATE" | "DRAFT" | "ACTIVE" | "PAUSED"; // PUBLIC/PRIVATE are new, ACTIVE/PAUSED for backward compatibility
   apr30d: number | null;
   sharpe30d: number | null;
   gradientImage: string;

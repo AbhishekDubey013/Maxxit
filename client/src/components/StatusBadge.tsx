@@ -1,6 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 
-type Status = "ACTIVE" | "PAUSED" | "DRAFT" | "OPEN" | "CLOSED" | "CHARGED" | "FAILED";
+type Status = "PUBLIC" | "PRIVATE" | "DRAFT" | "OPEN" | "CLOSED" | "CHARGED" | "FAILED" | "ACTIVE" | "PAUSED";
 
 interface StatusBadgeProps {
   status: Status;
@@ -8,13 +8,16 @@ interface StatusBadgeProps {
 
 export default function StatusBadge({ status }: StatusBadgeProps) {
   const variants: Record<Status, { variant: "default" | "secondary" | "destructive"; label: string }> = {
-    ACTIVE: { variant: "default", label: "Active" },
+    PUBLIC: { variant: "default", label: "Public" },
+    PRIVATE: { variant: "secondary", label: "Private" },
     OPEN: { variant: "default", label: "Open" },
     CHARGED: { variant: "default", label: "Charged" },
-    PAUSED: { variant: "secondary", label: "Paused" },
     DRAFT: { variant: "secondary", label: "Draft" },
     CLOSED: { variant: "secondary", label: "Closed" },
     FAILED: { variant: "destructive", label: "Failed" },
+    // Legacy support (for backward compatibility)
+    ACTIVE: { variant: "default", label: "Public" },
+    PAUSED: { variant: "secondary", label: "Private" },
   };
 
   const { variant, label } = variants[status];

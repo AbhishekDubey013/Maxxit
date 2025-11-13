@@ -51,7 +51,7 @@ async function executeAllPendingSignals() {
         },
         skipped_reason: null, // Not skipped
         agents: {
-          status: 'ACTIVE',
+          status: 'PUBLIC', // Only execute for public agents
           agent_deployments: {
             some: {
               status: 'ACTIVE',
@@ -69,7 +69,7 @@ async function executeAllPendingSignals() {
           include: {
             agent_deployments: {
               where: { 
-                status: 'ACTIVE',
+                status: 'ACTIVE', // Deployment status (not agent status)
                 OR: [
                   { module_enabled: true },
                   { hyperliquid_agent_address: { not: null } },
