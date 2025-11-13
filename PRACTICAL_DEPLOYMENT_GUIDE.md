@@ -10,14 +10,15 @@ Render:
 └── Twitter Proxy (Python)       ✅ Already running
 ```
 
-### What to Add (Railway)
-```
-Railway:
-├── Main API Server (Node.js + Next.js)  ← All your API routes + Frontend
-└── Position Monitor Worker              ← Background monitoring
+### What to Add
 
-Plus Railway Add-on:
-└── PostgreSQL (managed)
+```
+Vercel (Frontend):
+└── Next.js App (Frontend + API Routes)  ← Free tier or $20/month Pro
+
+Railway (Backend):
+├── Position Monitor Worker              ← Background monitoring
+└── PostgreSQL (managed)                 ← Database
 ```
 
 ---
@@ -32,41 +33,47 @@ Plus Railway Add-on:
                              │
                              ↓
 ┌──────────────────────────────────────────────────────────────────┐
-│                    RAILWAY DEPLOYMENT                             │
+│                    VERCEL DEPLOYMENT                              │
 ├──────────────────────────────────────────────────────────────────┤
 │                                                                   │
 │  ┌────────────────────────────────────────────────────────────┐ │
-│  │   Main Application (Next.js + Node.js)                     │ │
-│  │   Port: 3000                                               │ │
+│  │   Next.js Application                                      │ │
+│  │   (Vercel's Global Edge Network)                           │ │
 │  │                                                            │ │
-│  │   Frontend (Next.js):                                      │ │
+│  │   Frontend (Pages):                                        │ │
 │  │   • Landing page, Marketplace, Dashboards                  │ │
-│  │   • /pages/*.tsx → SSR pages                               │ │
+│  │   • /pages/*.tsx → SSR + Static pages                      │ │
+│  │   • /pages/v3/index.tsx → V3 agent page                    │ │
 │  │                                                            │ │
-│  │   API Routes (pages/api/*):                                │ │
+│  │   API Routes (Serverless Functions):                       │ │
 │  │   • /api/agents      • /api/v3/agents                      │ │
 │  │   • /api/signals     • /api/v3/signals                     │ │
 │  │   • /api/execute     • /api/v3/execute                     │ │
 │  │   • /api/deployments • /api/safe                           │ │
-│  │   • All V2 + V3 APIs in one Next.js app                    │ │
+│  │   • All V2 + V3 APIs as serverless functions              │ │
 │  └────────────────────────┬───────────────────────────────────┘ │
-│                            │                                     │
-│  ┌────────────────────────┴─────────────────────────────────┐  │
-│  │ Position Monitor Worker                                   │  │
-│  │ (Background Process)                                      │  │
-│  │                                                           │  │
-│  │ • 30s monitoring cycles                                   │  │
-│  │ • Trailing stops & PnL tracking                           │  │
-│  │ • Calls Main App APIs for trade execution                │  │
-│  └───────────────────────────────────────────────────────────┘  │
+│                            │ Calls Railway for DB & Workers     │
+└────────────────────────────┼──────────────────────────────────────┘
+                             │
+                             ↓
+┌──────────────────────────────────────────────────────────────────┐
+│                    RAILWAY DEPLOYMENT                             │
+├──────────────────────────────────────────────────────────────────┤
 │                                                                   │
-│  ┌───────────────────────────────────────────────────────────┐  │
-│  │  Managed Service                                          │  │
-│  │  ┌─────────────────────────────────────────────────────┐ │  │
-│  │  │  PostgreSQL (Database)                              │ │  │
-│  │  │  • All V2 + V3 tables                               │ │  │
-│  │  └─────────────────────────────────────────────────────┘ │  │
-│  └───────────────────────────────────────────────────────────┘  │
+│  ┌────────────────────────────────────────────────────────────┐ │
+│  │ Position Monitor Worker                                    │ │
+│  │ (Background Process)                                       │ │
+│  │                                                            │ │
+│  │ • 30s monitoring cycles                                    │ │
+│  │ • Trailing stops & PnL tracking                            │ │
+│  │ • Calls Vercel APIs for trade execution                    │ │
+│  └────────────────────────────────────────────────────────────┘ │
+│                                                                   │
+│  ┌────────────────────────────────────────────────────────────┐ │
+│  │  PostgreSQL (Database)                                     │ │
+│  │  • All V2 + V3 tables                                      │ │
+│  │  • Accessed by Vercel API routes                           │ │
+│  └────────────────────────────────────────────────────────────┘ │
 └────────────────────────────┬──────────────────────────────────────┘
                              │
                              │ HTTP Calls
@@ -134,35 +141,28 @@ maxxit/                          ← Your existing repo (no changes needed!)
 
 ## 🚀 Deployment Configuration
 
-### Railway Services (2 services)
+### Vercel (Frontend + API)
 
-#### 1. **Main Application (Next.js)**
-```yaml
-# railway.toml
-[build]
-  builder = "NIXPACKS"
-  buildCommand = "npm install && npm run build"
+Deploy your Next.js app to Vercel (takes 2 mins):
 
-[deploy]
-  startCommand = "npm start"
-  healthcheckPath = "/api/health"
-  healthcheckTimeout = 100
-  restartPolicyType = "ON_FAILURE"
-
-[[services]]
-  name = "maxxit-app"
-  port = 3000
-  
-  [services.env]
-    NODE_ENV = "production"
-    PORT = "3000"
-    # Connect to Python services on Render
-    HYPERLIQUID_SERVICE_URL = "https://your-hyperliquid.onrender.com"
-    OSTIUM_SERVICE_URL = "https://your-ostium.onrender.com"
-    TWITTER_PROXY_URL = "https://your-twitter.onrender.com"
+1. **Connect GitHub**: Vercel auto-detects Next.js
+2. **Add Environment Variables** in Vercel dashboard:
+```env
+DATABASE_URL=<from Railway PostgreSQL>
+HYPERLIQUID_SERVICE_URL=https://your-hyperliquid.onrender.com
+OSTIUM_SERVICE_URL=https://your-ostium.onrender.com
+TWITTER_PROXY_URL=https://your-twitter.onrender.com
+OPENAI_API_KEY=sk-...
+ANTHROPIC_API_KEY=sk-ant-...
+RPC_URL_ARBITRUM=https://arb1.arbitrum.io/rpc
+EXECUTOR_PRIVATE_KEY=0x...
+SAFE_MODULE_ADDRESS=0x...
 ```
+3. **Deploy**: Vercel automatically deploys on git push
 
-#### 2. **Position Monitor Worker**
+### Railway (Worker + Database)
+
+#### **Position Monitor Worker**
 ```yaml
 # railway.toml
 [build]
@@ -177,8 +177,9 @@ maxxit/                          ← Your existing repo (no changes needed!)
   
   [services.env]
     NODE_ENV = "production"
-    # Connect to main app for trade execution
-    MAIN_APP_URL = "https://your-app.up.railway.app"
+    DATABASE_URL = ${{Postgres.DATABASE_URL}}
+    # Connect to Vercel for trade execution
+    VERCEL_APP_URL = "https://your-app.vercel.app"
 ```
 
 ---
@@ -187,7 +188,7 @@ maxxit/                          ← Your existing repo (no changes needed!)
 
 ### No Reorganization Needed! ✅
 
-Your repo already has the perfect Next.js structure. Just deploy it to Railway.
+Your repo already has the perfect Next.js structure for Vercel.
 
 ### Phase 1: Test Locally (5 mins)
 ```bash
@@ -199,7 +200,23 @@ npm run dev
 open http://localhost:3000
 ```
 
-### Phase 2: Deploy to Railway (15 mins)
+### Phase 2: Deploy to Vercel (5 mins) 🎉
+```bash
+# Option A: Via Vercel Dashboard (Easiest)
+1. Go to vercel.com
+2. Import from GitHub
+3. Vercel auto-detects Next.js
+4. Add environment variables
+5. Deploy! (automatic on every push)
+
+# Option B: Via CLI
+npm i -g vercel
+vercel login
+vercel
+# Follow prompts
+```
+
+### Phase 3: Deploy Railway Worker (10 mins)
 ```bash
 # Install Railway CLI
 npm install -g @railway/cli
@@ -213,26 +230,25 @@ railway init
 # Add PostgreSQL
 railway add --plugin postgresql
 
-# Set environment variables in Railway dashboard
-# (DATABASE_URL, HYPERLIQUID_SERVICE_URL, etc.)
+# Copy DATABASE_URL from Railway to Vercel environment variables
 
-# Deploy main app
+# Deploy position monitor
 railway up
 
-# Deploy position monitor as separate service
-railway up --service maxxit-position-monitor
+# Set start command in Railway dashboard:
+# npx tsx workers/position-monitor-combined.ts
 ```
 
-### Phase 3: Verify (5 mins)
+### Phase 4: Verify (2 mins)
 ```bash
-# Check main app
-curl https://your-app.up.railway.app/health
+# Check Vercel app
+open https://your-app.vercel.app
 
-# Check pages work
-open https://your-app.up.railway.app
+# Check API routes
+curl https://your-app.vercel.app/api/health
 
-# Monitor logs
-railway logs --service maxxit-app
+# Check Railway worker
+railway logs
 ```
 
 ---
@@ -248,22 +264,27 @@ Twitter Proxy:        $7/month
 Total:               $21/month
 ```
 
-### After Adding Railway
+### After Adding Vercel + Railway
 ```
 Render (Python - no changes):
 ├── Hyperliquid:      $7/month
 ├── Ostium:           $7/month
 └── Twitter Proxy:    $7/month
 
-Railway (Node.js + Next.js):
-├── Main App:        $10/month  (Next.js + API routes)
+Vercel (Frontend + API):
+└── Next.js App:      $0/month   (Hobby tier - FREE!)
+    (or $20/month for Pro if needed)
+
+Railway (Worker + DB):
 ├── Position Monitor: $10/month  (Background worker)
 └── PostgreSQL:       $5/month   (Managed database)
 ────────────────────────────
-Total:               $46/month
+Total:               $36/month  (with Vercel FREE tier!)
+                     $56/month  (with Vercel Pro)
 ```
 
-**Increase**: $25/month ($46 - $21)
+**Increase**: $15/month with free Vercel ($36 - $21)
+**Or**: $35/month with Vercel Pro ($56 - $21)
 
 ---
 
@@ -289,7 +310,7 @@ Total:               $46/month
 
 ---
 
-## 🎯 Quick Start (25 mins total!)
+## 🎯 Quick Start (22 mins total!)
 
 ### 1. Test Locally (5 mins)
 ```bash
@@ -304,28 +325,23 @@ npm run dev
 open http://localhost:3000
 ```
 
-### 2. Deploy to Railway (15 mins)
+### 2. Deploy to Vercel (5 mins) 🚀
 ```bash
-# Install Railway CLI
-npm install -g @railway/cli
+# Option A: Dashboard (Recommended)
+1. Go to vercel.com/new
+2. Import your GitHub repo
+3. Vercel auto-configures Next.js
+4. Click Deploy!
 
-# Login to Railway
-railway login
-
-# Create new project
-railway init
-
-# Add PostgreSQL database
-railway add --plugin postgresql
-
-# Deploy your Next.js app
-railway up
+# Option B: CLI
+npm i -g vercel
+vercel
 ```
 
-### 3. Set Environment Variables (3 mins)
+### 3. Add Environment Variables to Vercel (2 mins)
 ```bash
-# In Railway dashboard, add these:
-DATABASE_URL=<auto-filled by PostgreSQL plugin>
+# In Vercel dashboard → Settings → Environment Variables:
+DATABASE_URL=<you'll get this from Railway in step 4>
 HYPERLIQUID_SERVICE_URL=https://your-hyperliquid.onrender.com
 OSTIUM_SERVICE_URL=https://your-ostium.onrender.com
 TWITTER_PROXY_URL=https://your-twitter.onrender.com
@@ -336,23 +352,45 @@ EXECUTOR_PRIVATE_KEY=0x...
 # ... (copy from your existing .env)
 ```
 
-### 4. Deploy Position Monitor (2 mins)
+### 4. Deploy Railway Worker (8 mins)
 ```bash
-# Create separate service for worker
-railway up --service maxxit-position-monitor
+# Install Railway CLI
+npm i -g @railway/cli
+
+# Login
+railway login
+
+# Create project
+railway init
+
+# Add PostgreSQL
+railway add --plugin postgresql
+
+# Copy DATABASE_URL from Railway to Vercel env vars
+
+# Deploy worker
+railway up
 
 # Set start command in Railway dashboard:
 # npx tsx workers/position-monitor-combined.ts
 ```
 
-### 5. Done! ✅
+### 5. Update Worker Config (2 mins)
+```bash
+# In Railway → maxxit-position-monitor → Variables:
+DATABASE_URL=${{Postgres.DATABASE_URL}}
+VERCEL_APP_URL=https://your-app.vercel.app
+```
+
+### 6. Done! ✅
 ```bash
 # Your app is now live:
-# ✅ Next.js app on Railway: https://your-app.up.railway.app
-# ✅ Position Monitor running
+# ✅ Next.js on Vercel: https://your-app.vercel.app
+# ✅ Position Monitor on Railway
+# ✅ PostgreSQL on Railway
 # ✅ Python services on Render (unchanged)
 
-# Total cost: $46/month
+# Total cost: $36/month (Vercel free tier!)
 ```
 
 ---
@@ -373,26 +411,31 @@ railway up --service maxxit-position-monitor
 
 ### Q: Do I need to deploy 15 separate services?
 **A**: No! You deploy:
-- 1 Next.js app (Frontend + API)
-- 1 Position Monitor worker
-- Total: 2 Railway services
+- 1 Next.js app on Vercel (Frontend + API)
+- 1 Position Monitor worker on Railway
+- That's it!
 
 ### Q: How long does deployment take?
-**A**: ~25 minutes total for first deployment
+**A**: ~22 minutes total (Vercel is super fast!)
 
 ### Q: What's the monthly cost?
 **A**: 
 - Render (Python): $21/month (existing)
-- Railway: $25/month (new)
-- Total: $46/month
+- Vercel: $0/month (Hobby tier - FREE!)
+- Railway: $15/month (Worker + PostgreSQL)
+- **Total: $36/month** (only $15 increase!)
+
+Or with Vercel Pro ($20):
+- **Total: $56/month** (if you need Pro features)
 
 ---
 
 ## 📞 Next Steps
 
 1. ✅ **Python services on Render** - Keep running (no changes)
-2. 🚀 **Deploy to Railway** - Follow Quick Start guide above
-3. 💰 **Cost**: Only $25/month more ($46 total)
+2. 🚀 **Deploy to Vercel** - Next.js app (FREE!)
+3. 🚀 **Deploy to Railway** - Worker + PostgreSQL ($15/month)
+4. 💰 **Total Cost**: Only $15/month more ($36 total)
 
 **Ready to deploy?** Start now! 🚀
 
@@ -400,8 +443,12 @@ railway up --service maxxit-position-monitor
 # Test locally first
 npm run dev
 
-# Then deploy
+# Deploy to Vercel (5 mins)
+vercel
+
+# Deploy to Railway (10 mins)
 railway init
+railway add --plugin postgresql
 railway up
 ```
 
