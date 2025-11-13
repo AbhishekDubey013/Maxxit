@@ -57,3 +57,9 @@ typechain-types/
 *.db
 *.db-journal
 
+
+# Vercel environment variables with actual values (keep local only)
+VERCEL_ENV_READY.txt
+.env.vercel
+.env.production.local
+
