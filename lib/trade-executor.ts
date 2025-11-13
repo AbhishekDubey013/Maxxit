@@ -308,8 +308,51 @@ export class TradeExecutor {
 
   /**
    * Route to appropriate venue adapter
+   * Agent Where: Intelligent multi-venue routing
    */
   private async routeToVenue(ctx: ExecutionContext): Promise<ExecutionResult> {
+    // 🌐 AGENT WHERE: Check if deployment has multi-venue enabled
+    const deployment = ctx.deployment as any;
+    const enabledVenues = deployment.enabled_venues || null;
+    
+    if (enabledVenues && enabledVenues.length > 1) {
+      console.log('[TradeExecutor] 🌐 Multi-venue deployment detected');
+      console.log(`[TradeExecutor] Enabled venues: ${enabledVenues.join(', ')}`);
+      
+      // Import venue router
+      const { routeToVenue } = await import('./vprime-venue-router');
+      
+      // Route to best available venue
+      const routingResult = await routeToVenue({
+        tokenSymbol: ctx.signal.token_symbol,
+        enabledVenues: enabledVenues,
+        signalId: ctx.signal.id,
+      });
+      
+      if (!routingResult.selectedVenue) {
+        console.log(`[TradeExecutor] ❌ No venue available for ${ctx.signal.token_symbol}`);
+        return {
+          success: false,
+          error: `No venue available for ${ctx.signal.token_symbol}`,
+          reason: routingResult.routingReason,
+        };
+      }
+      
+      console.log(`[TradeExecutor] ✅ Routed to ${routingResult.selectedVenue}`);
+      console.log(`[TradeExecutor] Reason: ${routingResult.routingReason}`);
+      console.log(`[TradeExecutor] Duration: ${routingResult.routingDurationMs}ms`);
+      
+      // Update signal's venue to the selected one
+      ctx.signal.venue = routingResult.selectedVenue as any;
+      
+      // Update signal in database
+      await prisma.signals.update({
+        where: { id: ctx.signal.id },
+        data: { venue: routingResult.selectedVenue as any },
+      });
+    }
+    
+    // Standard venue routing (single-venue or after Agent Where routing)
     switch (ctx.signal.venue) {
       case 'SPOT':
         return this.executeSpotTrade(ctx);
