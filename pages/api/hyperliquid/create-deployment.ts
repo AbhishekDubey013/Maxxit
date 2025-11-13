@@ -53,12 +53,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     // Prepare deployment data with encrypted key
+    // Vprime: For MULTI venue agents, enable both Hyperliquid and Ostium
+    // For single-venue agents, only enable that venue
+    const enabledVenues = agent.venue === 'MULTI' 
+      ? ['HYPERLIQUID', 'OSTIUM'] 
+      : ['HYPERLIQUID'];
+
     const deploymentData = {
       safe_wallet: userWallet.toLowerCase(),
       hyperliquid_agent_address: agentAddress,
       hyperliquid_agent_key_encrypted: userWalletRecord.agent_private_key_encrypted,
       hyperliquid_agent_key_iv: userWalletRecord.agent_key_iv,
       hyperliquid_agent_key_tag: userWalletRecord.agent_key_tag,
+      enabled_venues: enabledVenues, // Vprime: Agent Where routing
       status: 'ACTIVE' as const,
       sub_active: true,
     };

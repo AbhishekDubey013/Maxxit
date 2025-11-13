@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 // Enums
-export const VenueEnum = z.enum(["SPOT", "GMX", "HYPERLIQUID", "OSTIUM"]);
+export const VenueEnum = z.enum(["SPOT", "GMX", "HYPERLIQUID", "OSTIUM", "MULTI"]);
 export const AgentStatusEnum = z.enum(["DRAFT", "ACTIVE", "PAUSED"]);
 export const DeploymentStatusEnum = z.enum(["ACTIVE", "PAUSED", "CANCELLED"]);
 export const BillingKindEnum = z.enum(["SUBSCRIPTION", "INFRA_FEE", "PROFIT_SHARE"]);
@@ -54,7 +54,7 @@ export const insertAgentSchema = z.object({
   creatorWallet: z.string(),
   profitReceiverAddress: z.string().regex(/^0x[a-fA-F0-9]{40}$/, "Invalid Ethereum address"),
   name: z.string().min(1).max(100),
-  venue: VenueEnum,
+  venue: VenueEnum.default("MULTI"), // Default to MULTI for Agent Where routing
   status: AgentStatusEnum.default("DRAFT"),
   weights: z.array(z.number().int().min(0).max(100)).length(8),
   // Proof of Intent fields (optional for backward compatibility)

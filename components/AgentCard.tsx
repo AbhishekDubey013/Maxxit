@@ -27,7 +27,19 @@ export function AgentCard({ agent, onClick }: AgentCardProps) {
           <h3 className="text-xl font-semibold text-foreground" data-testid={`text-name-${agent.id}`}>
             {agent.name}
           </h3>
-          <p className="text-sm text-muted-foreground mt-1">{agent.venue}</p>
+          <div className="flex items-center gap-2 mt-1">
+            {agent.venue === 'MULTI' ? (
+              <Tooltip content="Agent Where: Automatically routes trades to the best available venue (Hyperliquid → Ostium)">
+                <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-gradient-to-r from-primary/20 to-purple-500/20 border border-primary/30 cursor-help">
+                  <span className="text-xs">🌐</span>
+                  <span className="text-xs font-semibold text-foreground">Multi-Venue</span>
+                  <span className="text-xs text-muted-foreground">(261 pairs)</span>
+                </div>
+              </Tooltip>
+            ) : (
+              <p className="text-sm text-muted-foreground">{agent.venue}</p>
+            )}
+          </div>
         </div>
         <div className="flex gap-2">
           <Tooltip content="We relay transactions and charge a flat $0.20 per trade">

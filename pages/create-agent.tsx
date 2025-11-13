@@ -84,7 +84,7 @@ export default function CreateAgent() {
     defaultValues: {
       name: '',
       description: '',
-      venue: 'SPOT',
+      venue: 'MULTI', // Vprime: Multi-venue routing (Agent Where)
       weights: [50, 50, 50, 50, 50, 50, 50, 50], // Legacy - not used anymore
       status: 'DRAFT',
       creatorWallet: '',
@@ -617,49 +617,109 @@ export default function CreateAgent() {
             </div>
           )}
 
-          {/* Step 2: Venue Selection */}
+          {/* Step 2: Venue Selection - Now MULTI by default (Vprime) */}
           {step === 2 && (
             <div className="space-y-6">
               <h2 className="text-2xl font-semibold text-foreground mb-4">
-                Select Trading Venue
+                Trading Venue
               </h2>
 
-              <div className="space-y-4">
-                {['SPOT', 'GMX', 'HYPERLIQUID', 'OSTIUM'].map((venue) => (
-                  <label
-                    key={venue}
-                    className={`block p-4 border-2 rounded-lg cursor-pointer transition-colors ${
-                      formData.venue === venue
-                        ? 'border-primary bg-primary/10'
-                        : 'border-border hover:border-primary/50'
-                    }`}
-                    data-testid={`label-venue-${venue}`}
-                  >
-                    <input
-                      type="radio"
-                      {...register('venue')}
-                      value={venue}
-                      className="sr-only"
-                    />
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h3 className="text-lg font-semibold text-foreground">{venue}</h3>
-                        <p className="text-sm text-muted-foreground">
-                          {venue === 'SPOT' && 'DEX spot trading (1inch/Uniswap)'}
-                          {venue === 'GMX' && 'GMX perpetuals trading'}
-                          {venue === 'HYPERLIQUID' && 'Hyperliquid perpetuals'}
-                          {venue === 'OSTIUM' && 'Ostium perpetuals (Arbitrum)'}
-                        </p>
-                      </div>
-                      {formData.venue === venue && (
-                        <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center">
-                          <span className="text-primary-foreground text-sm">✓</span>
-                        </div>
-                      )}
+              {/* Vprime: Agent Where Banner */}
+              <div className="p-6 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border-2 border-primary/30 rounded-lg">
+                <div className="flex items-start gap-3 mb-3">
+                  <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
+                    <span className="text-2xl">🌐</span>
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-foreground">Multi-Venue Routing (Agent Where)</h3>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Your agent will automatically select the best venue for each trade
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="mt-4 space-y-2 text-sm">
+                  <div className="flex items-start gap-2">
+                    <span className="text-primary font-bold">1.</span>
+                    <div>
+                      <span className="font-semibold text-foreground">Agent What:</span>
+                      <span className="text-muted-foreground ml-1">Generates venue-agnostic signals</span>
                     </div>
-                  </label>
-                ))}
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <span className="text-primary font-bold">2.</span>
+                    <div>
+                      <span className="font-semibold text-foreground">Agent How:</span>
+                      <span className="text-muted-foreground ml-1">Applies your policies (future)</span>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <span className="text-primary font-bold">3.</span>
+                    <div>
+                      <span className="font-semibold text-foreground">Agent Where:</span>
+                      <span className="text-muted-foreground ml-1">Routes to best venue (Hyperliquid → Ostium)</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-4 pt-4 border-t border-primary/20">
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="font-semibold text-foreground">Market Coverage:</span>
+                    <span className="text-muted-foreground">220 pairs (Hyperliquid) + 41 pairs (Ostium) = 261 total</span>
+                  </div>
+                </div>
               </div>
+
+              {/* Hidden input for MULTI venue */}
+              <input type="hidden" {...register('venue')} value="MULTI" />
+
+              {/* Advanced: Single Venue Option (Collapsed by default) */}
+              <details className="group">
+                <summary className="cursor-pointer list-none p-4 bg-secondary/50 rounded-lg hover:bg-secondary transition-colors">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-semibold text-foreground">Advanced: Single Venue Only</span>
+                    <span className="text-muted-foreground text-xs group-open:rotate-90 transition-transform">▶</span>
+                  </div>
+                </summary>
+                <div className="mt-4 space-y-3 p-4 bg-secondary/20 rounded-lg">
+                  <p className="text-sm text-muted-foreground mb-3">
+                    Choose a specific venue if you want to limit trading to one platform:
+                  </p>
+                  {['HYPERLIQUID', 'OSTIUM', 'GMX', 'SPOT'].map((venue) => (
+                    <label
+                      key={venue}
+                      className={`block p-3 border rounded-lg cursor-pointer transition-colors ${
+                        formData.venue === venue
+                          ? 'border-primary bg-primary/10'
+                          : 'border-border hover:border-primary/50'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        {...register('venue')}
+                        value={venue}
+                        className="sr-only"
+                      />
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h3 className="text-sm font-semibold text-foreground">{venue}</h3>
+                          <p className="text-xs text-muted-foreground">
+                            {venue === 'HYPERLIQUID' && '220 perpetual pairs'}
+                            {venue === 'OSTIUM' && '41 synthetic pairs'}
+                            {venue === 'GMX' && 'GMX perpetuals'}
+                            {venue === 'SPOT' && 'DEX spot trading'}
+                          </p>
+                        </div>
+                        {formData.venue === venue && (
+                          <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center">
+                            <span className="text-primary-foreground text-xs">✓</span>
+                          </div>
+                        )}
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </details>
 
               <div className="flex gap-4">
                 <button
