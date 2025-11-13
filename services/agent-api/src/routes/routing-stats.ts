@@ -35,10 +35,10 @@ router.get('/:agentId', async (req: Request, res: Response) => {
     `;
 
     // Get total trades
-    const totalTrades = routingStats.reduce((sum, stat) => sum + Number(stat.count), 0);
+    const totalTrades = routingStats.reduce((sum: number, stat: { selected_venue: string; count: bigint }) => sum + Number(stat.count), 0);
 
     // Format stats with percentages
-    const venueBreakdown = routingStats.map(stat => ({
+    const venueBreakdown = routingStats.map((stat: { selected_venue: string; count: bigint }) => ({
       venue: stat.selected_venue,
       count: Number(stat.count),
       percentage: totalTrades > 0 ? ((Number(stat.count) / totalTrades) * 100).toFixed(1) : '0',
@@ -108,12 +108,12 @@ router.get('/:agentId', async (req: Request, res: Response) => {
         venueBreakdown,
         avgRoutingDurationMs: avgDuration[0]?.avg_duration_ms ? Math.round(avgDuration[0].avg_duration_ms) : 0,
       },
-      tokenRouting: tokenRouting.map(t => ({
+      tokenRouting: tokenRouting.map((t: { token_symbol: string; selected_venue: string; count: bigint }) => ({
         tokenSymbol: t.token_symbol,
         venue: t.selected_venue,
         count: Number(t.count),
       })),
-      recentDecisions: recentDecisions.map(d => ({
+      recentDecisions: recentDecisions.map((d: { token_symbol: string; selected_venue: string; routing_reason: string; routing_duration_ms: number; created_at: Date }) => ({
         tokenSymbol: d.token_symbol,
         venue: d.selected_venue,
         reason: d.routing_reason,
