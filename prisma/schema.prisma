@@ -71,6 +71,7 @@ model agents {
   impact_factor_history     impact_factor_history[]
   pnl_snapshots             pnl_snapshots[]
   signals                   signals[]
+  venue_routing_config      venue_routing_config?
 
   @@index([status, venue])
 }
@@ -240,6 +241,7 @@ model signals {
   impact_factor_history        impact_factor_history[]
   positions                    positions[]
   agents                       agents                  @relation(fields: [agent_id], references: [id], onDelete: Cascade)
+  venue_routing_history        venue_routing_history[]
 
   @@index([agent_id, created_at])
   @@index([lunarcrush_score])
@@ -392,6 +394,7 @@ enum venue_t {
   GMX
   HYPERLIQUID
   OSTIUM
+  MULTI        // Multi-venue routing (Agent Where)
 }
 
 model user_hyperliquid_wallets {
@@ -415,4 +418,42 @@ model wallet_pool {
   private_key             String
   assigned_to_user_wallet String?
   created_at              DateTime? @default(now()) @db.Timestamptz(6)
+}
+
+// ============================================================================
+// AGENT WHERE: Venue Routing System
+// ============================================================================
+
+model venue_routing_config {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  agent_id          String?  @db.Uuid // null = global default
+  venue_priority    String[] // e.g., ["HYPERLIQUID", "OSTIUM"]
+  routing_strategy  String   @default("FIRST_AVAILABLE") // FIRST_AVAILABLE | BEST_LIQUIDITY | LOWEST_FEES
+  failover_enabled  Boolean  @default(true)
+  created_at        DateTime @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime @default(now()) @db.Timestamptz(6)
+  
+  agents            agents?  @relation(fields: [agent_id], references: [id], onDelete: Cascade)
+  
+  @@unique([agent_id]) // One config per agent, or null for global
+  @@index([agent_id])
+}
+
+model venue_routing_history {
+  id                 String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  signal_id          String   @db.Uuid
+  token_symbol       String
+  requested_venue    venue_t  // MULTI
+  selected_venue     venue_t  // HYPERLIQUID or OSTIUM
+  routing_reason     String   // "HYPERLIQUID: pair available" or "OSTIUM: fallback"
+  checked_venues     String[] // ["HYPERLIQUID", "OSTIUM"]
+  venue_availability Json     // { "HYPERLIQUID": true, "OSTIUM": true }
+  routing_duration_ms Int?    // Performance tracking
+  created_at         DateTime @default(now()) @db.Timestamptz(6)
+  
+  signals            signals  @relation(fields: [signal_id], references: [id], onDelete: Cascade)
+  
+  @@index([signal_id])
+  @@index([token_symbol, selected_venue])
+  @@index([created_at])
 }

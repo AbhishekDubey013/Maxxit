@@ -25,7 +25,7 @@ interface SignalGeneratorInput {
   tweetSentiment: 'bullish' | 'bearish' | 'neutral';
   tweetConfidence: number;
   tokenSymbol: string;
-  venue: 'SPOT' | 'GMX' | 'HYPERLIQUID' | 'OSTIUM';
+  venue: 'SPOT' | 'GMX' | 'HYPERLIQUID' | 'OSTIUM' | 'MULTI';
   marketIndicators?: {
     rsi?: number;
     macd?: { value: number; signal: number; histogram: number };
@@ -96,7 +96,7 @@ export class SignalGenerator {
    * Build the LLM prompt with all context
    */
   private buildPrompt(input: SignalGeneratorInput): string {
-    const isPerpetual = input.venue === 'GMX' || input.venue === 'HYPERLIQUID' || input.venue === 'OSTIUM';
+    const isPerpetual = input.venue === 'GMX' || input.venue === 'HYPERLIQUID' || input.venue === 'OSTIUM' || input.venue === 'MULTI';
     const leverageInfo = isPerpetual ? 'You MUST specify leverage between 1-10x.' : 'No leverage (spot trading).';
 
     const indicatorsText = input.marketIndicators ? `
@@ -118,7 +118,7 @@ CT Impact Factor: ${input.ctAccountImpactFactor?.toFixed(2) || 'Unknown'}
 
 ${indicatorsText}
 
-TRADING VENUE: ${input.venue}
+TRADING VENUE: ${input.venue === 'MULTI' ? 'MULTI (Auto-routing to HYPERLIQUID or OSTIUM based on availability)' : input.venue}
 ${leverageInfo}
 
 TASK: Generate a complete trading signal by analyzing:

@@ -20,6 +20,7 @@ import {
   getOstiumBalance,
   transferOstiumUSDC,
 } from './adapters/ostium-adapter';
+import { venueRouter } from './venue-router';
 
 const prisma = new PrismaClient();
 
@@ -308,8 +309,54 @@ export class TradeExecutor {
 
   /**
    * Route to appropriate venue adapter
+   * Supports both single-venue agents and MULTI-venue (Agent Where) routing
    */
   private async routeToVenue(ctx: ExecutionContext): Promise<ExecutionResult> {
+    // Handle MULTI venue routing (Agent Where)
+    if (ctx.signal.venue === 'MULTI') {
+      console.log('[TradeExecutor] 🎯 MULTI venue signal detected - activating Agent Where routing');
+      
+      try {
+        // Use VenueRouter to select best venue
+        const routingResult = await venueRouter.routeToVenue({
+          tokenSymbol: ctx.signal.token_symbol,
+          agentId: ctx.signal.agent_id,
+          requestedVenue: 'MULTI',
+        });
+
+        console.log(`[TradeExecutor] Agent Where selected: ${routingResult.selectedVenue}`);
+        console.log(`[TradeExecutor] Routing reason: ${routingResult.routingReason}`);
+        console.log(`[TradeExecutor] Routing took: ${routingResult.routingDurationMs}ms`);
+
+        // Log routing decision
+        await venueRouter.logRoutingDecision({
+          signalId: ctx.signal.id,
+          tokenSymbol: ctx.signal.token_symbol,
+          requestedVenue: 'MULTI',
+          routingResult,
+        });
+
+        // Update signal venue to the selected venue (for position tracking)
+        await prisma.signals.update({
+          where: { id: ctx.signal.id },
+          data: { venue: routingResult.selectedVenue },
+        });
+
+        // Update context with selected venue
+        ctx.signal.venue = routingResult.selectedVenue;
+
+        // Continue with normal routing for the selected venue
+        console.log(`[TradeExecutor] Executing on ${routingResult.selectedVenue}...`);
+      } catch (error: any) {
+        console.error('[TradeExecutor] Agent Where routing failed:', error.message);
+        return {
+          success: false,
+          error: `Multi-venue routing failed: ${error.message}`,
+        };
+      }
+    }
+
+    // Standard single-venue routing
     switch (ctx.signal.venue) {
       case 'SPOT':
         return this.executeSpotTrade(ctx);
@@ -319,6 +366,12 @@ export class TradeExecutor {
         return this.executeHyperliquidTrade(ctx);
       case 'OSTIUM':
         return this.executeOstiumTrade(ctx);
+      case 'MULTI':
+        // This should never happen (MULTI is handled above)
+        return {
+          success: false,
+          error: 'MULTI venue not resolved by Agent Where router',
+        };
       default:
         return {
           success: false,
