@@ -1,0 +1,458 @@
+version: '3.8'
+
+services:
+  # ============================================================================
+  # Infrastructure Services
+  # ============================================================================
+  
+  postgres:
+    image: postgres:15-alpine
+    container_name: maxxit-postgres
+    environment:
+      POSTGRES_USER: maxxit
+      POSTGRES_PASSWORD: maxxit_dev_password
+      POSTGRES_DB: maxxit
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infrastructure/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - maxxit-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U maxxit"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: maxxit-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - maxxit-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ============================================================================
+  # API Gateway (Entry Point)
+  # ============================================================================
+  
+  api-gateway:
+    build:
+      context: ./services/api-gateway
+      dockerfile: Dockerfile
+    container_name: maxxit-api-gateway
+    ports:
+      - "4000:4000"
+    environment:
+      NODE_ENV: development
+      PORT: 4000
+      JWT_SECRET: ${JWT_SECRET}
+      
+      # Service URLs
+      AUTH_SERVICE_URL: http://auth-service:4001
+      AGENT_SERVICE_URL: http://agent-service:4002
+      SIGNAL_SERVICE_URL: http://signal-service:4003
+      TRADE_SERVICE_URL: http://trade-execution-service:4004
+      DEPLOYMENT_SERVICE_URL: http://deployment-service:4005
+      POSITION_MONITOR_URL: http://position-monitor-service:4006
+      SAFE_WALLET_SERVICE_URL: http://safe-wallet-service:4007
+      NOTIFICATION_SERVICE_URL: http://notification-service:4008
+      ANALYTICS_SERVICE_URL: http://analytics-service:4009
+      BILLING_SERVICE_URL: http://billing-service:4010
+      
+      # Python services
+      HYPERLIQUID_SERVICE_URL: http://hyperliquid-service:5001
+      OSTIUM_SERVICE_URL: http://ostium-service:5002
+      TWITTER_PROXY_URL: http://twitter-proxy-service:5003
+      
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      - redis
+    networks:
+      - maxxit-network
+    restart: unless-stopped
+
+  # ============================================================================
+  # Node.js Microservices
+  # ============================================================================
+
+  auth-service:
+    build:
+      context: ./services/auth-service
+      dockerfile: Dockerfile
+    container_name: maxxit-auth-service
+    ports:
+      - "4001:4001"
+    environment:
+      NODE_ENV: development
+      PORT: 4001
+      DATABASE_URL: postgresql://maxxit:maxxit_dev_password@postgres:5432/maxxit
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: 7d
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - maxxit-network
+    restart: unless-stopped
+    volumes:
+      - ./services/auth-service:/app
+      - /app/node_modules
+
+  agent-service:
+    build:
+      context: ./services/agent-service
+      dockerfile: Dockerfile
+    container_name: maxxit-agent-service
+    ports:
+      - "4002:4002"
+    environment:
+      NODE_ENV: development
+      PORT: 4002
+      DATABASE_URL: postgresql://maxxit:maxxit_dev_password@postgres:5432/maxxit
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - maxxit-network
+    restart: unless-stopped
+    volumes:
+      - ./services/agent-service:/app
+      - /app/node_modules
+
+  signal-service:
+    build:
+      context: ./services/signal-service
+      dockerfile: Dockerfile
+    container_name: maxxit-signal-service
+    ports:
+      - "4003:4003"
+    environment:
+      NODE_ENV: development
+      PORT: 4003
+      DATABASE_URL: postgresql://maxxit:maxxit_dev_password@postgres:5432/maxxit
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      LUNARCRUSH_API_KEY: ${LUNARCRUSH_API_KEY}
+      TWITTER_PROXY_URL: http://twitter-proxy-service:5003
+    depends_on:
+      postgres:
+        condition: service_healthy
+      twitter-proxy-service:
+        condition: service_started
+    networks:
+      - maxxit-network
+    restart: unless-stopped
+    volumes:
+      - ./services/signal-service:/app
+      - /app/node_modules
+
+  trade-execution-service:
+    build:
+      context: ./services/trade-execution-service
+      dockerfile: Dockerfile
+    container_name: maxxit-trade-execution-service
+    ports:
+      - "4004:4004"
+    environment:
+      NODE_ENV: development
+      PORT: 4004
+      DATABASE_URL: postgresql://maxxit:maxxit_dev_password@postgres:5432/maxxit
+      HYPERLIQUID_SERVICE_URL: http://hyperliquid-service:5001
+      OSTIUM_SERVICE_URL: http://ostium-service:5002
+      SAFE_WALLET_SERVICE_URL: http://safe-wallet-service:4007
+      RPC_URL_ARBITRUM: ${RPC_URL_ARBITRUM}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      hyperliquid-service:
+        condition: service_started
+      ostium-service:
+        condition: service_started
+    networks:
+      - maxxit-network
+    restart: unless-stopped
+    volumes:
+      - ./services/trade-execution-service:/app
+      - /app/node_modules
+
+  deployment-service:
+    build:
+      context: ./services/deployment-service
+      dockerfile: Dockerfile
+    container_name: maxxit-deployment-service
+    ports:
+      - "4005:4005"
+    environment:
+      NODE_ENV: development
+      PORT: 4005
+      DATABASE_URL: postgresql://maxxit:maxxit_dev_password@postgres:5432/maxxit
+      SAFE_WALLET_SERVICE_URL: http://safe-wallet-service:4007
+      HYPERLIQUID_SERVICE_URL: http://hyperliquid-service:5001
+      OSTIUM_SERVICE_URL: http://ostium-service:5002
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - maxxit-network
+    restart: unless-stopped
+    volumes:
+      - ./services/deployment-service:/app
+      - /app/node_modules
+
+  position-monitor-service:
+    build:
+      context: ./services/position-monitor-service
+      dockerfile: Dockerfile
+    container_name: maxxit-position-monitor-service
+    ports:
+      - "4006:4006"
+    environment:
+      NODE_ENV: development
+      PORT: 4006
+      DATABASE_URL: postgresql://maxxit:maxxit_dev_password@postgres:5432/maxxit
+      TRADE_SERVICE_URL: http://trade-execution-service:4004
+      HYPERLIQUID_SERVICE_URL: http://hyperliquid-service:5001
+      OSTIUM_SERVICE_URL: http://ostium-service:5002
+      MONITOR_INTERVAL_MS: 30000
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - maxxit-network
+    restart: unless-stopped
+    volumes:
+      - ./services/position-monitor-service:/app
+      - /app/node_modules
+
+  safe-wallet-service:
+    build:
+      context: ./services/safe-wallet-service
+      dockerfile: Dockerfile
+    container_name: maxxit-safe-wallet-service
+    ports:
+      - "4007:4007"
+    environment:
+      NODE_ENV: development
+      PORT: 4007
+      DATABASE_URL: postgresql://maxxit:maxxit_dev_password@postgres:5432/maxxit
+      RPC_URL_ARBITRUM: ${RPC_URL_ARBITRUM}
+      EXECUTOR_PRIVATE_KEY: ${EXECUTOR_PRIVATE_KEY}
+      SAFE_MODULE_ADDRESS: ${SAFE_MODULE_ADDRESS}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - maxxit-network
+    restart: unless-stopped
+    volumes:
+      - ./services/safe-wallet-service:/app
+      - /app/node_modules
+
+  notification-service:
+    build:
+      context: ./services/notification-service
+      dockerfile: Dockerfile
+    container_name: maxxit-notification-service
+    ports:
+      - "4008:4008"
+    environment:
+      NODE_ENV: development
+      PORT: 4008
+      DATABASE_URL: postgresql://maxxit:maxxit_dev_password@postgres:5432/maxxit
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      SENDGRID_API_KEY: ${SENDGRID_API_KEY}
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - maxxit-network
+    restart: unless-stopped
+    volumes:
+      - ./services/notification-service:/app
+      - /app/node_modules
+
+  analytics-service:
+    build:
+      context: ./services/analytics-service
+      dockerfile: Dockerfile
+    container_name: maxxit-analytics-service
+    ports:
+      - "4009:4009"
+    environment:
+      NODE_ENV: development
+      PORT: 4009
+      DATABASE_URL: postgresql://maxxit:maxxit_dev_password@postgres:5432/maxxit
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - maxxit-network
+    restart: unless-stopped
+    volumes:
+      - ./services/analytics-service:/app
+      - /app/node_modules
+
+  billing-service:
+    build:
+      context: ./services/billing-service
+      dockerfile: Dockerfile
+    container_name: maxxit-billing-service
+    ports:
+      - "4010:4010"
+    environment:
+      NODE_ENV: development
+      PORT: 4010
+      DATABASE_URL: postgresql://maxxit:maxxit_dev_password@postgres:5432/maxxit
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - maxxit-network
+    restart: unless-stopped
+    volumes:
+      - ./services/billing-service:/app
+      - /app/node_modules
+
+  # ============================================================================
+  # Python Microservices
+  # ============================================================================
+
+  hyperliquid-service:
+    build:
+      context: ./services/hyperliquid-service
+      dockerfile: Dockerfile
+    container_name: maxxit-hyperliquid-service
+    ports:
+      - "5001:5001"
+    environment:
+      FLASK_ENV: development
+      PORT: 5001
+      DATABASE_URL: postgresql://maxxit:maxxit_dev_password@postgres:5432/maxxit
+    networks:
+      - maxxit-network
+    restart: unless-stopped
+    volumes:
+      - ./services/hyperliquid-service:/app
+
+  ostium-service:
+    build:
+      context: ./services/ostium-service
+      dockerfile: Dockerfile
+    container_name: maxxit-ostium-service
+    ports:
+      - "5002:5002"
+    environment:
+      FLASK_ENV: development
+      PORT: 5002
+      DATABASE_URL: postgresql://maxxit:maxxit_dev_password@postgres:5432/maxxit
+      OSTIUM_API_URL: ${OSTIUM_API_URL}
+    networks:
+      - maxxit-network
+    restart: unless-stopped
+    volumes:
+      - ./services/ostium-service:/app
+
+  twitter-proxy-service:
+    build:
+      context: ./services/twitter-proxy-service
+      dockerfile: Dockerfile
+    container_name: maxxit-twitter-proxy-service
+    ports:
+      - "5003:5003"
+    environment:
+      FLASK_ENV: development
+      PORT: 5003
+      TWITTER_API_KEY: ${TWITTER_API_KEY}
+      TWITTER_API_SECRET: ${TWITTER_API_SECRET}
+      TWITTER_ACCESS_TOKEN: ${TWITTER_ACCESS_TOKEN}
+      TWITTER_ACCESS_SECRET: ${TWITTER_ACCESS_SECRET}
+    networks:
+      - maxxit-network
+    restart: unless-stopped
+    volumes:
+      - ./services/twitter-proxy-service:/app
+
+  # ============================================================================
+  # Frontend
+  # ============================================================================
+
+  frontend:
+    build:
+      context: ./apps/frontend
+      dockerfile: Dockerfile
+    container_name: maxxit-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      VITE_API_GATEWAY_URL: http://localhost:4000
+    depends_on:
+      - api-gateway
+    networks:
+      - maxxit-network
+    restart: unless-stopped
+    volumes:
+      - ./apps/frontend:/app
+      - /app/node_modules
+
+  # ============================================================================
+  # Monitoring & Observability (Optional)
+  # ============================================================================
+
+  # prometheus:
+  #   image: prom/prometheus:latest
+  #   container_name: maxxit-prometheus
+  #   ports:
+  #     - "9090:9090"
+  #   volumes:
+  #     - ./infrastructure/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+  #     - prometheus_data:/prometheus
+  #   command:
+  #     - '--config.file=/etc/prometheus/prometheus.yml'
+  #   networks:
+  #     - maxxit-network
+
+  # grafana:
+  #   image: grafana/grafana:latest
+  #   container_name: maxxit-grafana
+  #   ports:
+  #     - "3001:3000"
+  #   environment:
+  #     - GF_SECURITY_ADMIN_PASSWORD=admin
+  #   volumes:
+  #     - grafana_data:/var/lib/grafana
+  #   depends_on:
+  #     - prometheus
+  #   networks:
+  #     - maxxit-network
+
+networks:
+  maxxit-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+  # prometheus_data:
+  # grafana_data:
+
