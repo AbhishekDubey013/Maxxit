@@ -298,10 +298,10 @@ vercel
 # Database (you'll get this from Railway in Step 3)
 DATABASE_URL=postgresql://...
 
-# Python Services on Render
-HYPERLIQUID_SERVICE_URL=https://your-hyperliquid.onrender.com
-OSTIUM_SERVICE_URL=https://your-ostium.onrender.com
-TWITTER_PROXY_URL=https://your-twitter.onrender.com
+# Python Services on Render (✅ Already Running!)
+HYPERLIQUID_SERVICE_URL=https://hyperliquid-service.onrender.com
+OSTIUM_SERVICE_URL=https://maxxit-1.onrender.com
+TWITTER_PROXY_URL=https://maxxit.onrender.com
 
 # API Keys
 OPENAI_API_KEY=sk-...
@@ -362,10 +362,10 @@ DATABASE_URL=${{Postgres.DATABASE_URL}}
 # Vercel App URL (for API calls)
 VERCEL_APP_URL=https://your-app.vercel.app
 
-# Python Services on Render
-HYPERLIQUID_SERVICE_URL=https://your-hyperliquid.onrender.com
-OSTIUM_SERVICE_URL=https://your-ostium.onrender.com
-TWITTER_PROXY_URL=https://your-twitter.onrender.com
+# Python Services on Render (✅ Already Running!)
+HYPERLIQUID_SERVICE_URL=https://hyperliquid-service.onrender.com
+OSTIUM_SERVICE_URL=https://maxxit-1.onrender.com
+TWITTER_PROXY_URL=https://maxxit.onrender.com
 
 # API Keys (same as Vercel)
 OPENAI_API_KEY=sk-...
@@ -440,13 +440,13 @@ SELECT * FROM positions_v3 ORDER BY created_at DESC LIMIT 5;
 #### 4.4: Check Python Services (Render)
 ```bash
 # Test Hyperliquid service
-curl https://your-hyperliquid.onrender.com/health
+curl https://hyperliquid-service.onrender.com/health
 
 # Test Ostium service
-curl https://your-ostium.onrender.com/health
+curl https://maxxit-1.onrender.com/health
 
-# Test Twitter Proxy
-curl https://your-twitter.onrender.com/health
+# Test Twitter Proxy (X API)
+curl https://maxxit.onrender.com/health
 ```
 
 ---

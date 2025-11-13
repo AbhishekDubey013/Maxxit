@@ -149,9 +149,9 @@ Deploy your Next.js app to Vercel (takes 2 mins):
 2. **Add Environment Variables** in Vercel dashboard:
 ```env
 DATABASE_URL=<from Railway PostgreSQL>
-HYPERLIQUID_SERVICE_URL=https://your-hyperliquid.onrender.com
-OSTIUM_SERVICE_URL=https://your-ostium.onrender.com
-TWITTER_PROXY_URL=https://your-twitter.onrender.com
+HYPERLIQUID_SERVICE_URL=https://hyperliquid-service.onrender.com
+OSTIUM_SERVICE_URL=https://maxxit-1.onrender.com
+TWITTER_PROXY_URL=https://maxxit.onrender.com
 OPENAI_API_KEY=sk-...
 ANTHROPIC_API_KEY=sk-ant-...
 RPC_URL_ARBITRUM=https://arb1.arbitrum.io/rpc
@@ -342,9 +342,9 @@ vercel
 ```bash
 # In Vercel dashboard → Settings → Environment Variables:
 DATABASE_URL=<you'll get this from Railway in step 4>
-HYPERLIQUID_SERVICE_URL=https://your-hyperliquid.onrender.com
-OSTIUM_SERVICE_URL=https://your-ostium.onrender.com
-TWITTER_PROXY_URL=https://your-twitter.onrender.com
+HYPERLIQUID_SERVICE_URL=https://hyperliquid-service.onrender.com
+OSTIUM_SERVICE_URL=https://maxxit-1.onrender.com
+TWITTER_PROXY_URL=https://maxxit.onrender.com
 OPENAI_API_KEY=sk-...
 ANTHROPIC_API_KEY=sk-ant-...
 RPC_URL_ARBITRUM=https://arb1.arbitrum.io/rpc
