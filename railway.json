@@ -1,12 +1,10 @@
 {
   "$schema": "https://railway.app/railway.schema.json",
   "build": {
-    "builder": "NIXPACKS",
-    "buildCommand": "npm install --legacy-peer-deps && npx prisma generate"
+    "builder": "NIXPACKS"
   },
   "deploy": {
     "numReplicas": 1,
-    "startCommand": "bash workers/start-railway-workers-only.sh",
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 10
   }
