@@ -4,8 +4,8 @@ import dotenv from 'dotenv';
 import agentRoutes from './routes/agents';
 import agentAccountsRoutes from './routes/agent-accounts';
 import routingStatsRoutes from './routes/routing-stats';
-import { setupGracefulShutdown } from '../../shared/lib/graceful-shutdown';
-import { errorHandler, checkDatabaseHealth } from '../../shared/lib';
+import { setupGracefulShutdown } from '../../shared/dist/graceful-shutdown';
+import { errorHandler, checkDatabaseHealth } from '../../shared/dist';
 
 dotenv.config();
 

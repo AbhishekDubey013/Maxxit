@@ -4,8 +4,8 @@ import dotenv from 'dotenv';
 import hyperliquidRoutes from './routes/hyperliquid';
 import ostiumRoutes from './routes/ostium';
 import deploymentsRoutes from './routes/deployments';
-import { setupGracefulShutdown } from '../../shared/lib/graceful-shutdown';
-import { errorHandler, checkDatabaseHealth } from '../../shared/lib';
+import { setupGracefulShutdown } from '../../shared/dist/graceful-shutdown';
+import { errorHandler, checkDatabaseHealth } from '../../shared/dist';
 
 dotenv.config();
 

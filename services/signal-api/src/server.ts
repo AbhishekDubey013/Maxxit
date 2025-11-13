@@ -2,8 +2,8 @@ import express, { Request, Response } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import signalsRoutes from './routes/signals';
-import { setupGracefulShutdown } from '../../shared/lib/graceful-shutdown';
-import { errorHandler, checkDatabaseHealth } from '../../shared/lib';
+import { setupGracefulShutdown } from '../../shared/dist/graceful-shutdown';
+import { errorHandler, checkDatabaseHealth } from '../../shared/dist';
 
 dotenv.config();
 
