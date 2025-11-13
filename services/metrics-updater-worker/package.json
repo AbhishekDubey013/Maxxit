@@ -5,7 +5,7 @@
   "main": "dist/server.js",
   "scripts": {
     "dev": "tsx watch src/worker.ts",
-    "build": "cd ../shared && npm install && npm run build && cd ../metrics-updater-worker && tsc",
+    "build": "tsc",
     "start": "node dist/metrics-updater-worker/src/worker.js"
   },
   "keywords": [
