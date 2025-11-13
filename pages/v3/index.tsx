@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { db } from '../../client/src/lib/db';
 import { Bot, TrendingUp, Shield, Zap, Sparkles } from 'lucide-react';
 import { Header } from '@components/Header';
 
@@ -23,14 +22,13 @@ export default function V3Home() {
   useEffect(() => {
     async function fetchV3Agents() {
       try {
-        // Query ONLY V3 agents
-        const data = await db.get('agents_v3', {
-          'status': 'eq.ACTIVE',
-          'order': 'created_at.desc',
-          'limit': '20',
-          'select': 'id,name,venue,apr30d,apr90d,aprSi,sharpe30d,creatorWallet',
-        });
-        setAgents(data || []);
+        // Query V3 agents using the dedicated V3 API endpoint
+        const response = await fetch('/api/v3/agents/list?status=ACTIVE&limit=20');
+        if (!response.ok) {
+          throw new Error(`Failed to fetch V3 agents: ${response.statusText}`);
+        }
+        const result = await response.json();
+        setAgents(result.agents || []);
         setError(null);
       } catch (err: any) {
         setError(err.message || 'Failed to load V3 agents');
