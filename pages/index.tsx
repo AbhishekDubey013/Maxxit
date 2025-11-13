@@ -29,16 +29,17 @@ export default function Home() {
   useEffect(() => {
     async function fetchAgents() {
       try {
-        const data = await db.get('agents', {
+        // Query V3 agents ONLY (agents_v3 table)
+        const data = await db.get('agents_v3', {
           'status': 'eq.ACTIVE',
-          'order': 'apr30d.desc',
+          'order': 'created_at.desc',
           'limit': '20',
           'select': 'id,name,venue,apr30d,apr90d,aprSi,sharpe30d',
         });
         setAgents(data || []);
         setError(null);
       } catch (err: any) {
-        setError(err.message || 'Failed to load agents');
+        setError(err.message || 'Failed to load V3 agents');
       } finally {
         setLoading(false);
       }
@@ -53,13 +54,22 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-background">
       <Header />
+      {/* V3 Notice Banner */}
+      <div className="bg-gradient-to-r from-purple-600 to-blue-600 text-white py-3">
+        <div className="container mx-auto px-4 text-center">
+          <span className="font-semibold">✨ Now showing V3 Multi-Venue Agents</span>
+          <span className="mx-2">•</span>
+          <span className="text-sm opacity-90">Intelligent routing across HYPERLIQUID + OSTIUM</span>
+        </div>
+      </div>
+
       {/* Hero Section */}
       <section className="relative overflow-hidden">
         {/* Background with gradient and pattern */}
         <div className="absolute inset-0">
           <div className="absolute inset-0 bg-gradient-to-br from-black via-gray-900 to-background" />
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(34,197,94,0.15),transparent_50%)]" />
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_80%,rgba(34,197,94,0.1),transparent_50%)]" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(147,51,234,0.15),transparent_50%)]" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_80%,rgba(59,130,246,0.1),transparent_50%)]" />
           <div className="absolute inset-0" style={{
             backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%2322c55e' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`
           }} />
@@ -150,10 +160,10 @@ export default function Home() {
         <div className="flex items-center justify-between mb-8">
           <div>
             <h2 className="text-3xl font-bold text-foreground mb-2">
-              Active Trading Agents
+              V3 Multi-Venue Agents
             </h2>
             <p className="text-muted-foreground">
-              {!loading && agents.length > 0 && `${agents.length} agents available`}
+              {!loading && agents.length > 0 && `${agents.length} V3 agents with intelligent routing`}
             </p>
           </div>
           <Link href="/docs">
@@ -191,15 +201,18 @@ export default function Home() {
             </Link>
           </div>
         ) : agents.length === 0 ? (
-          <div className="text-center py-20 border rounded-lg bg-muted/30">
-            <Bot className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
-            <p className="text-lg font-semibold text-foreground mb-2">No active agents yet</p>
-            <p className="text-muted-foreground mb-6">
-              Be the first to create a trading agent and start earning
+          <div className="text-center py-20 border-2 border-dashed border-purple-500/30 rounded-lg bg-purple-500/5">
+            <Bot className="h-16 w-16 mx-auto mb-4 text-purple-400" />
+            <p className="text-lg font-semibold text-foreground mb-2">No V3 agents yet</p>
+            <p className="text-muted-foreground mb-2">
+              Be the first to create a V3 multi-venue trading agent
+            </p>
+            <p className="text-sm text-purple-400 mb-6">
+              ✨ Intelligent routing • 261 trading pairs • Zero V2 overlap
             </p>
             <Link href="/create-agent">
-              <button className="inline-flex items-center justify-center px-6 py-3 bg-primary text-primary-foreground rounded-md font-medium hover-elevate active-elevate-2 transition-all" data-testid="button-create-first">
-                Create Your First Agent
+              <button className="inline-flex items-center justify-center px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-md font-medium hover:shadow-lg transition-all" data-testid="button-create-first">
+                Create Your First V3 Agent
               </button>
             </Link>
           </div>
