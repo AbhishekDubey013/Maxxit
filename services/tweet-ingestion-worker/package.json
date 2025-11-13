@@ -5,7 +5,7 @@
   "main": "dist/server.js",
   "scripts": {
     "dev": "tsx watch src/worker.ts",
-    "build": "cd ../shared && npm run build && cd ../tweet-ingestion-worker && tsc",
+    "build": "cd ../shared && npm install && npm run build && cd ../tweet-ingestion-worker && tsc",
     "start": "node dist/tweet-ingestion-worker/src/worker.js"
   },
   "keywords": [
