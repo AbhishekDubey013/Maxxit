@@ -104,7 +104,6 @@ async function ingestTweets() {
 
         // Call Twitter proxy to get tweets
         const queryParams = new URLSearchParams({
-          username: account.x_username,
           max_results: '15',
         });
         
@@ -112,7 +111,8 @@ async function ingestTweets() {
           queryParams.append('since_id', lastTweet.tweet_id);
         }
 
-        const response = await fetch(`${TWITTER_PROXY_URL}/fetch-tweets?${queryParams}`, {
+        // Correct endpoint: /tweets/<username>
+        const response = await fetch(`${TWITTER_PROXY_URL}/tweets/${account.x_username}?${queryParams}`, {
           signal: AbortSignal.timeout(10000), // 10 second timeout
         });
 
@@ -120,8 +120,8 @@ async function ingestTweets() {
           throw new Error(`Twitter proxy returned ${response.status}`);
         }
 
-        const data = await response.json() as any;
-        const tweets = data.tweets || [];
+        const responseData = await response.json() as any;
+        const tweets = responseData.data || []; // Proxy returns 'data' not 'tweets'
 
         console.log(`[${account.x_username}] ✅ Fetched ${tweets.length} new tweets`);
         totalFetched += tweets.length;
