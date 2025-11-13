@@ -4,6 +4,8 @@ import dotenv from 'dotenv';
 import agentRoutes from './routes/agents';
 import agentAccountsRoutes from './routes/agent-accounts';
 import routingStatsRoutes from './routes/routing-stats';
+import { setupGracefulShutdown } from '../../shared/lib/graceful-shutdown';
+import { errorHandler, checkDatabaseHealth } from '../../shared/lib';
 
 dotenv.config();
 
@@ -14,12 +16,14 @@ const PORT = process.env.PORT || 4001;
 app.use(cors());
 app.use(express.json());
 
-// Health check
-app.get('/health', (req: Request, res: Response) => {
-  res.json({
-    status: 'ok',
+// Health check with database status
+app.get('/health', async (req: Request, res: Response) => {
+  const dbHealthy = await checkDatabaseHealth();
+  res.status(dbHealthy ? 200 : 503).json({
+    status: dbHealthy ? 'ok' : 'degraded',
     service: 'agent-api',
     port: PORT,
+    database: dbHealthy ? 'connected' : 'disconnected',
     timestamp: new Date().toISOString(),
   });
 });
@@ -29,19 +33,17 @@ app.use('/api/agents', agentRoutes);
 app.use('/api/agent-accounts', agentAccountsRoutes);
 app.use('/api/routing-stats', routingStatsRoutes);
 
-// Error handling
-app.use((err: any, req: Request, res: Response, next: any) => {
-  console.error('[Agent API] Error:', err);
-  res.status(err.status || 500).json({
-    error: err.message || 'Internal server error',
-  });
-});
+// Error handling (must be last)
+app.use(errorHandler);
 
 // Start server
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`🚀 Agent API Service running on port ${PORT}`);
   console.log(`📊 Health check: http://localhost:${PORT}/health`);
 });
+
+// Setup graceful shutdown
+setupGracefulShutdown('Agent API', server);
 
 export default app;
 

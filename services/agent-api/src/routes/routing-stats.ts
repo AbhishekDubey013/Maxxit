@@ -1,8 +1,7 @@
 import { Router, Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../../../shared/lib/prisma-client';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 // GET /api/routing-stats/:agentId - Get routing statistics for an agent
 router.get('/:agentId', async (req: Request, res: Response) => {

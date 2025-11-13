@@ -4,19 +4,17 @@
     "module": "commonjs",
     "lib": ["ES2020"],
     "outDir": "./dist",
-    "baseUrl": ".",
-    "paths": {
-      "@maxxit/shared/*": ["../shared/lib/*"]
-    },
+    "rootDir": "./lib",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
-    "moduleResolution": "node",
-    "declaration": false,
+    "declaration": true,
+    "declarationMap": true,
     "sourceMap": true
   },
-  "include": ["src/**/*", "../shared/lib/**/*"],
+  "include": ["lib/**/*"],
   "exclude": ["node_modules", "dist"]
 }
+

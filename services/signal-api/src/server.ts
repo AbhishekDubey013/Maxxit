@@ -2,6 +2,8 @@ import express, { Request, Response } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import signalsRoutes from './routes/signals';
+import { setupGracefulShutdown } from '../../shared/lib/graceful-shutdown';
+import { errorHandler, checkDatabaseHealth } from '../../shared/lib';
 
 dotenv.config();
 
@@ -12,12 +14,14 @@ const PORT = process.env.PORT || 4003;
 app.use(cors());
 app.use(express.json());
 
-// Health check
-app.get('/health', (req: Request, res: Response) => {
-  res.json({
-    status: 'ok',
+// Health check with database status
+app.get('/health', async (req: Request, res: Response) => {
+  const dbHealthy = await checkDatabaseHealth();
+  res.status(dbHealthy ? 200 : 503).json({
+    status: dbHealthy ? 'ok' : 'degraded',
     service: 'signal-api',
     port: PORT,
+    database: dbHealthy ? 'connected' : 'disconnected',
     timestamp: new Date().toISOString(),
   });
 });
@@ -25,18 +29,16 @@ app.get('/health', (req: Request, res: Response) => {
 // Routes
 app.use('/api/signals', signalsRoutes);
 
-// Error handling
-app.use((err: any, req: Request, res: Response, next: any) => {
-  console.error('[Signal API] Error:', err);
-  res.status(err.status || 500).json({
-    error: err.message || 'Internal server error',
-  });
-});
+// Error handling (must be last)
+app.use(errorHandler);
 
 // Start server
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`🚀 Signal API Service running on port ${PORT}`);
   console.log(`📊 Health check: http://localhost:${PORT}/health`);
 });
+
+// Setup graceful shutdown
+setupGracefulShutdown('Signal API', server);
 
 export default app;

@@ -4,28 +4,34 @@
  * Interval: 30 seconds (configurable via WORKER_INTERVAL)
  */
 
-import { PrismaClient } from '@prisma/client';
 import dotenv from 'dotenv';
 import express from 'express';
+import { prisma } from '../../shared/lib/prisma-client';
+import { setupGracefulShutdown, registerCleanup } from '../../shared/lib/graceful-shutdown';
+import { checkDatabaseHealth } from '../../shared/lib';
 
 dotenv.config();
 
-const prisma = new PrismaClient();
 const PORT = process.env.PORT || 5001;
 const INTERVAL = parseInt(process.env.WORKER_INTERVAL || '30000'); // 30 seconds default
 
+let workerInterval: NodeJS.Timeout | null = null;
+
 // Health check server
 const app = express();
-app.get('/health', (req, res) => {
-  res.json({
-    status: 'ok',
+app.get('/health', async (req, res) => {
+  const dbHealthy = await checkDatabaseHealth();
+  res.status(dbHealthy ? 200 : 503).json({
+    status: dbHealthy ? 'ok' : 'degraded',
     service: 'trade-executor-worker',
     interval: INTERVAL,
+    database: dbHealthy ? 'connected' : 'disconnected',
+    isRunning: workerInterval !== null,
     timestamp: new Date().toISOString(),
   });
 });
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`🏥 Trade Executor Worker health check on port ${PORT}`);
 });
 
@@ -184,10 +190,22 @@ async function runWorker() {
   await executeAllPendingSignals();
   
   // Then run on interval
-  setInterval(async () => {
+  workerInterval = setInterval(async () => {
     await executeAllPendingSignals();
   }, INTERVAL);
 }
+
+// Register cleanup to stop worker interval
+registerCleanup(async () => {
+  console.log('🛑 Stopping Trade Executor Worker interval...');
+  if (workerInterval) {
+    clearInterval(workerInterval);
+    workerInterval = null;
+  }
+});
+
+// Setup graceful shutdown
+setupGracefulShutdown('Trade Executor Worker', server);
 
 // Start worker
 if (require.main === module) {

@@ -4,6 +4,8 @@ import dotenv from 'dotenv';
 import hyperliquidRoutes from './routes/hyperliquid';
 import ostiumRoutes from './routes/ostium';
 import deploymentsRoutes from './routes/deployments';
+import { setupGracefulShutdown } from '../../shared/lib/graceful-shutdown';
+import { errorHandler, checkDatabaseHealth } from '../../shared/lib';
 
 dotenv.config();
 
@@ -14,12 +16,14 @@ const PORT = process.env.PORT || 4002;
 app.use(cors());
 app.use(express.json());
 
-// Health check
-app.get('/health', (req: Request, res: Response) => {
-  res.json({
-    status: 'ok',
+// Health check with database status
+app.get('/health', async (req: Request, res: Response) => {
+  const dbHealthy = await checkDatabaseHealth();
+  res.status(dbHealthy ? 200 : 503).json({
+    status: dbHealthy ? 'ok' : 'degraded',
     service: 'deployment-api',
     port: PORT,
+    database: dbHealthy ? 'connected' : 'disconnected',
     timestamp: new Date().toISOString(),
   });
 });
@@ -29,19 +33,17 @@ app.use('/api/hyperliquid', hyperliquidRoutes);
 app.use('/api/ostium', ostiumRoutes);
 app.use('/api/deployments', deploymentsRoutes);
 
-// Error handling
-app.use((err: any, req: Request, res: Response, next: any) => {
-  console.error('[Deployment API] Error:', err);
-  res.status(err.status || 500).json({
-    error: err.message || 'Internal server error',
-  });
-});
+// Error handling (must be last)
+app.use(errorHandler);
 
 // Start server
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`🚀 Deployment API Service running on port ${PORT}`);
   console.log(`📊 Health check: http://localhost:${PORT}/health`);
 });
+
+// Setup graceful shutdown
+setupGracefulShutdown('Deployment API', server);
 
 export default app;
 

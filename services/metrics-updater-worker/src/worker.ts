@@ -4,28 +4,34 @@
  * Interval: 1 hour (configurable via WORKER_INTERVAL)
  */
 
-import { PrismaClient } from '@prisma/client';
 import dotenv from 'dotenv';
 import express from 'express';
+import { prisma } from '../../shared/lib/prisma-client';
+import { setupGracefulShutdown, registerCleanup } from '../../shared/lib/graceful-shutdown';
+import { checkDatabaseHealth } from '../../shared/lib';
 
 dotenv.config();
 
-const prisma = new PrismaClient();
 const PORT = process.env.PORT || 5004;
 const INTERVAL = parseInt(process.env.WORKER_INTERVAL || '3600000'); // 1 hour default
 
+let workerInterval: NodeJS.Timeout | null = null;
+
 // Health check server
 const app = express();
-app.get('/health', (req, res) => {
-  res.json({
-    status: 'ok',
+app.get('/health', async (req, res) => {
+  const dbHealthy = await checkDatabaseHealth();
+  res.status(dbHealthy ? 200 : 503).json({
+    status: dbHealthy ? 'ok' : 'degraded',
     service: 'metrics-updater-worker',
     interval: INTERVAL,
+    database: dbHealthy ? 'connected' : 'disconnected',
+    isRunning: workerInterval !== null,
     timestamp: new Date().toISOString(),
   });
 });
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`🏥 Metrics Updater Worker health check on port ${PORT}`);
 });
 
@@ -115,7 +121,7 @@ async function updateAgentMetrics(agentId: string): Promise<{
       select: { id: true },
     });
 
-    const deploymentIds = deployments.map(d => d.id);
+    const deploymentIds = deployments.map((d: { id: string }) => d.id);
 
     // Get closed positions
     const venueFilter = agent.venue === 'MULTI'
@@ -140,16 +146,16 @@ async function updateAgentMetrics(agentId: string): Promise<{
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
     const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
 
-    const positions30d = positions.filter(p => p.closed_at && p.closed_at >= thirtyDaysAgo);
-    const positions90d = positions.filter(p => p.closed_at && p.closed_at >= ninetyDaysAgo);
+    const positions30d = positions.filter((p: any) => p.closed_at && p.closed_at >= thirtyDaysAgo);
+    const positions90d = positions.filter((p: any) => p.closed_at && p.closed_at >= ninetyDaysAgo);
 
-    const totalPnl30d = positions30d.reduce((sum, p) => sum + parseFloat(p.pnl?.toString() || '0'), 0);
-    const totalPnl90d = positions90d.reduce((sum, p) => sum + parseFloat(p.pnl?.toString() || '0'), 0);
-    const totalPnlSi = positions.reduce((sum, p) => sum + parseFloat(p.pnl?.toString() || '0'), 0);
+    const totalPnl30d = positions30d.reduce((sum: number, p: any) => sum + parseFloat(p.pnl?.toString() || '0'), 0);
+    const totalPnl90d = positions90d.reduce((sum: number, p: any) => sum + parseFloat(p.pnl?.toString() || '0'), 0);
+    const totalPnlSi = positions.reduce((sum: number, p: any) => sum + parseFloat(p.pnl?.toString() || '0'), 0);
 
     // Calculate capital deployed
     const calculateCapitalDeployed = (positionList: typeof positions) => {
-      return positionList.reduce((sum, p) => {
+      return positionList.reduce((sum: number, p: any) => {
         const entryPrice = parseFloat(p.entry_price?.toString() || '0');
         const qty = parseFloat(p.qty?.toString() || '0');
         return sum + (entryPrice * qty);
@@ -176,15 +182,15 @@ async function updateAgentMetrics(agentId: string): Promise<{
     const calculateSharpeRatio = (positionList: typeof positions, annualizationFactor: number) => {
       if (positionList.length < 2) return 0;
 
-      const returns = positionList.map(p => {
+      const returns = positionList.map((p: any) => {
         const entryPrice = parseFloat(p.entry_price?.toString() || '0');
         const qty = parseFloat(p.qty?.toString() || '0');
         const pnl = parseFloat(p.pnl?.toString() || '0');
         return entryPrice * qty > 0 ? pnl / (entryPrice * qty) : 0;
       });
 
-      const meanReturn = returns.reduce((sum, r) => sum + r, 0) / returns.length;
-      const stdDev = Math.sqrt(returns.reduce((sum, r) => sum + Math.pow(r - meanReturn, 2), 0) / (returns.length - 1));
+      const meanReturn = returns.reduce((sum: number, r: number) => sum + r, 0) / returns.length;
+      const stdDev = Math.sqrt(returns.reduce((sum: number, r: number) => sum + Math.pow(r - meanReturn, 2), 0) / (returns.length - 1));
 
       return stdDev > 0 ? (meanReturn / stdDev) * Math.sqrt(annualizationFactor) : 0;
     };
@@ -224,10 +230,22 @@ async function runWorker() {
   await updateAllAgentMetrics();
   
   // Then run on interval
-  setInterval(async () => {
+  workerInterval = setInterval(async () => {
     await updateAllAgentMetrics();
   }, INTERVAL);
 }
+
+// Register cleanup to stop worker interval
+registerCleanup(async () => {
+  console.log('🛑 Stopping Metrics Updater Worker interval...');
+  if (workerInterval) {
+    clearInterval(workerInterval);
+    workerInterval = null;
+  }
+});
+
+// Setup graceful shutdown
+setupGracefulShutdown('Metrics Updater Worker', server);
 
 // Start worker
 if (require.main === module) {

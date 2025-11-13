@@ -1,8 +1,7 @@
 import { Router, Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../../../shared/lib/prisma-client';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 // Utility function to bucket time into 6-hour intervals
 function bucket6hUtc(date: Date): Date {

@@ -4,28 +4,34 @@
  * Interval: 5 minutes (configurable via WORKER_INTERVAL)
  */
 
-import { PrismaClient } from '@prisma/client';
 import dotenv from 'dotenv';
 import express from 'express';
+import { prisma } from '../../shared/lib/prisma-client';
+import { setupGracefulShutdown, registerCleanup } from '../../shared/lib/graceful-shutdown';
+import { checkDatabaseHealth } from '../../shared/lib';
 
 dotenv.config();
 
-const prisma = new PrismaClient();
 const PORT = process.env.PORT || 5003;
 const INTERVAL = parseInt(process.env.WORKER_INTERVAL || '300000'); // 5 minutes default
 
+let workerInterval: NodeJS.Timeout | null = null;
+
 // Health check server
 const app = express();
-app.get('/health', (req, res) => {
-  res.json({
-    status: 'ok',
+app.get('/health', async (req, res) => {
+  const dbHealthy = await checkDatabaseHealth();
+  res.status(dbHealthy ? 200 : 503).json({
+    status: dbHealthy ? 'ok' : 'degraded',
     service: 'tweet-ingestion-worker',
     interval: INTERVAL,
+    database: dbHealthy ? 'connected' : 'disconnected',
+    isRunning: workerInterval !== null,
     timestamp: new Date().toISOString(),
   });
 });
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`🏥 Tweet Ingestion Worker health check on port ${PORT}`);
 });
 
@@ -171,10 +177,22 @@ async function runWorker() {
   await ingestTweets();
   
   // Then run on interval
-  setInterval(async () => {
+  workerInterval = setInterval(async () => {
     await ingestTweets();
   }, INTERVAL);
 }
+
+// Register cleanup to stop worker interval
+registerCleanup(async () => {
+  console.log('🛑 Stopping Tweet Ingestion Worker interval...');
+  if (workerInterval) {
+    clearInterval(workerInterval);
+    workerInterval = null;
+  }
+});
+
+// Setup graceful shutdown
+setupGracefulShutdown('Tweet Ingestion Worker', server);
 
 // Start worker
 if (require.main === module) {

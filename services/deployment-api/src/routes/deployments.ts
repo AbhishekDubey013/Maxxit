@@ -1,9 +1,8 @@
 import { Router, Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
+import { prisma } from '../../../shared/lib/prisma-client';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 // Schemas
 const DeploymentStatusEnum = z.enum(['ACTIVE', 'PAUSED', 'CANCELLED']);

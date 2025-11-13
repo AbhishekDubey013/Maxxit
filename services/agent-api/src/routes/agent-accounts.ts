@@ -1,8 +1,7 @@
 import { Router, Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../../../shared/lib/prisma-client';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 // GET /api/agent-accounts - List agent accounts for a specific agent
 router.get('/', async (req: Request, res: Response) => {

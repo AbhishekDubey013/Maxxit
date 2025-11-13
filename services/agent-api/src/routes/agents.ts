@@ -1,9 +1,8 @@
 import { Router, Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
+import { prisma } from '../../../shared/lib/prisma-client';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 // Schema for agent creation (matching shared/schema.ts)
 const VenueEnum = z.enum(["SPOT", "GMX", "HYPERLIQUID", "OSTIUM", "MULTI"]);
