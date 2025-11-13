@@ -62,7 +62,7 @@ async function ingestTweets() {
       });
       
       if (proxyCheck.ok) {
-        const healthData = await proxyCheck.json();
+        const healthData = await proxyCheck.json() as any;
         console.log(`✅ Twitter proxy is available (client: ${healthData.client_initialized ? 'ready' : 'not initialized'})\n`);
         proxyAvailable = true;
       } else {
@@ -114,7 +114,7 @@ async function ingestTweets() {
           throw new Error(`Twitter proxy returned ${response.status}`);
         }
 
-        const data = await response.json();
+        const data = await response.json() as any;
         const tweets = data.tweets || [];
 
         console.log(`[${account.x_username}] ✅ Fetched ${tweets.length} new tweets`);
