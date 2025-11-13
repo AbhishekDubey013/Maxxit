@@ -1,0 +1,261 @@
+// V3 Schema - Completely separate from V2
+// New tables: agents_v3, signals_v3, positions_v3, etc.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// V3 AGENT WHERE SYSTEM - SEPARATE TABLES
+// ============================================================================
+
+model agents_v3 {
+  id                        String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  creator_wallet            String
+  name                      String
+  venue                     venue_v3_t              @default(MULTI)  // Always MULTI for V3
+  status                    agent_status_t          @default(DRAFT)
+  
+  // Agent What - Signal sources (venue-agnostic)
+  x_account_ids             String[]                // X/Twitter account IDs to follow
+  research_institute_ids    String[]                // Research institute IDs
+  
+  // Weights for different sources
+  weights                   Json                    // { x: 0.4, research: 0.3, onchain: 0.3 }
+  
+  // Performance metrics
+  apr_30d                   Float?                  @db.Real
+  apr_90d                   Float?                  @db.Real
+  apr_si                    Float?                  @db.Real
+  sharpe_30d                Float?                  @db.Real
+  
+  // Profit receiver
+  profit_receiver_address   String
+  
+  // Proof of Intent
+  proof_of_intent_message   String?
+  proof_of_intent_signature String?
+  proof_of_intent_timestamp DateTime?               @db.Timestamptz(6)
+  
+  // Timestamps
+  created_at                DateTime                @default(now()) @db.Timestamptz(6)
+  updated_at                DateTime                @default(now()) @db.Timestamptz(6)
+  
+  // Relations
+  deployments_v3            agent_deployments_v3[]
+  signals_v3                signals_v3[]
+  routing_config            venue_routing_config_v3?
+  
+  @@index([status, venue])
+  @@index([creator_wallet])
+}
+
+model agent_deployments_v3 {
+  id                              String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  agent_id                        String            @db.Uuid
+  user_wallet                     String
+  safe_wallet                     String?           // Optional - for SPOT/GMX
+  
+  status                          agent_status_t    @default(ACTIVE)
+  
+  // Subscription
+  sub_active                      Boolean           @default(true)
+  sub_started_at                  DateTime          @default(now()) @db.Timestamptz(6)
+  trial_ends_at                   DateTime?         @db.Timestamptz(6)
+  next_billing_at                 DateTime?         @db.Timestamptz(6)
+  
+  // Module (for SPOT/GMX venues)
+  module_enabled                  Boolean           @default(false)
+  module_address                  String?
+  
+  // Hyperliquid agent wallet
+  hyperliquid_agent_address       String?
+  hyperliquid_agent_key_encrypted String?
+  hyperliquid_agent_key_iv        String?
+  hyperliquid_agent_key_tag       String?
+  
+  // Ostium agent wallet (same as Hyperliquid for now)
+  ostium_agent_address            String?
+  ostium_agent_key_encrypted      String?
+  ostium_agent_key_iv             String?
+  ostium_agent_key_tag            String?
+  
+  // Timestamps
+  created_at                      DateTime          @default(now()) @db.Timestamptz(6)
+  
+  // Relations
+  agents_v3                       agents_v3         @relation(fields: [agent_id], references: [id], onDelete: Cascade)
+  positions_v3                    positions_v3[]
+  
+  @@unique([user_wallet, agent_id])
+  @@index([agent_id])
+  @@index([user_wallet])
+}
+
+model signals_v3 {
+  id                           String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  agent_id                     String                  @db.Uuid
+  
+  // Agent What outputs (venue-agnostic)
+  token_symbol                 String
+  side                         String                  // LONG | SHORT
+  size_model                   Json                    // { type: "percentage", value: 25 }
+  risk_model                   Json                    // { type: "trailing-stop", stop: 0.03 }
+  confidence                   Float?                  @db.Real
+  
+  // Venue (starts as MULTI, gets resolved by Agent Where)
+  requested_venue              venue_v3_t              @default(MULTI)
+  final_venue                  venue_v3_t?             // Set after routing
+  
+  // Source tracking
+  source_tweets                String[]                @default([])
+  source_research              String[]                @default([])
+  
+  // Status
+  status                       String                  @default("PENDING")  // PENDING | ROUTED | EXECUTED | SKIPPED
+  skipped_reason               String?
+  
+  // Proof & verification
+  proof_verified               Boolean                 @default(false)
+  executor_agreement_verified  Boolean                 @default(false)
+  
+  // LunarCrush score
+  lunarcrush_score             Float?
+  lunarcrush_reasoning         String?
+  
+  // Timestamps
+  created_at                   DateTime                @default(now()) @db.Timestamptz(6)
+  routed_at                    DateTime?               @db.Timestamptz(6)
+  executed_at                  DateTime?               @db.Timestamptz(6)
+  
+  // Relations
+  agents_v3                    agents_v3               @relation(fields: [agent_id], references: [id], onDelete: Cascade)
+  positions_v3                 positions_v3[]
+  routing_history              venue_routing_history_v3?
+  
+  @@index([agent_id, created_at])
+  @@index([status])
+}
+
+model positions_v3 {
+  id                    String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  deployment_id         String                  @db.Uuid
+  signal_id             String                  @db.Uuid
+  
+  // Venue where position was opened
+  venue                 venue_v3_t
+  
+  // Position details
+  token_symbol          String
+  side                  String                  // LONG | SHORT
+  qty                   Decimal                 @db.Decimal(20, 8)
+  entry_price           Decimal                 @db.Decimal(20, 8)
+  current_price         Decimal?                @db.Decimal(20, 8)
+  
+  // Risk management
+  stop_loss             Decimal?                @db.Decimal(20, 8)
+  take_profit           Decimal?                @db.Decimal(20, 8)
+  trailing_params       Json?
+  
+  // Status
+  status                String                  @default("OPEN")  // OPEN | CLOSED
+  opened_at             DateTime                @default(now()) @db.Timestamptz(6)
+  closed_at             DateTime?               @db.Timestamptz(6)
+  
+  // Exit details
+  exit_price            Decimal?                @db.Decimal(20, 8)
+  exit_reason           String?
+  pnl                   Decimal?                @db.Decimal(20, 8)
+  
+  // Transaction hashes
+  entry_tx_hash         String?
+  exit_tx_hash          String?
+  
+  // Relations
+  agent_deployments_v3  agent_deployments_v3    @relation(fields: [deployment_id], references: [id], onDelete: Cascade)
+  signals_v3            signals_v3              @relation(fields: [signal_id], references: [id], onDelete: Cascade)
+  
+  @@unique([deployment_id, signal_id])
+  @@index([deployment_id, opened_at])
+  @@index([signal_id])
+  @@index([status])
+  @@index([venue])
+}
+
+// ============================================================================
+// V3 VENUE ROUTING (Agent Where)
+// ============================================================================
+
+model venue_routing_config_v3 {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  agent_id          String?  @db.Uuid  // null = global default
+  
+  venue_priority    String[] // ["HYPERLIQUID", "OSTIUM"]
+  routing_strategy  String   @default("FIRST_AVAILABLE")
+  failover_enabled  Boolean  @default(true)
+  
+  created_at        DateTime @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime @default(now()) @db.Timestamptz(6)
+  
+  agents_v3         agents_v3? @relation(fields: [agent_id], references: [id], onDelete: Cascade)
+  
+  @@unique([agent_id])
+  @@index([agent_id])
+}
+
+model venue_routing_history_v3 {
+  id                 String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  signal_id          String     @unique @db.Uuid
+  
+  token_symbol       String
+  requested_venue    venue_v3_t  // MULTI
+  selected_venue     venue_v3_t  // HYPERLIQUID or OSTIUM
+  routing_reason     String
+  
+  checked_venues     String[]
+  venue_availability Json
+  routing_duration_ms Int?
+  
+  created_at         DateTime   @default(now()) @db.Timestamptz(6)
+  
+  signals_v3         signals_v3 @relation(fields: [signal_id], references: [id], onDelete: Cascade)
+  
+  @@index([signal_id])
+  @@index([token_symbol, selected_venue])
+  @@index([created_at])
+}
+
+// ============================================================================
+// V3 ENUMS
+// ============================================================================
+
+enum venue_v3_t {
+  MULTI        // Multi-venue routing (Agent Where)
+  HYPERLIQUID  // Specific venue
+  OSTIUM       // Specific venue
+  GMX          // Future
+  SPOT         // Future
+}
+
+enum agent_status_t {
+  DRAFT
+  ACTIVE
+  PAUSED
+}
+
+// ============================================================================
+// SHARED TABLES (used by both V2 and V3)
+// ============================================================================
+// These remain unchanged:
+// - venue_markets (market data for all venues)
+// - ct_accounts (X/Twitter accounts)
+// - ct_posts (tweets)
+// - research_institutes
+// - research_signals
+// - token_registry
+
