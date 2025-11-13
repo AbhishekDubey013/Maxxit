@@ -83,7 +83,7 @@ router.get('/', async (req: Request, res: Response) => {
     });
 
     // Add 6h bucket to each signal and serialize
-    const signalsWithBucket = signals.map(signal => {
+    const signalsWithBucket = signals.map((signal: any) => {
       const bucket6h = bucket6hUtc(signal.created_at);
       const serialized = serializePrisma(signal);
       return {
@@ -161,15 +161,15 @@ router.get('/agent/:agentId/stats', async (req: Request, res: Response) => {
     });
 
     return res.status(200).json({
-      signalCounts: signalCounts.map(sc => ({
+      signalCounts: signalCounts.map((sc: any) => ({
         status: sc.status,
         count: sc._count,
       })),
-      venueCounts: venueCounts.map(vc => ({
+      venueCounts: venueCounts.map((vc: any) => ({
         venue: vc.venue,
         count: vc._count,
       })),
-      recentSignals: recentSignals.map(s => serializePrisma(s)),
+      recentSignals: recentSignals.map((s: any) => serializePrisma(s)),
     });
   } catch (error: any) {
     console.error('[Signal API] GET /agent/:agentId/stats error:', error);
