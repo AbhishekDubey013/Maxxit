@@ -11,13 +11,15 @@ const SIGNAL_GENERATION_INTERVAL = parseInt(process.env.SIGNAL_GENERATION_INTERV
 const RESEARCH_SIGNAL_INTERVAL = parseInt(process.env.RESEARCH_SIGNAL_INTERVAL || '120000'); // 2 mins
 const TRADE_EXECUTION_INTERVAL = parseInt(process.env.TRADE_EXECUTION_INTERVAL || '30000'); // 30 sec
 const POSITION_MONITOR_INTERVAL = parseInt(process.env.POSITION_MONITOR_INTERVAL || '60000'); // 1 min
+const METRICS_UPDATER_INTERVAL = parseInt(process.env.METRICS_UPDATER_INTERVAL || '3600000'); // 1 hour
 
 const workers = [
   { name: 'Tweet Ingestion', script: 'workers/tweet-ingestion-worker.ts', interval: TWEET_INGESTION_INTERVAL },
   { name: 'Signal Generator', script: 'workers/signal-generator.ts', interval: SIGNAL_GENERATION_INTERVAL },
   { name: 'Research Signal Generator', script: 'workers/research-signal-generator.ts', interval: RESEARCH_SIGNAL_INTERVAL },
   { name: 'Trade Executor', script: 'workers/trade-executor-worker.ts', interval: TRADE_EXECUTION_INTERVAL },
-  { name: 'Position Monitor (Combined)', script: 'workers/position-monitor-combined.ts', interval: POSITION_MONITOR_INTERVAL }
+  { name: 'Position Monitor (Combined)', script: 'workers/position-monitor-combined.ts', interval: POSITION_MONITOR_INTERVAL },
+  { name: 'Metrics Updater', script: 'workers/metrics-updater-worker.ts', interval: METRICS_UPDATER_INTERVAL }
 ];
 
 function runWorker(worker) {
