@@ -102,12 +102,12 @@ export default function Creator() {
     setActivatingAgentId(agentId);
     try {
       await db.patch(`agents?id=eq.${agentId}`, {
-        status: 'ACTIVE',
+        status: 'PUBLIC', // Changed from ACTIVE to PUBLIC
       });
 
       // Update local state
       setAgents(agents.map(a => 
-        a.id === agentId ? { ...a, status: 'ACTIVE' as const } : a
+        a.id === agentId ? { ...a, status: 'PUBLIC' as const } : a
       ));
 
       toast({
@@ -129,12 +129,12 @@ export default function Creator() {
     setDeactivatingAgentId(agentId);
     try {
       await db.patch(`agents?id=eq.${agentId}`, {
-        status: 'PAUSED',
+        status: 'PRIVATE', // Changed from PAUSED to PRIVATE
       });
 
       // Update local state
       setAgents(agents.map(a => 
-        a.id === agentId ? { ...a, status: 'PAUSED' as const } : a
+        a.id === agentId ? { ...a, status: 'PRIVATE' as const } : a
       ));
 
       toast({
@@ -355,13 +355,13 @@ export default function Creator() {
                       </div>
                       <div className="flex items-center gap-2">
                         <span className={`px-2 py-1 text-xs rounded-md ${
-                          agent.status === 'ACTIVE' ? 'bg-primary/20 text-primary' :
-                          agent.status === 'PAUSED' ? 'bg-yellow-500/20 text-yellow-500' :
+                          agent.status === 'PUBLIC' || agent.status === 'ACTIVE' ? 'bg-primary/20 text-primary' :
+                          agent.status === 'PRIVATE' || agent.status === 'PAUSED' ? 'bg-yellow-500/20 text-yellow-500' :
                           'bg-muted text-muted-foreground'
                         }`}>
                           {agent.status}
                         </span>
-                        {(agent.status === 'DRAFT' || agent.status === 'PAUSED') && (
+                        {(agent.status === 'DRAFT' || agent.status === 'PRIVATE' || agent.status === 'PAUSED') && (
                           <button
                             onClick={() => activateAgent(agent.id)}
                             disabled={activatingAgentId === agent.id}
@@ -372,7 +372,7 @@ export default function Creator() {
                             {activatingAgentId === agent.id ? 'Activating...' : 'Activate'}
                           </button>
                         )}
-                        {agent.status === 'ACTIVE' && (
+                        {(agent.status === 'PUBLIC' || agent.status === 'ACTIVE') && (
                           <button
                             onClick={() => deactivateAgent(agent.id)}
                             disabled={deactivatingAgentId === agent.id}

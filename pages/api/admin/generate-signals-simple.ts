@@ -93,8 +93,8 @@ export default async function handler(
         for (const link of agentLinks) {
           const agent = link.agent;
 
-          // Skip non-ACTIVE agents
-          if (agent.status !== 'ACTIVE') {
+          // Skip non-PUBLIC agents
+          if (agent.status !== 'PUBLIC') {
             console.log(`[GenerateSignals] Skipping ${agent.name} - status: ${agent.status}`);
             continue;
           }

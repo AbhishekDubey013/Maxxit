@@ -30,7 +30,7 @@ export default function Home() {
     async function fetchAgents() {
       try {
         const data = await db.get('agents', {
-          'status': 'eq.ACTIVE',
+          'status': 'eq.PUBLIC', // Changed from ACTIVE to PUBLIC
           'order': 'apr30d.desc',
           'limit': '20',
           'select': 'id,name,venue,apr30d,apr90d,aprSi,sharpe30d',

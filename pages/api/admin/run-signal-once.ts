@@ -81,7 +81,7 @@ export default async function handler(
           const agent = link.agents;
 
           // Skip non-ACTIVE agents
-          if (agent.status !== 'ACTIVE') continue;
+          if (agent.status !== 'PUBLIC') continue; // Only generate signals for public agents
 
           // Check for duplicate (same agent, token, 6h bucket)
           const currentBucket = bucket6hUtc(new Date());
