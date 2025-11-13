@@ -52,6 +52,9 @@
 ## 🔲 To Do (User Actions)
 
 ### Setup & Testing
+- [x] Run database setup: `npx tsx scripts/exec-v3-sql-fixed.ts`
+- [x] Verify all tables: `npx tsx scripts/check-all-v3-tables.ts`
+- [x] Check homepage loads correctly (shows "No V3 agents yet")
 - [ ] Create first V3 agent via API
 - [ ] Deploy agent to test wallet
 - [ ] Generate test signal

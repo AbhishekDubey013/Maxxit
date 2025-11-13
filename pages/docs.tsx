@@ -13,6 +13,7 @@ export default function DocsPage() {
   const sections = [
     { id: 'overview', title: 'Overview', icon: BookOpen },
     { id: 'getting-started', title: 'Getting Started', icon: Zap },
+    { id: 'v3-multi-venue', title: 'V3 Multi-Venue Agents', icon: TrendingUp },
     { id: 'non-custodial', title: 'Non-Custodial Model', icon: Lock },
     { id: 'agents', title: 'Creating Agents', icon: TrendingUp },
     { id: 'profit-sharing', title: 'Profit Sharing (20%)', icon: Users },
@@ -139,6 +140,174 @@ export default function DocsPage() {
                         Forward-tested signal sources with on-chain verified results. Similar to Kaito's mindshare, but for trading impact.
                       </p>
                     </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </section>
+
+            {/* V3 Multi-Venue Agents */}
+            <section id="v3-multi-venue">
+              <Card className="border-purple-200 dark:border-purple-800">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-purple-600 dark:text-purple-400">
+                    <TrendingUp className="h-5 w-5" />
+                    V3 Multi-Venue Agents (NEW)
+                  </CardTitle>
+                  <CardDescription>Intelligent routing across multiple trading venues</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="bg-purple-50 dark:bg-purple-950/20 p-4 rounded-lg border border-purple-200 dark:border-purple-800">
+                    <h4 className="font-semibold mb-2 flex items-center gap-2">
+                      ✨ Agent Where: Intelligent Venue Routing
+                    </h4>
+                    <p className="text-sm text-muted-foreground">
+                      V3 introduces a revolutionary <strong>three-layer agent framework</strong> that separates signal generation from execution. 
+                      V3 agents automatically route trades to the best available venue, maximizing market coverage and trading opportunities.
+                    </p>
+                  </div>
+                  
+                  <div className="space-y-3">
+                    <h4 className="font-semibold">Three-Layer Framework</h4>
+                    <div className="space-y-3">
+                      <div className="p-4 border rounded-md bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800">
+                        <h5 className="font-semibold mb-2">1. Agent What (Signal & Alpha Layer)</h5>
+                        <p className="text-sm text-muted-foreground mb-2">
+                          Generates <strong>venue-agnostic</strong> trading signals based on X posts, research signals, and market data.
+                        </p>
+                        <div className="text-xs font-mono bg-muted p-2 rounded mt-2">
+                          Output: {"{ token: 'ETH', side: 'LONG', size: '25%', confidence: 0.85 }"}
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-2">
+                          No venue specified - Agent What focuses purely on WHAT to trade, not WHERE.
+                        </p>
+                      </div>
+                      
+                      <div className="p-4 border rounded-md bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800">
+                        <h5 className="font-semibold mb-2">2. Agent How (Policy & Personalization)</h5>
+                        <p className="text-sm text-muted-foreground">
+                          Infrastructure layer for future user-specific policies, risk preferences, and personalization. 
+                          Currently operates in pass-through mode, ready for future enhancements.
+                        </p>
+                      </div>
+                      
+                      <div className="p-4 border rounded-md bg-purple-50 dark:bg-purple-950/20 border-purple-200 dark:border-purple-800">
+                        <h5 className="font-semibold mb-2">3. Agent Where (Execution & Routing)</h5>
+                        <p className="text-sm text-muted-foreground mb-2">
+                          <strong>Intelligent venue selection</strong> that automatically routes each trade to the best available venue:
+                        </p>
+                        <ul className="list-disc list-inside text-sm text-muted-foreground ml-2 space-y-1">
+                          <li><strong>Priority 1:</strong> Check HYPERLIQUID (220 trading pairs)</li>
+                          <li><strong>Priority 2:</strong> If not available, check OSTIUM (41 pairs)</li>
+                          <li><strong>Fallback:</strong> Skip trade if neither venue has the pair</li>
+                        </ul>
+                        <div className="bg-muted p-2 rounded mt-2 text-xs">
+                          <strong>Example:</strong> Signal for ETH → Check Hyperliquid → ETH available → Execute on Hyperliquid → Log routing decision
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <Separator />
+                  
+                  <div className="space-y-3">
+                    <h4 className="font-semibold">Market Coverage</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div className="p-4 border rounded-md">
+                        <div className="flex items-center justify-between mb-2">
+                          <h5 className="font-semibold">HYPERLIQUID</h5>
+                          <Badge variant="secondary">Priority 1</Badge>
+                        </div>
+                        <div className="text-2xl font-bold text-purple-600 mb-1">220 pairs</div>
+                        <p className="text-xs text-muted-foreground">
+                          Perpetual trading with leverage, checked first for all signals
+                        </p>
+                      </div>
+                      
+                      <div className="p-4 border rounded-md">
+                        <div className="flex items-center justify-between mb-2">
+                          <h5 className="font-semibold">OSTIUM</h5>
+                          <Badge variant="outline">Priority 2</Badge>
+                        </div>
+                        <div className="text-2xl font-bold text-blue-600 mb-1">41 pairs</div>
+                        <p className="text-xs text-muted-foreground">
+                          Synthetic perp trading, used as fallback when Hyperliquid doesn't have the pair
+                        </p>
+                      </div>
+                    </div>
+                    
+                    <div className="bg-green-50 dark:bg-green-950/20 p-4 rounded-lg border border-green-200 dark:border-green-800">
+                      <h5 className="font-semibold text-sm mb-2">📊 Combined Coverage</h5>
+                      <div className="text-2xl font-bold text-green-600 mb-1">261 total pairs</div>
+                      <p className="text-xs text-muted-foreground">
+                        V3 agents automatically access both venues, trading wherever the pair is available. 
+                        No manual venue selection needed.
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <Separator />
+                  
+                  <div className="space-y-3">
+                    <h4 className="font-semibold">How V3 Differs from V2</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                      <div className="p-3 border rounded-md">
+                        <h5 className="font-semibold mb-1 text-muted-foreground">V2 Agents (Legacy)</h5>
+                        <ul className="space-y-1 text-xs text-muted-foreground">
+                          <li>• Fixed venue at creation (SPOT, GMX, or HYPERLIQUID)</li>
+                          <li>• Agent can only trade on one venue</li>
+                          <li>• Must create separate agents for each venue</li>
+                          <li>• Limited to one venue's market coverage</li>
+                        </ul>
+                      </div>
+                      <div className="p-3 border rounded-md bg-purple-50 dark:bg-purple-950/20">
+                        <h5 className="font-semibold mb-1 text-purple-600">V3 Agents (New)</h5>
+                        <ul className="space-y-1 text-xs">
+                          <li>• ✅ Dynamic venue per trade (MULTI)</li>
+                          <li>• ✅ Automatically trades across venues</li>
+                          <li>• ✅ One agent covers all venues</li>
+                          <li>• ✅ Access to 261 trading pairs</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <Separator />
+                  
+                  <div className="bg-blue-50 dark:bg-blue-950/20 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
+                    <h4 className="font-semibold mb-2">🔍 Routing Transparency</h4>
+                    <p className="text-sm text-muted-foreground mb-2">
+                      Every routing decision is logged and auditable. Check the <code className="bg-muted px-1 rounded">venue_routing_history_v3</code> table to see:
+                    </p>
+                    <ul className="space-y-1 text-sm text-muted-foreground ml-4">
+                      <li>• Which venues were checked</li>
+                      <li>• Why a specific venue was selected</li>
+                      <li>• Routing decision time (&lt;50ms average)</li>
+                      <li>• Venue availability for each token</li>
+                    </ul>
+                  </div>
+                  
+                  <div className="bg-yellow-50 dark:bg-yellow-950/20 p-4 rounded-lg border border-yellow-200 dark:border-yellow-800">
+                    <h4 className="font-semibold mb-2 flex items-center gap-2">
+                      <AlertTriangle className="h-4 w-4" />
+                      V2 and V3 Separation
+                    </h4>
+                    <p className="text-sm text-muted-foreground">
+                      V3 agents use <strong>completely separate database tables</strong> (agents_v3, signals_v3, positions_v3) with zero overlap 
+                      from V2. Both systems run independently. Your existing V2 agents continue working unchanged.
+                    </p>
+                  </div>
+                  
+                  <div className="flex gap-3 mt-4">
+                    <Link href="/">
+                      <Button variant="default">
+                        Browse V3 Agents
+                      </Button>
+                    </Link>
+                    <Link href="/create-agent">
+                      <Button variant="outline">
+                        Create V3 Agent
+                      </Button>
+                    </Link>
                   </div>
                 </CardContent>
               </Card>

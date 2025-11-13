@@ -194,6 +194,44 @@ CREATE TABLE venue_routing_history_v3 (
 
 ---
 
+## 🌐 Frontend Pages
+
+### Homepage (/)
+**Status**: Shows V3 agents ONLY
+
+The main homepage has been updated to display V3 agents exclusively:
+
+```typescript
+// pages/index.tsx
+const data = await db.get('agents_v3', {  // V3 table
+  'status': 'eq.ACTIVE',
+  'order': 'created_at.desc',
+  'limit': '20',
+  'select': 'id,name,venue,apr30d,apr90d,aprSi,sharpe30d',
+});
+```
+
+**Features**:
+- ✨ V3 banner at top
+- Purple/blue V3 branding
+- "No V3 agents yet" empty state
+- V2 agents completely hidden
+
+### V3 Dedicated Page (/v3)
+**Status**: Optional V3-specific interface
+
+```bash
+URL: /v3
+```
+
+A dedicated V3 page with:
+- Multi-venue agent showcase
+- V3 branding and messaging
+- Intelligent routing highlights
+- 261 trading pairs coverage info
+
+---
+
 ## 🔌 API Endpoints
 
 ### Agent Management
@@ -376,7 +414,14 @@ Response:
 
 ## 🚀 Quick Start
 
-### 1. Verify V3 Setup
+### 1. Setup Database (First Time Only)
+```bash
+npx tsx scripts/exec-v3-sql-fixed.ts
+```
+
+This creates all V3 tables in your database.
+
+### 2. Verify V3 Setup
 ```bash
 npx tsx scripts/verify-v3-system.ts
 ```
@@ -389,6 +434,13 @@ Expected output:
 ✅ V2 and V3 are separate
 ✅ Market data available (220 HL + 41 Ostium pairs)
 ```
+
+### 3. Check All Tables Present
+```bash
+npx tsx scripts/check-all-v3-tables.ts
+```
+
+Comprehensive verification of all 6 V3 tables and structures.
 
 ### 2. Create Your First V3 Agent
 
