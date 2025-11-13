@@ -45,10 +45,15 @@ export async function updateAgentMetrics(agentId: string): Promise<MetricsUpdate
     const deploymentIds = deployments.map(d => d.id);
 
     // 🔧 FIX: Filter positions by VENUE to prevent cross-venue APR contamination
+    // For MULTI venue agents, include positions from all venues (they were routed)
+    const venueFilter = agent.venue === 'MULTI' 
+      ? { in: ['HYPERLIQUID', 'OSTIUM', 'GMX', 'SPOT'] } // All possible venues
+      : agent.venue; // Specific venue only
+
     const positions = await prisma.positions.findMany({
       where: {
         deployment_id: { in: deploymentIds },
-        venue: agent.venue, // ✅ Only positions from THIS venue
+        venue: venueFilter, // ✅ MULTI agents: all venues, others: specific venue
         closed_at: { not: null },
       },
       orderBy: { closed_at: 'desc' },
