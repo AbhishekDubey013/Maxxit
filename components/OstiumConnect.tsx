@@ -1,15 +1,14 @@
 /**
- * Ostium Connection Flow
- * 1. Connect Arbitrum wallet
- * 2. Generate agent wallet
- * 3. Get testnet USDC (optional)
- * 4. Approve agent
- * 5. Create deployment
+ * Ostium Connection Flow - SIMPLIFIED (Like Monolith)
+ * 1. Connect wallet
+ * 2. Assign agent from pool
+ * 3. User signs setDelegate transaction
+ * 4. Done!
  */
 
 import { useState, useEffect } from 'react';
 import { usePrivy } from '@privy-io/react-auth';
-import { X, Wallet, Key, Coins, CheckCircle, AlertCircle, Loader2, ExternalLink, Copy } from 'lucide-react';
+import { X, Wallet, CheckCircle, AlertCircle, Loader2, Zap } from 'lucide-react';
 import { ethers } from 'ethers';
 
 interface OstiumConnectProps {
@@ -19,7 +18,12 @@ interface OstiumConnectProps {
   onSuccess?: () => void;
 }
 
-type Step = 'connect' | 'agent' | 'faucet' | 'approve' | 'complete';
+// Ostium Trading Contract on Arbitrum Sepolia
+const OSTIUM_TRADING_CONTRACT = '0x2A9B9c988393f46a2537B0ff11E98c2C15a95afe';
+const OSTIUM_TRADING_ABI = [
+  'function setDelegate(address delegate) external',
+  'function delegations(address delegator) view returns (address)',
+];
 
 export function OstiumConnect({
   agentId,
@@ -27,498 +31,288 @@ export function OstiumConnect({
   onClose,
   onSuccess,
 }: OstiumConnectProps) {
-  console.log('[OstiumConnect] Component rendered/mounted', { agentId, agentName });
-  
   const { user, authenticated, login } = usePrivy();
-  const [step, setStep] = useState<Step>('connect');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  
-  const [userWallet, setUserWallet] = useState<string>('');
   const [agentAddress, setAgentAddress] = useState<string>('');
-  const [balance, setBalance] = useState<{ usdc: string; eth: string }>({ usdc: '0', eth: '0' });
-  const [copied, setCopied] = useState(false);
-  const [serviceAvailable, setServiceAvailable] = useState(true);
-  
-  console.log('[OstiumConnect] Current state:', { step, loading, authenticated, userWallet: user?.wallet?.address });
+  const [txHash, setTxHash] = useState<string | null>(null);
+  const [approved, setApproved] = useState(false);
 
-  // Watch for step changes
+  // Auto-assign agent when wallet is connected
   useEffect(() => {
-    console.log('[OstiumConnect] useEffect: step changed to:', step);
-  }, [step]);
-
-  // Track component lifecycle
-  useEffect(() => {
-    console.log('[OstiumConnect] Component MOUNTED');
-    return () => {
-      console.log('[OstiumConnect] Component UNMOUNTING!');
-    };
-  }, []);
-
-  // Step 1: Connect Wallet
-  const connectWallet = () => {
-    console.log('[OstiumConnect] connectWallet called', { authenticated, wallet: user?.wallet?.address });
-
-    // If not authenticated, trigger login
-    if (!authenticated || !user?.wallet?.address) {
-      console.log('[OstiumConnect] Not authenticated, calling login');
-      login();
-      return;
+    if (authenticated && user?.wallet?.address && !agentAddress && !loading) {
+      assignAgent();
     }
+  }, [authenticated, user?.wallet?.address]);
 
-    const address = user.wallet.address;
-    console.log('[OstiumConnect] User wallet:', address);
-    setUserWallet(address);
-
-    // Move to next step immediately (skip balance check to avoid unmount issues)
-    console.log('[OstiumConnect] Moving to agent step');
-    setStep('agent');
-    
-    // Fetch balance in background for display
-    fetch('/api/ostium/balance', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ address }),
-    })
-      .then(res => res.json())
-      .then(data => {
-        setBalance({
-          usdc: data.usdcBalance || '0',
-          eth: data.ethBalance || '0',
-        });
-        setServiceAvailable(data.serviceAvailable !== false);
-      })
-      .catch(err => console.error('[OstiumConnect] Background balance fetch failed:', err));
-  };
-
-  // Step 2: Generate Agent Wallet
-  const generateAgent = async () => {
+  const assignAgent = async () => {
     setLoading(true);
     setError('');
 
     try {
-      const response = await fetch('/api/ostium/generate-agent', {
+      console.log('[Ostium] Assigning agent for user:', user?.wallet?.address);
+
+      const response = await fetch('/api/ostium/deploy-complete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          userId: user?.id || user?.wallet?.address,
           agentId,
+          userWallet: user?.wallet?.address,
         }),
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to generate agent wallet');
+        throw new Error(errorData.error || 'Failed to assign agent');
       }
 
       const data = await response.json();
       setAgentAddress(data.agentAddress);
-      setStep('faucet');
+      console.log('[Ostium] Agent assigned:', data.agentAddress);
     } catch (err: any) {
-      setError(err.message || 'Failed to generate agent wallet');
+      console.error('[Ostium] Failed to assign agent:', err);
+      setError(err.message || 'Failed to assign agent wallet');
     } finally {
       setLoading(false);
     }
   };
 
-  // Step 3: Request Faucet (Optional)
-  const requestFaucet = async () => {
-    setLoading(true);
-    setError('');
-
-    try {
-      const response = await fetch('/api/ostium/faucet', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ address: userWallet }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Faucet request failed');
-      }
-
-      // Update balance
-      const balanceResponse = await fetch('/api/ostium/balance', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ address: userWallet }),
-      });
-
-      if (balanceResponse.ok) {
-        const balanceData = await balanceResponse.json();
-        setBalance({
-          usdc: balanceData.usdcBalance || '0',
-          eth: balanceData.ethBalance || '0',
-        });
-      }
-
-      setStep('approve');
-    } catch (err: any) {
-      setError(err.message || 'Faucet request failed');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Step 4: Approve Agent
   const approveAgent = async () => {
     setLoading(true);
     setError('');
 
     try {
-      // Create deployment
-      const deploymentResponse = await fetch('/api/ostium/create-deployment', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          agentId,
-          userWallet,
-          agentAddress,
-        }),
-      });
-
-      if (!deploymentResponse.ok) {
-        const errorData = await deploymentResponse.json();
-        throw new Error(errorData.error || 'Failed to create deployment');
+      if (!authenticated || !user?.wallet?.address) {
+        throw new Error('Please connect your wallet');
       }
 
-      setStep('complete');
-      onSuccess?.();
+      if (!agentAddress) {
+        throw new Error('Agent not assigned yet');
+      }
+
+      console.log('[Ostium] Starting approval...');
+      console.log('   User:', user.wallet.address);
+      console.log('   Agent:', agentAddress);
+
+      // Get provider
+      const provider = (window as any).ethereum;
+      if (!provider) {
+        throw new Error('No wallet provider found. Please install MetaMask.');
+      }
+
+      const ethersProvider = new ethers.providers.Web3Provider(provider);
+      const signer = ethersProvider.getSigner();
+
+      // Create contract instance
+      const contract = new ethers.Contract(
+        OSTIUM_TRADING_CONTRACT,
+        OSTIUM_TRADING_ABI,
+        signer
+      );
+
+      console.log('[Ostium] Calling setDelegate...');
+
+      // Call setDelegate (user signs this transaction)
+      const tx = await contract.setDelegate(agentAddress);
+      console.log('[Ostium] Transaction sent:', tx.hash);
+      setTxHash(tx.hash);
+
+      // Wait for confirmation
+      console.log('[Ostium] Waiting for confirmation...');
+      const receipt = await tx.wait();
+      console.log('[Ostium] Confirmed! Block:', receipt.blockNumber);
+
+      setApproved(true);
+      
+      // Call success callback after a short delay
+      setTimeout(() => {
+        onSuccess?.();
+        onClose();
+      }, 2000);
+
     } catch (err: any) {
-      setError(err.message || 'Failed to approve agent');
+      console.error('[Ostium] Approval error:', err);
+      
+      if (err.code === 4001) {
+        setError('Transaction rejected by user');
+      } else if (err.code === -32603) {
+        setError('Transaction failed. Please try again.');
+      } else {
+        setError(err.message || 'Failed to approve agent');
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  const copyAddress = async (address: string) => {
-    try {
-      await navigator.clipboard.writeText(address);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      console.error('Failed to copy:', err);
+  const handleConnect = () => {
+    if (!authenticated) {
+      login();
     }
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div className="relative w-full max-w-lg mx-4 bg-card border border-border rounded-lg shadow-xl">
+      <div className="relative w-full max-w-md mx-4 bg-card border border-border rounded-lg shadow-xl">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-border">
+        <div className="flex items-center justify-between p-6 border-b border-border bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-t-lg">
           <div>
-            <h2 className="text-xl font-bold">Setup Ostium Trading</h2>
-            <p className="text-sm text-muted-foreground">Agent: {agentName}</p>
+            <div className="flex items-center gap-2 mb-1">
+              <Zap className="w-5 h-5" />
+              <h2 className="text-xl font-bold">Setup Ostium</h2>
+            </div>
+            <p className="text-sm text-blue-100">{agentName}</p>
           </div>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-muted rounded-md transition-colors"
+            className="p-2 hover:bg-white/20 rounded-md transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Steps Indicator */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-          {[
-            { id: 'connect', label: 'Connect', icon: Wallet },
-            { id: 'agent', label: 'Agent', icon: Key },
-            { id: 'faucet', label: 'Fund', icon: Coins },
-            { id: 'approve', label: 'Approve', icon: CheckCircle },
-          ].map((s, index) => {
-            const Icon = s.icon;
-            const isActive = step === s.id;
-            const isComplete = ['connect', 'agent', 'faucet'].indexOf(step) > ['connect', 'agent', 'faucet'].indexOf(s.id);
-            
-            return (
-              <div key={s.id} className="flex items-center">
-                <div className={`flex flex-col items-center ${index > 0 ? 'ml-2' : ''}`}>
-                  <div
-                    className={`w-10 h-10 rounded-full flex items-center justify-center border-2 transition-colors ${
-                      isComplete
-                        ? 'bg-green-600 border-green-600 text-white'
-                        : isActive
-                        ? 'bg-primary border-primary text-primary-foreground'
-                        : 'bg-muted border-border text-muted-foreground'
-                    }`}
-                  >
-                    <Icon className="w-5 h-5" />
-                  </div>
-                  <span className="text-xs mt-1 text-muted-foreground">{s.label}</span>
-                </div>
-                {index < 3 && (
-                  <div className="h-0.5 w-8 bg-border mx-2 mt-[-20px]"></div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-
         {/* Content */}
-        <div className="p-6">
+        <div className="p-6 space-y-4">
           {error && (
-            <div className="mb-4 flex items-start gap-2 p-3 text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 rounded-md">
+            <div className="flex items-start gap-2 p-3 text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 rounded-md">
               <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
               <span>{error}</span>
             </div>
           )}
 
-          {!serviceAvailable && (
-            <div className="mb-4 flex items-start gap-2 p-3 text-sm text-yellow-600 dark:text-yellow-400 bg-yellow-50 dark:bg-yellow-900/20 rounded-md">
-              <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
-              <div>
-                <div className="font-semibold">Ostium Service Unavailable</div>
-                <div className="text-xs mt-1">Balance checks and faucet may not work. You can still create the deployment.</div>
-              </div>
-            </div>
-          )}
-
-          {/* Step 1: Connect Wallet */}
-          <div className={step === 'connect' ? 'space-y-4' : 'hidden'}>
-              <div className="text-center space-y-2">
-                <Wallet className="w-12 h-12 mx-auto text-primary" />
-                <h3 className="text-lg font-semibold">Connect Your Wallet</h3>
-                <p className="text-sm text-muted-foreground">
-                  Connect your Arbitrum wallet to get started with Ostium trading
-                </p>
-              </div>
-
-              <div className="bg-muted p-4 rounded-md space-y-2 text-sm">
-                <div className="flex items-center gap-2">
-                  <CheckCircle className="w-4 h-4 text-green-600" />
-                  <span>Non-custodial - you keep control</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <CheckCircle className="w-4 h-4 text-green-600" />
-                  <span>Trade on Arbitrum (low gas fees)</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <CheckCircle className="w-4 h-4 text-green-600" />
-                  <span>Agent trades on your behalf</span>
-                </div>
-              </div>
-
-              <button
-                onClick={(e) => {
-                  console.log('[OstiumConnect] BUTTON CLICKED!', { loading, authenticated, step });
-                  e.preventDefault();
-                  connectWallet();
-                }}
-                disabled={loading}
-                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-primary text-primary-foreground rounded-md font-medium hover:bg-primary/90 disabled:opacity-50"
-              >
-                {loading ? (
-                  <>
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    Connecting...
-                  </>
-                ) : authenticated ? (
-                  <>
-                    <Wallet className="w-5 h-5" />
-                    Continue with Connected Wallet
-                  </>
-                ) : (
-                  <>
+          {!approved ? (
+            <>
+              {/* Not Connected */}
+              {!authenticated ? (
+                <div className="text-center space-y-4">
+                  <Wallet className="w-16 h-16 mx-auto text-muted-foreground" />
+                  <div>
+                    <h3 className="text-lg font-semibold mb-2">Connect Your Wallet</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Connect your Arbitrum wallet to whitelist the agent
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleConnect}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-primary text-primary-foreground rounded-md font-semibold hover:bg-primary/90"
+                  >
                     <Wallet className="w-5 h-5" />
                     Connect Wallet
-                  </>
-                )}
-              </button>
-            </div>
-
-          {/* Step 2: Generate Agent */}
-          <div className={step === 'agent' ? 'space-y-4' : 'hidden'}>
-              <div className="text-center space-y-2">
-                <Key className="w-12 h-12 mx-auto text-primary" />
-                <h3 className="text-lg font-semibold">Generate Agent Wallet</h3>
-                <p className="text-sm text-muted-foreground">
-                  We'll create a dedicated agent wallet to trade on your behalf
-                </p>
-              </div>
-
-              <div className="bg-muted p-4 rounded-md space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Your Wallet:</span>
-                  <span className="font-mono">{userWallet.slice(0, 10)}...{userWallet.slice(-8)}</span>
+                  </button>
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">USDC Balance:</span>
-                  <span className="font-semibold">${parseFloat(balance.usdc).toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">ETH Balance:</span>
-                  <span className="font-semibold">{parseFloat(balance.eth).toFixed(4)} ETH</span>
-                </div>
-              </div>
-
-              <button
-                onClick={generateAgent}
-                disabled={loading}
-                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-primary text-primary-foreground rounded-md font-medium hover:bg-primary/90 disabled:opacity-50"
-              >
-                {loading ? (
-                  <>
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    Generating...
-                  </>
-                ) : (
-                  <>
-                    <Key className="w-5 h-5" />
-                    Generate Agent Wallet
-                  </>
-                )}
-              </button>
-            </div>
-
-          {/* Step 3: Get Testnet USDC */}
-          <div className={step === 'faucet' ? 'space-y-4' : 'hidden'}>
-              <div className="text-center space-y-2">
-                <Coins className="w-12 h-12 mx-auto text-primary" />
-                <h3 className="text-lg font-semibold">Get Testnet USDC</h3>
-                <p className="text-sm text-muted-foreground">
-                  Request testnet USDC to start trading (Arbitrum Sepolia)
-                </p>
-              </div>
-
-              <div className="bg-muted p-4 rounded-md space-y-2">
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-muted-foreground">Agent Wallet:</span>
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono text-xs">{agentAddress.slice(0, 10)}...{agentAddress.slice(-8)}</span>
-                    <button
-                      onClick={() => copyAddress(agentAddress)}
-                      className="p-1 hover:bg-background rounded"
-                    >
-                      {copied ? <CheckCircle className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
-                    </button>
+              ) : !agentAddress ? (
+                /* Loading Agent */
+                <div className="text-center space-y-4 py-8">
+                  <Loader2 className="w-16 h-16 mx-auto text-primary animate-spin" />
+                  <div>
+                    <h3 className="text-lg font-semibold mb-2">Assigning Agent...</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Getting your agent wallet from the pool
+                    </p>
                   </div>
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Current Balance:</span>
-                  <span className="font-semibold">${parseFloat(balance.usdc).toFixed(2)} USDC</span>
-                </div>
-              </div>
+              ) : (
+                /* Ready to Approve */
+                <>
+                  <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                    <p className="text-sm text-blue-900 dark:text-blue-100 font-medium mb-2">
+                      🤖 Agent Assigned
+                    </p>
+                    <p className="text-xs text-blue-700 dark:text-blue-300 font-mono break-all">
+                      {agentAddress}
+                    </p>
+                  </div>
 
-              <div className="flex gap-2">
-                <button
-                  onClick={requestFaucet}
-                  disabled={loading}
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-primary text-primary-foreground rounded-md font-medium hover:bg-primary/90 disabled:opacity-50"
-                >
-                  {loading ? (
-                    <>
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                      Requesting...
-                    </>
-                  ) : (
-                    <>
-                      <Coins className="w-5 h-5" />
-                      Request Faucet
-                    </>
+                  <div className="bg-muted rounded-lg p-4 space-y-2 text-sm">
+                    <p className="font-semibold mb-2">What happens next:</p>
+                    <div className="flex items-start gap-2">
+                      <span className="text-green-600">1.</span>
+                      <span>Click "Approve Agent" below</span>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <span className="text-green-600">2.</span>
+                      <span>Sign the transaction in your wallet</span>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <span className="text-green-600">3.</span>
+                      <span>Agent can trade on your behalf!</span>
+                    </div>
+                  </div>
+
+                  <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3 text-xs text-yellow-800 dark:text-yellow-200">
+                    <strong>⚠️ You remain in control:</strong> Agent can only trade - cannot withdraw funds. You can revoke access anytime.
+                  </div>
+
+                  {txHash && (
+                    <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-3">
+                      <p className="text-green-700 dark:text-green-300 text-sm mb-2">Transaction submitted!</p>
+                      <a
+                        href={`https://sepolia.arbiscan.io/tx/${txHash}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:underline text-xs break-all"
+                      >
+                        View on Arbiscan →
+                      </a>
+                    </div>
                   )}
-                </button>
-                <button
-                  onClick={() => setStep('approve')}
-                  className="flex-1 px-4 py-3 border border-border rounded-md font-medium hover:bg-muted"
+
+                  <button
+                    onClick={approveAgent}
+                    disabled={loading}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-md font-semibold hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {loading ? (
+                      <>
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        Approving...
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle className="w-5 h-5" />
+                        ✍️ Approve Agent (Sign Transaction)
+                      </>
+                    )}
+                  </button>
+                </>
+              )}
+            </>
+          ) : (
+            /* Approved */
+            <div className="text-center space-y-4 py-4">
+              <div className="w-16 h-16 mx-auto bg-green-100 dark:bg-green-900/20 rounded-full flex items-center justify-center">
+                <CheckCircle className="w-10 h-10 text-green-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold mb-2">Agent Approved! 🎉</h3>
+                <p className="text-sm text-muted-foreground">
+                  Your agent can now trade on Ostium
+                </p>
+              </div>
+
+              {txHash && (
+                <a
+                  href={`https://sepolia.arbiscan.io/tx/${txHash}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-600 hover:underline text-sm"
                 >
-                  Skip
-                </button>
-              </div>
-
-              <div className="text-xs text-muted-foreground text-center">
-                Already have USDC? Click "Skip" to continue
-              </div>
-            </div>
-
-          {/* Step 4: Approve Agent */}
-          <div className={step === 'approve' ? 'space-y-4' : 'hidden'}>
-              <div className="text-center space-y-2">
-                <CheckCircle className="w-12 h-12 mx-auto text-primary" />
-                <h3 className="text-lg font-semibold">Ready to Trade!</h3>
-                <p className="text-sm text-muted-foreground">
-                  Complete setup to start automated trading
-                </p>
-              </div>
-
-              <div className="bg-muted p-4 rounded-md space-y-3">
-                <div className="flex items-start gap-2 text-sm">
-                  <CheckCircle className="w-4 h-4 text-green-600 mt-0.5" />
-                  <div>
-                    <div className="font-medium">Agent wallet created</div>
-                    <div className="text-xs text-muted-foreground font-mono">{agentAddress.slice(0, 20)}...</div>
-                  </div>
-                </div>
-                <div className="flex items-start gap-2 text-sm">
-                  <CheckCircle className="w-4 h-4 text-green-600 mt-0.5" />
-                  <div>
-                    <div className="font-medium">Your wallet connected</div>
-                    <div className="text-xs text-muted-foreground font-mono">{userWallet.slice(0, 20)}...</div>
-                  </div>
-                </div>
-                <div className="flex items-start gap-2 text-sm">
-                  <CheckCircle className="w-4 h-4 text-green-600 mt-0.5" />
-                  <div>
-                    <div className="font-medium">Balance: ${parseFloat(balance.usdc).toFixed(2)} USDC</div>
-                    <div className="text-xs text-muted-foreground">Ready for trading</div>
-                  </div>
-                </div>
-              </div>
-
-              <button
-                onClick={approveAgent}
-                disabled={loading}
-                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-primary text-primary-foreground rounded-md font-medium hover:bg-primary/90 disabled:opacity-50"
-              >
-                {loading ? (
-                  <>
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    Creating deployment...
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle className="w-5 h-5" />
-                    Complete Setup
-                  </>
-                )}
-              </button>
-            </div>
-
-          {/* Step 5: Complete */}
-          <div className={step === 'complete' ? 'space-y-4' : 'hidden'}>
-              <div className="text-center space-y-2">
-                <div className="w-16 h-16 mx-auto bg-green-100 dark:bg-green-900/20 rounded-full flex items-center justify-center">
-                  <CheckCircle className="w-10 h-10 text-green-600" />
-                </div>
-                <h3 className="text-lg font-semibold">Setup Complete! 🎉</h3>
-                <p className="text-sm text-muted-foreground">
-                  Your Ostium agent is ready to start trading
-                </p>
-              </div>
+                  View transaction →
+                </a>
+              )}
 
               <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 p-4 rounded-md space-y-2 text-sm">
                 <div className="flex items-center gap-2">
                   <CheckCircle className="w-4 h-4 text-green-600" />
-                  <span>Agent wallet configured</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <CheckCircle className="w-4 h-4 text-green-600" />
-                  <span>Deployment created</span>
+                  <span>Agent whitelisted</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <CheckCircle className="w-4 h-4 text-green-600" />
                   <span>Ready to execute signals</span>
                 </div>
               </div>
-
-              <button
-                onClick={onClose}
-                className="w-full px-4 py-3 bg-primary text-primary-foreground rounded-md font-medium hover:bg-primary/90"
-              >
-                Go to Dashboard
-              </button>
             </div>
+          )}
         </div>
       </div>
     </div>
