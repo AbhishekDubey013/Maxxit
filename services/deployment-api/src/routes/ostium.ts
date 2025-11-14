@@ -49,20 +49,12 @@ router.post('/create-deployment', async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Agent not found' });
     }
 
-    // Vprime: For MULTI venue agents, enable both Hyperliquid and Ostium
-    // For single-venue agents, only enable that venue
-    const enabledVenues = agent.venue === 'MULTI' 
-      ? ['HYPERLIQUID', 'OSTIUM'] 
-      : ['OSTIUM'];
-
     // Create new deployment
     const deployment = await prisma.agent_deployments.create({
       data: {
         agent_id: agentId,
         user_wallet: userWallet,
         safe_wallet: userWallet, // For Ostium, safe_wallet = user's Arbitrum wallet
-        ostium_agent_address: agentAddress,
-        enabled_venues: enabledVenues,
         status: 'ACTIVE',
         module_enabled: true, // Ostium doesn't need Safe module
       },

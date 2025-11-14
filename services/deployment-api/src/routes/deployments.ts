@@ -34,7 +34,7 @@ router.get('/', async (req: Request, res: Response) => {
         agents: true,
       },
       orderBy: {
-        created_at: 'desc',
+        sub_started_at: 'desc',
       },
     });
 
