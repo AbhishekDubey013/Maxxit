@@ -52,27 +52,14 @@ DATABASE_URL=postgresql://user:password@host:5432/dbname?sslmode=require
 
 **👉 Use your existing DATABASE_URL from other services**
 
-### 🤖 LLM API (Required - At Least ONE)
+### 🚫 No LLM API Key Needed!
 
-**⚠️ IMPORTANT:** You need at least ONE of these LLM keys. Without it, signals will use fallback logic only!
+**Signal generator doesn't need LLM** - it uses the tweet classification from `tweet-ingestion-worker` which already ran LLM.
 
-```bash
-# Option 1: Perplexity (Recommended)
-PERPLEXITY_API_KEY=pplx-your-key-here
-
-# OR Option 2: OpenAI (Alternative)
-OPENAI_API_KEY=sk-your-openai-key-here
-
-# OR Option 3: Anthropic (Alternative)
-ANTHROPIC_API_KEY=sk-ant-your-anthropic-key-here
-```
-
-**👉 Get your actual keys from the provider dashboards below**
-
-**💡 Get New API Keys:**
-- Perplexity: https://www.perplexity.ai/settings/api
-- OpenAI: https://platform.openai.com/api-keys
-- Anthropic: https://console.anthropic.com/settings/keys
+**Signal generation flow:**
+1. ✅ Tweet classified by LLM (done by tweet-ingestion-worker)
+2. ✅ LunarCrush scores market data → position size (0-10%)
+3. ✅ Simple rules → stop loss (5%) & take profit (15%)
 
 ### 📊 Optional (LunarCrush for Market Sentiment)
 
