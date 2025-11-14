@@ -23,28 +23,42 @@ interface PoolWallet {
  */
 export async function assignWalletToUser(userWallet: string): Promise<{ address: string; privateKey: string } | null> {
   try {
-    // Find first unassigned wallet
-    const result = await prisma.$queryRaw<PoolWallet[]>`
-      SELECT * FROM wallet_pool 
-      WHERE assigned_to_user_wallet IS NULL
-      LIMIT 1
-    `;
+    console.log(`[WalletPool] Looking for available wallet for user: ${userWallet}`);
+    
+    // Find first unassigned wallet using Prisma's typed query
+    const wallet = await prisma.wallet_pool.findFirst({
+      where: {
+        assigned_to_user_wallet: null,
+      },
+    });
 
-    if (result.length === 0) {
+    if (!wallet) {
       console.error('[WalletPool] No available wallets in pool!');
+      
+      // Log pool stats for debugging
+      const total = await prisma.wallet_pool.count();
+      const assigned = await prisma.wallet_pool.count({
+        where: { assigned_to_user_wallet: { not: null } },
+      });
+      console.error(`[WalletPool] Pool stats - Total: ${total}, Assigned: ${assigned}, Available: ${total - assigned}`);
+      
       return null;
     }
 
-    const wallet = result[0];
+    console.log(`[WalletPool] Found available wallet: ${wallet.address}`);
 
-    // Mark as assigned
-    await prisma.$executeRaw`
-      UPDATE wallet_pool 
-      SET assigned_to_user_wallet = ${userWallet.toLowerCase()}
-      WHERE id = ${wallet.id}
-    `;
+    // Mark as assigned using Prisma's typed update
+    await prisma.wallet_pool.update({
+      where: {
+        id: wallet.id,
+      },
+      data: {
+        assigned_to_user_wallet: userWallet.toLowerCase(),
+        created_at: new Date(),
+      },
+    });
 
-    console.log(`[WalletPool] Assigned wallet ${wallet.address} to user ${userWallet}`);
+    console.log(`[WalletPool] ✅ Assigned wallet ${wallet.address} to user ${userWallet}`);
 
     return {
       address: wallet.address,
@@ -61,17 +75,19 @@ export async function assignWalletToUser(userWallet: string): Promise<{ address:
  */
 export async function getAssignedWallet(userWallet: string): Promise<{ address: string; privateKey: string } | null> {
   try {
-    const result = await prisma.$queryRaw<PoolWallet[]>`
-      SELECT * FROM wallet_pool 
-      WHERE LOWER(assigned_to_user_wallet) = LOWER(${userWallet})
-      LIMIT 1
-    `;
+    const wallet = await prisma.wallet_pool.findFirst({
+      where: {
+        assigned_to_user_wallet: {
+          equals: userWallet.toLowerCase(),
+          mode: 'insensitive',
+        },
+      },
+    });
 
-    if (result.length === 0) {
+    if (!wallet) {
       return null;
     }
 
-    const wallet = result[0];
     return {
       address: wallet.address,
       privateKey: wallet.private_key,
@@ -87,18 +103,24 @@ export async function getAssignedWallet(userWallet: string): Promise<{ address: 
  */
 export async function getPrivateKeyForAddress(agentAddress: string): Promise<string | null> {
   try {
-    const result = await prisma.$queryRaw<PoolWallet[]>`
-      SELECT private_key FROM wallet_pool 
-      WHERE LOWER(address) = LOWER(${agentAddress})
-      LIMIT 1
-    `;
+    const wallet = await prisma.wallet_pool.findFirst({
+      where: {
+        address: {
+          equals: agentAddress.toLowerCase(),
+          mode: 'insensitive',
+        },
+      },
+      select: {
+        private_key: true,
+      },
+    });
 
-    if (result.length === 0) {
+    if (!wallet) {
       console.error(`[WalletPool] No wallet found for address ${agentAddress}`);
       return null;
     }
 
-    return result[0].private_key;
+    return wallet.private_key;
   } catch (error) {
     console.error('[WalletPool] Error getting private key:', error);
     return null;
@@ -110,11 +132,18 @@ export async function getPrivateKeyForAddress(agentAddress: string): Promise<str
  */
 export async function releaseWallet(agentAddress: string): Promise<boolean> {
   try {
-    await prisma.$executeRaw`
-      UPDATE wallet_pool 
-      SET assigned_to_user_wallet = NULL
-      WHERE LOWER(address) = LOWER(${agentAddress})
-    `;
+    await prisma.wallet_pool.updateMany({
+      where: {
+        address: {
+          equals: agentAddress.toLowerCase(),
+          mode: 'insensitive',
+        },
+      },
+      data: {
+        assigned_to_user_wallet: null,
+        created_at: null,
+      },
+    });
 
     console.log(`[WalletPool] Released wallet ${agentAddress}`);
     return true;
@@ -129,18 +158,17 @@ export async function releaseWallet(agentAddress: string): Promise<boolean> {
  */
 export async function getPoolStats(): Promise<{ total: number; assigned: number; available: number }> {
   try {
-    const total = await prisma.$queryRaw<Array<{ count: bigint }>>`
-      SELECT COUNT(*) as count FROM wallet_pool
-    `;
-
-    const assigned = await prisma.$queryRaw<Array<{ count: bigint }>>`
-      SELECT COUNT(*) as count FROM wallet_pool WHERE assigned_to_user_wallet IS NOT NULL
-    `;
+    const total = await prisma.wallet_pool.count();
+    const assigned = await prisma.wallet_pool.count({
+      where: {
+        assigned_to_user_wallet: { not: null },
+      },
+    });
 
     return {
-      total: Number(total[0].count),
-      assigned: Number(assigned[0].count),
-      available: Number(total[0].count) - Number(assigned[0].count),
+      total,
+      assigned,
+      available: total - assigned,
     };
   } catch (error) {
     console.error('[WalletPool] Error getting stats:', error);
