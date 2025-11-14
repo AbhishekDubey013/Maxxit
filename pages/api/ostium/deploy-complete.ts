@@ -18,38 +18,34 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     console.log(`[Ostium Deploy] Starting deployment for agent: ${agentId}, user: ${userWallet}`);
 
-    // 1. Check if user already has ANY deployment with an agent wallet
-    const existingDeployment = await prisma.agent_deployments.findFirst({
+    // 1. Check if user already has an agent wallet assigned in the wallet_pool
+    const existingWallet = await prisma.wallet_pool.findFirst({
       where: {
-        safe_wallet: {
+        assigned_to_user_wallet: {
           equals: userWallet,
           mode: 'insensitive',
         },
-        hyperliquid_agent_address: { not: null },
-      },
-      select: {
-        hyperliquid_agent_address: true,
       },
     });
 
     let agentAddress: string;
 
-    if (existingDeployment?.hyperliquid_agent_address) {
-      // Reuse existing agent wallet
-      agentAddress = existingDeployment.hyperliquid_agent_address;
-      console.log(`[Ostium Deploy] Reusing existing agent wallet: ${agentAddress}`);
+    if (existingWallet) {
+      // Reuse existing agent wallet from pool
+      agentAddress = existingWallet.address;
+      console.log(`[Ostium Deploy] Reusing existing agent wallet from pool: ${agentAddress}`);
     } else {
-      // Try to assign from pool
+      // Try to assign new wallet from pool
       const agentWallet = await assignWalletToUser(userWallet);
       
       if (!agentWallet) {
         return res.status(500).json({ 
-          error: 'No available agent wallets. Please deploy a Hyperliquid agent first or contact support.' 
+          error: 'Wallet pool is empty. All agent wallets are currently assigned. Please contact support to add more wallets to the pool.' 
         });
       }
 
       agentAddress = agentWallet.address;
-      console.log(`[Ostium Deploy] Assigned new agent wallet: ${agentAddress}`);
+      console.log(`[Ostium Deploy] Assigned new agent wallet from pool: ${agentAddress}`);
     }
 
     // 2. Create deployment in database

@@ -2,6 +2,8 @@
  * Wallet Pool Management
  * Pre-generated wallets with plaintext private keys (no encryption!)
  * Simple and fast - assign wallet from pool to user
+ * 
+ * FIXED: Updated to use correct schema field names (assigned_to_user_wallet)
  */
 
 import { PrismaClient } from '@prisma/client';
@@ -12,9 +14,8 @@ interface PoolWallet {
   id: string;
   address: string;
   private_key: string;
-  is_assigned: boolean;
-  assigned_to_user: string | null;
-  assigned_at: Date | null;
+  assigned_to_user_wallet: string | null;
+  created_at: Date | null;
 }
 
 /**
@@ -25,7 +26,7 @@ export async function assignWalletToUser(userWallet: string): Promise<{ address:
     // Find first unassigned wallet
     const result = await prisma.$queryRaw<PoolWallet[]>`
       SELECT * FROM wallet_pool 
-      WHERE is_assigned = false 
+      WHERE assigned_to_user_wallet IS NULL
       LIMIT 1
     `;
 
@@ -39,9 +40,7 @@ export async function assignWalletToUser(userWallet: string): Promise<{ address:
     // Mark as assigned
     await prisma.$executeRaw`
       UPDATE wallet_pool 
-      SET is_assigned = true,
-          assigned_to_user = ${userWallet.toLowerCase()},
-          assigned_at = NOW()
+      SET assigned_to_user_wallet = ${userWallet.toLowerCase()}
       WHERE id = ${wallet.id}
     `;
 
@@ -64,7 +63,7 @@ export async function getAssignedWallet(userWallet: string): Promise<{ address: 
   try {
     const result = await prisma.$queryRaw<PoolWallet[]>`
       SELECT * FROM wallet_pool 
-      WHERE assigned_to_user = ${userWallet.toLowerCase()}
+      WHERE LOWER(assigned_to_user_wallet) = LOWER(${userWallet})
       LIMIT 1
     `;
 
@@ -113,9 +112,7 @@ export async function releaseWallet(agentAddress: string): Promise<boolean> {
   try {
     await prisma.$executeRaw`
       UPDATE wallet_pool 
-      SET is_assigned = false,
-          assigned_to_user = NULL,
-          assigned_at = NULL
+      SET assigned_to_user_wallet = NULL
       WHERE LOWER(address) = LOWER(${agentAddress})
     `;
 
@@ -137,7 +134,7 @@ export async function getPoolStats(): Promise<{ total: number; assigned: number;
     `;
 
     const assigned = await prisma.$queryRaw<Array<{ count: bigint }>>`
-      SELECT COUNT(*) as count FROM wallet_pool WHERE is_assigned = true
+      SELECT COUNT(*) as count FROM wallet_pool WHERE assigned_to_user_wallet IS NOT NULL
     `;
 
     return {
@@ -150,4 +147,3 @@ export async function getPoolStats(): Promise<{ total: number; assigned: number;
     return { total: 0, assigned: 0, available: 0 };
   }
 }
-
