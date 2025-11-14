@@ -8,7 +8,7 @@ import dotenv from 'dotenv';
 import express from 'express';
 import { prisma } from './lib/prisma-client';
 import { setupGracefulShutdown, registerCleanup } from './lib/graceful-shutdown';
-import { checkDatabaseHealth } from './lib/error-handler';
+import { checkDatabaseHealth } from './lib/prisma-client';
 
 dotenv.config();
 

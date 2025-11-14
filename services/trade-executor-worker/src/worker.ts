@@ -8,7 +8,7 @@ import dotenv from 'dotenv';
 import express from 'express';
 import { prisma } from './lib/prisma-client';
 import { setupGracefulShutdown, registerCleanup } from './lib/graceful-shutdown';
-import { checkDatabaseHealth } from './lib/error-handler';
+import { checkDatabaseHealth } from './lib/prisma-client';
 
 dotenv.config();
 
@@ -54,12 +54,7 @@ async function executeAllPendingSignals() {
           status: 'PUBLIC', // Only execute for public agents
           agent_deployments: {
             some: {
-              status: 'ACTIVE',
-              OR: [
-                { module_enabled: true }, // For SPOT/GMX
-                { hyperliquid_agent_address: { not: null } }, // For HYPERLIQUID
-                { ostium_agent_address: { not: null } }, // For OSTIUM
-              ]
+              status: 'ACTIVE'
             },
           },
         },
@@ -69,12 +64,7 @@ async function executeAllPendingSignals() {
           include: {
             agent_deployments: {
               where: { 
-                status: 'ACTIVE', // Deployment status (not agent status)
-                OR: [
-                  { module_enabled: true },
-                  { hyperliquid_agent_address: { not: null } },
-                  { ostium_agent_address: { not: null } },
-                ]
+                status: 'ACTIVE'
               },
               take: 1,
             },
@@ -97,7 +87,7 @@ async function executeAllPendingSignals() {
     // Process each signal
     for (const signal of pendingSignals) {
       try {
-        const deployment = signal.agents?.agent_deployments?.[0];
+        const deployment = (signal as any).agents?.agent_deployments?.[0];
         
         if (!deployment) {
           console.log(`[TradeExecutor] ⚠️  Signal ${signal.id}: No deployment found`);
@@ -105,7 +95,7 @@ async function executeAllPendingSignals() {
         }
 
         console.log(`[TradeExecutor] 🔄 Processing signal ${signal.id.substring(0, 8)}...`);
-        console.log(`[TradeExecutor]    Agent: ${signal.agents?.name}`);
+        console.log(`[TradeExecutor]    Agent: ${(signal as any).agents?.name}`);
         console.log(`[TradeExecutor]    Token: ${signal.token_symbol}`);
         console.log(`[TradeExecutor]    Side: ${signal.side}`);
         console.log(`[TradeExecutor]    Venue: ${signal.venue}`);
