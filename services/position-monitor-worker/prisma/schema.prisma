@@ -398,6 +398,7 @@ enum venue_t {
   GMX
   HYPERLIQUID
   OSTIUM
+  MULTI
 }
 
 model user_hyperliquid_wallets {
