@@ -6,6 +6,7 @@ import { Rocket } from 'lucide-react';
 import { HyperliquidConnect } from './HyperliquidConnect';
 import { OstiumConnect } from './OstiumConnect';
 import { OstiumApproval } from './OstiumApproval';
+import { MultiVenueSelector } from './MultiVenueSelector';
 
 interface PnlSnapshot {
   day: string;
@@ -305,6 +306,19 @@ export function AgentDrawer({ agentId, agentName, agentVenue, onClose }: AgentDr
             onClose(); // Close the drawer
           }}
           onClose={() => setOstiumApprovalModal(null)}
+        />
+      )}
+
+      {/* Multi-Venue Selector Modal */}
+      {multiVenueSelectorOpen && (
+        <MultiVenueSelector
+          agentId={agentId}
+          agentName={agentName}
+          onClose={() => setMultiVenueSelectorOpen(false)}
+          onComplete={() => {
+            setMultiVenueSelectorOpen(false);
+            onClose();
+          }}
         />
       )}
     </div>
