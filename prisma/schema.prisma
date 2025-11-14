@@ -37,6 +37,7 @@ model agent_deployments {
   hyperliquid_agent_key_encrypted String?           // Encrypted private key
   hyperliquid_agent_key_iv        String?           // Encryption IV
   hyperliquid_agent_key_tag       String?           // Encryption auth tag
+  enabled_venues                  String[]          @default([])  // Vprime: Multi-venue routing
   agents                          agents            @relation(fields: [agent_id], references: [id], onDelete: Cascade)
   billing_events                  billing_events[]
   pnl_snapshots                   pnl_snapshots[]
