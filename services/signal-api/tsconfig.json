@@ -6,7 +6,10 @@
     "outDir": "./dist",
     "baseUrl": ".",
     "paths": {
-      "@maxxit/shared/*": ["../shared/lib/*"]
+      "../../shared/dist": ["../shared/dist"],
+      "../../shared/dist/*": ["../shared/dist/*"],
+      "../../../shared/dist": ["../shared/dist"],
+      "../../../shared/dist/*": ["../shared/dist/*"]
     },
     "strict": true,
     "esModuleInterop": true,
@@ -17,6 +20,6 @@
     "declaration": false,
     "sourceMap": true
   },
-  "include": ["src/**/*", "../shared/lib/**/*"],
+  "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]
 }

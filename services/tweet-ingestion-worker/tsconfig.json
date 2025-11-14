@@ -6,7 +6,10 @@
     "outDir": "./dist",
     "baseUrl": ".",
     "paths": {
-      "@maxxit/shared/*": ["../shared/lib/*"]
+      "../../shared/dist": ["../shared/dist"],
+      "../../shared/dist/*": ["../shared/dist/*"],
+      "../../../shared/dist": ["../shared/dist"],
+      "../../../shared/dist/*": ["../shared/dist/*"]
     },
     "strict": true,
     "esModuleInterop": true,
