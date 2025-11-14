@@ -95,7 +95,7 @@ export function MultiVenueSelector({
           {/* Content */}
           <div className="p-6 space-y-4">
             <div className={`${venues[0].bgColor} border ${venues[0].borderColor} rounded-lg p-4 mb-4`}>
-              <p className="text-sm ${venues[0].textColor} font-medium">
+              <p className={`text-sm ${venues[0].textColor} font-medium`}>
                 ℹ️ This is a multi-venue agent. Click each venue to whitelist the agent and start trading.
               </p>
             </div>
