@@ -60,21 +60,29 @@ async function executeHyperliquidTrade(
       ? JSON.parse(signal.risk_model)
       : signal.risk_model;
 
-    // Call Hyperliquid service
-    const response = await fetch(`${HYPERLIQUID_SERVICE_URL}/execute-trade`, {
+    // Get agent private key from environment
+    const agentPrivateKey = process.env.HYPERLIQUID_AGENT_PRIVATE_KEY;
+    if (!agentPrivateKey) {
+      throw new Error('HYPERLIQUID_AGENT_PRIVATE_KEY not configured');
+    }
+
+    // Calculate position size (for now use a fixed small amount for testing)
+    // TODO: Calculate based on account balance and sizeModel.value percentage
+    const positionSize = 10; // $10 USD for testing
+
+    // Call Hyperliquid service /open-position endpoint
+    const response = await fetch(`${HYPERLIQUID_SERVICE_URL}/open-position`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        deploymentId: deployment.id,
-        agentAddress: deployment.hyperliquid_agent_address,
-        token: signal.token_symbol,
-        side: signal.side,
-        sizePercent: sizeModel.position_size_percent || 10,
-        stopLoss: riskModel.stop_loss_percent,
-        takeProfit: riskModel.take_profit_percent,
-        leverage: riskModel.leverage || 1,
+        agentPrivateKey: agentPrivateKey,
+        coin: signal.token_symbol,
+        isBuy: signal.side === 'LONG',
+        size: positionSize,
+        slippage: 0.01, // 1% slippage
+        vaultAddress: deployment.safe_wallet, // User's wallet (agent trading on behalf)
       }),
     });
 
@@ -115,21 +123,24 @@ async function executeOstiumTrade(
       ? JSON.parse(signal.risk_model)
       : signal.risk_model;
 
-    // Call Ostium service
-    const response = await fetch(`${OSTIUM_SERVICE_URL}/execute-trade`, {
+    // Calculate collateral (for now use a fixed small amount for testing)
+    // TODO: Calculate based on account balance and sizeModel.value percentage
+    const collateral = 10; // $10 USDC for testing
+    const leverage = 3; // 3x leverage default
+
+    // Call Ostium service /open-position endpoint
+    const response = await fetch(`${OSTIUM_SERVICE_URL}/open-position`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        deploymentId: deployment.id,
-        userWallet: deployment.user_wallet,
-        token: signal.token_symbol,
-        side: signal.side,
-        sizePercent: sizeModel.position_size_percent || 10,
-        stopLoss: riskModel.stop_loss_percent,
-        takeProfit: riskModel.take_profit_percent,
-        leverage: riskModel.leverage || 1,
+        agentAddress: deployment.ostium_agent_address, // Agent's address (private key looked up in service)
+        userAddress: deployment.safe_wallet, // User's wallet
+        market: signal.token_symbol,
+        side: signal.side.toLowerCase(), // "long" or "short"
+        collateral: collateral,
+        leverage: leverage,
       }),
     });
 
