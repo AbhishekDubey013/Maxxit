@@ -153,6 +153,23 @@ async function generateSignalForAgentAndToken(
       return;
     }
 
+    // Check if token is available on the target venue
+    const venueMarket = await prisma.venue_markets.findFirst({
+      where: {
+        token_symbol: token.toUpperCase(),
+        venue: agent.venue,
+        is_active: true,
+      },
+    });
+
+    if (!venueMarket) {
+      console.log(`    ⏭️  Skipping ${token} - not available on ${agent.venue}`);
+      console.log(`       (Only ${agent.venue}-supported tokens will generate signals)`);
+      return;
+    }
+
+    console.log(`    ✅ ${token} available on ${agent.venue} (${venueMarket.market_name})`);
+
     // Determine side from tweet sentiment (already classified by LLM)
     const side = tweet.signal_type === 'SHORT' ? 'SHORT' : 'LONG';
     
