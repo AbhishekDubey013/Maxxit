@@ -60,10 +60,23 @@ async function executeHyperliquidTrade(
       ? JSON.parse(signal.risk_model)
       : signal.risk_model;
 
-    // Get agent private key from environment
-    const agentPrivateKey = process.env.HYPERLIQUID_AGENT_PRIVATE_KEY;
-    if (!agentPrivateKey) {
-      throw new Error('HYPERLIQUID_AGENT_PRIVATE_KEY not configured');
+    // Get agent private key from wallet_pool database
+    if (!deployment.hyperliquid_agent_address) {
+      throw new Error('No Hyperliquid agent address configured for this deployment');
+    }
+
+    const { prisma } = await import('./prisma-client');
+    const agentWallet = await prisma.wallet_pool.findFirst({
+      where: {
+        address: {
+          equals: deployment.hyperliquid_agent_address,
+          mode: 'insensitive',
+        },
+      },
+    });
+
+    if (!agentWallet) {
+      throw new Error(`Agent address ${deployment.hyperliquid_agent_address} not found in wallet pool`);
     }
 
     // Calculate position size (for now use a fixed small amount for testing)
@@ -77,7 +90,7 @@ async function executeHyperliquidTrade(
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        agentPrivateKey: agentPrivateKey,
+        agentPrivateKey: agentWallet.private_key, // From wallet_pool
         coin: signal.token_symbol,
         isBuy: signal.side === 'LONG',
         size: positionSize,
