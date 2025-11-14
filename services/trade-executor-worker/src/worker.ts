@@ -118,8 +118,7 @@ async function executeAllPendingSignals() {
 }
 
 /**
- * Execute a single signal
- * This is a simplified version - in production, this should call the full TradeExecutor
+ * Execute a single signal by calling external venue services
  */
 async function executeSignal(signalId: string, deploymentId: string) {
   try {
@@ -140,31 +139,63 @@ async function executeSignal(signalId: string, deploymentId: string) {
       return;
     }
 
-    // Route to appropriate venue executor
-    // NOTE: In production, this should call external services (Hyperliquid, Ostium)
-    // For now, we'll just mark the signal as processed
-    
-    console.log(`[TradeExecutor] 🎯 Would execute trade on ${signal.venue}`);
-    console.log(`[TradeExecutor]    Service URLs:`);
-    console.log(`[TradeExecutor]    - Hyperliquid: ${process.env.HYPERLIQUID_SERVICE_URL || 'not set'}`);
-    console.log(`[TradeExecutor]    - Ostium: ${process.env.OSTIUM_SERVICE_URL || 'not set'}`);
-    
-    // TODO: Implement actual trade execution by calling:
-    // - Hyperliquid Service (for HYPERLIQUID venue)
-    // - Ostium Service (for OSTIUM venue)
-    // - GMX/SPOT adapters (for GMX/SPOT venues)
-    
-    // For now, skip the signal so it doesn't keep being processed
-    await prisma.signals.update({
-      where: { id: signalId },
-      data: {
-        skipped_reason: 'Microservice trade execution not yet fully implemented',
-      },
-    });
+    // Execute trade via external service
+    const { executeTrade } = await import('./lib/trade-executor');
+    const result = await executeTrade(signal, deployment);
 
-    console.log(`[TradeExecutor] ⏭️  Signal skipped (execution logic pending)`);
+    if (result.success) {
+      // Create position record
+      const sizeModel = typeof signal.size_model === 'string' 
+        ? JSON.parse(signal.size_model) 
+        : signal.size_model;
+      
+      const riskModel = typeof signal.risk_model === 'string'
+        ? JSON.parse(signal.risk_model)
+        : signal.risk_model;
+
+      await prisma.positions.create({
+        data: {
+          deployment_id: deploymentId,
+          signal_id: signalId,
+          venue: signal.venue,
+          token_symbol: signal.token_symbol,
+          side: signal.side,
+          qty: 0, // Will be updated from actual execution
+          entry_price: 0, // Will be updated from actual execution
+          stop_loss: riskModel.stop_loss_percent ? 0 : undefined,
+          take_profit: riskModel.take_profit_percent ? 0 : undefined,
+          entry_tx_hash: result.txHash,
+          status: 'OPEN',
+        },
+      });
+
+      console.log(`[TradeExecutor] ✅ Trade executed successfully`);
+      console.log(`[TradeExecutor]    TX Hash: ${result.txHash || 'N/A'}`);
+    } else {
+      // Mark signal as skipped
+      await prisma.signals.update({
+        where: { id: signalId },
+        data: {
+          skipped_reason: result.error || result.reason || 'Execution failed',
+        },
+      });
+
+      console.log(`[TradeExecutor] ❌ Trade failed: ${result.error || result.reason}`);
+    }
   } catch (error: any) {
     console.error(`[TradeExecutor] ❌ Error executing signal:`, error.message);
+    
+    // Mark signal as skipped on error
+    try {
+      await prisma.signals.update({
+        where: { id: signalId },
+        data: {
+          skipped_reason: `Execution error: ${error.message}`,
+        },
+      });
+    } catch (updateError) {
+      console.error(`[TradeExecutor] ❌ Failed to update signal:`, updateError);
+    }
   }
 }
 
