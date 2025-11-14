@@ -9,7 +9,6 @@ import express from 'express';
 import { prisma } from './lib/prisma-client';
 import { setupGracefulShutdown, registerCleanup } from './lib/graceful-shutdown';
 import { checkDatabaseHealth } from './lib/prisma-client';
-import { SignalGenerator } from './lib/signal-generator';
 import { getLunarCrushScore, canUseLunarCrush } from './lib/lunarcrush-wrapper';
 
 dotenv.config();
@@ -75,16 +74,6 @@ async function generateSignals() {
       return;
     }
 
-    // Initialize signal generator
-    let signalGenerator: SignalGenerator | null = null;
-    try {
-      signalGenerator = new SignalGenerator();
-      console.log('🤖 Signal Generator: ENABLED\n');
-    } catch (error: any) {
-      console.log('⚠️  Signal Generator: DISABLED (no LLM API key)');
-      console.log('   Signals will use fallback logic\n');
-    }
-
     let signalsGenerated = 0;
 
     // Process each tweet
@@ -115,8 +104,7 @@ async function generateSignals() {
               await generateSignalForAgentAndToken(
                 tweet,
                 agent,
-                token,
-                signalGenerator
+                token
               );
               signalsGenerated++;
             }
@@ -150,69 +138,60 @@ async function generateSignals() {
 
 /**
  * Generate a signal for a specific agent and token
+ * Matches monolith flow: LLM classification (already done) + LunarCrush scoring + simple rules
  */
 async function generateSignalForAgentAndToken(
   tweet: any,
   agent: any,
-  token: string,
-  signalGenerator: SignalGenerator | null
+  token: string
 ) {
   try {
-    // Determine side from tweet
-    const side = tweet.signal_type === 'SHORT' ? 'SHORT' : 'LONG';
-    
-    let sizePercent = 10; // Default 10%
-    let confidence = tweet.confidence_score || 0.5;
-    let stopLossPercent = 5;
-    let takeProfitPercent = 10;
-
-    // If we have LLM signal generator, use it for better signals
-    if (signalGenerator) {
-      try {
-        const signal = await signalGenerator.generateSignal({
-          tweetText: tweet.tweet_text,
-          tweetSentiment: tweet.signal_type === 'SHORT' ? 'bearish' : tweet.signal_type === 'LONG' ? 'bullish' : 'neutral',
-          tweetConfidence: confidence,
-          tokenSymbol: token,
-          venue: agent.venue,
-          ctAccountImpactFactor: tweet.ct_accounts.impact_factor || 0,
-        });
-
-        confidence = signal.confidence;
-        stopLossPercent = signal.stopLoss.type === 'percentage' ? signal.stopLoss.value : 5;
-        takeProfitPercent = signal.takeProfit.type === 'percentage' ? signal.takeProfit.value : 10;
-        
-        // Adjust size based on confidence
-        if (confidence >= 0.8) sizePercent = 15;
-        else if (confidence >= 0.6) sizePercent = 10;
-        else sizePercent = 5;
-      } catch (llmError: any) {
-        console.log(`    ⚠️  LLM generation failed, using fallback: ${llmError.message}`);
-      }
+    // Stablecoins should NOT be traded (they are base currency)
+    const EXCLUDED_TOKENS = ['USDC', 'USDT', 'DAI', 'USDC.E', 'BUSD', 'FRAX'];
+    if (EXCLUDED_TOKENS.includes(token.toUpperCase())) {
+      console.log(`    ⏭️  Skipping stablecoin ${token} - base currency only`);
+      return;
     }
 
-    // Get LunarCrush score if available
+    // Determine side from tweet sentiment (already classified by LLM)
+    const side = tweet.signal_type === 'SHORT' ? 'SHORT' : 'LONG';
+    
+    // Default position size (will be overridden by LunarCrush if available)
+    let positionSizePercent = 5; // Default 5%
     let lunarcrushScore: number | null = null;
     let lunarcrushReasoning: string | null = null;
     let lunarcrushBreakdown: any = null;
 
+    // Get LunarCrush score for dynamic position sizing (0-10%)
     if (canUseLunarCrush()) {
       try {
-        const lcResult = await getLunarCrushScore(token);
-        if (lcResult.success) {
+        const lcResult = await getLunarCrushScore(token, tweet.confidence_score || 0.5);
+        if (lcResult.success && lcResult.score) {
           lunarcrushScore = lcResult.score;
           lunarcrushReasoning = lcResult.reasoning;
           lunarcrushBreakdown = lcResult.breakdown;
           
-          // Adjust confidence based on LunarCrush score
-          if (lunarcrushScore) {
-            confidence = (confidence + lunarcrushScore) / 2;
+          // LunarCrush determines position size (0-10%)
+          // Score > 0 means tradeable, score <= 0 means skip
+          if (lunarcrushScore > 0) {
+            // Convert score (-1 to 1) to position size (0-10%)
+            positionSizePercent = Math.max(0, Math.min(10, lunarcrushScore * 10));
+            console.log(`    📊 LunarCrush: ${token} score=${lunarcrushScore.toFixed(3)}, position=${positionSizePercent.toFixed(2)}%`);
+          } else {
+            console.log(`    ⏭️  LunarCrush: ${token} score=${lunarcrushScore.toFixed(3)} - NOT TRADEABLE`);
+            return; // Skip this signal
           }
         }
       } catch (lcError: any) {
-        console.log(`    ⚠️  LunarCrush scoring failed: ${lcError.message}`);
+        console.log(`    ⚠️  LunarCrush scoring failed: ${lcError.message} - using default 5%`);
       }
+    } else {
+      console.log(`    ⚠️  LunarCrush not configured - using default 5% position size`);
     }
+
+    // Simple risk model (fixed percentages - matching monolith)
+    const stopLossPercent = 5;  // 5% stop loss
+    const takeProfitPercent = 15; // 15% take profit
 
     // Create signal
     const signal = await prisma.signals.create({
@@ -222,13 +201,13 @@ async function generateSignalForAgentAndToken(
         venue: agent.venue,
         side: side,
         size_model: {
-          position_size_percent: sizePercent,
-          confidence: confidence,
+          type: 'balance-percentage',
+          value: positionSizePercent, // Dynamic from LunarCrush!
+          impactFactor: tweet.ct_accounts.impact_factor || 0,
         },
         risk_model: {
-          stop_loss_percent: stopLossPercent,
-          take_profit_percent: takeProfitPercent,
-          leverage: agent.venue === 'SPOT' ? 1 : 2,
+          stopLoss: stopLossPercent / 100, // Convert to decimal
+          takeProfit: takeProfitPercent / 100,
         },
         source_tweets: [tweet.tweet_id],
         lunarcrush_score: lunarcrushScore,
@@ -237,7 +216,7 @@ async function generateSignalForAgentAndToken(
       },
     });
 
-    console.log(`    ✅ Signal created: ${side} ${token} on ${agent.venue} (${Math.round(confidence * 100)}% confidence)`);
+    console.log(`    ✅ Signal created: ${side} ${token} on ${agent.venue} (${positionSizePercent.toFixed(2)}% position)`);
   } catch (error: any) {
     throw error;
   }
@@ -249,22 +228,20 @@ async function generateSignalForAgentAndToken(
 async function runWorker() {
   console.log('🚀 Signal Generator Worker starting...');
   console.log(`⏱️  Interval: ${INTERVAL}ms (${INTERVAL / 1000 / 60} minutes)`);
-  
-  // Check LLM availability
-  try {
-    new SignalGenerator();
-    console.log('🤖 LLM Signal Generator: ENABLED');
-  } catch {
-    console.log('⚠️  LLM Signal Generator: DISABLED (using fallback)');
-    console.log('   Set PERPLEXITY_API_KEY, OPENAI_API_KEY, or ANTHROPIC_API_KEY to enable');
-  }
+  console.log('');
+  console.log('📋 Signal Generation Flow:');
+  console.log('   1. Tweet classified by LLM (in tweet-ingestion-worker)');
+  console.log('   2. LunarCrush scores market data → position size (0-10%)');
+  console.log('   3. Simple rules → stop loss (5%) & take profit (15%)');
+  console.log('');
   
   // Check LunarCrush availability
   if (canUseLunarCrush()) {
-    console.log('📊 LunarCrush Scoring: ENABLED');
+    console.log('✅ LunarCrush Scoring: ENABLED');
   } else {
     console.log('⚠️  LunarCrush Scoring: DISABLED');
-    console.log('   Set LUNARCRUSH_API_KEY to enable');
+    console.log('   Set LUNARCRUSH_API_KEY for dynamic position sizing');
+    console.log('   Will use default 5% position size without it');
   }
   
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
