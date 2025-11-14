@@ -31,6 +31,7 @@ interface Deployment {
   moduleEnabled: boolean;
   status: string;
   telegramLinked?: boolean;
+  enabledVenues?: string[];
 }
 
 export default function MyDeployments() {
@@ -255,34 +256,74 @@ export default function MyDeployments() {
                     <div className="pt-4 border-t border-border">
                       <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
                         <Zap className="w-4 h-4" />
-                        {deployment.agent.venue === 'GMX' ? 'GMX Trading Setup' : deployment.agent.venue === 'HYPERLIQUID' ? 'Hyperliquid Trading Setup' : deployment.agent.venue === 'OSTIUM' ? 'Ostium Trading Setup' : 'Trading Module Setup'}
+                        {deployment.agent.venue === 'MULTI' 
+                          ? 'Multi-Venue Trading Setup' 
+                          : deployment.agent.venue === 'GMX' 
+                            ? 'GMX Trading Setup' 
+                            : deployment.agent.venue === 'HYPERLIQUID' 
+                              ? 'Hyperliquid Trading Setup' 
+                              : deployment.agent.venue === 'OSTIUM' 
+                                ? 'Ostium Trading Setup' 
+                                : 'Trading Module Setup'}
                       </div>
                       <div className="bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-800 rounded-lg p-3 mb-3">
                         <p className="text-xs text-orange-700 dark:text-orange-300 mb-2">
                           ⚡ Setup required before trading
                         </p>
                         <ul className="text-xs text-orange-600 dark:text-orange-400 space-y-1 ml-4">
-                          <li>• Enable Maxxit Trading Module on your Safe</li>
-                          {deployment.agent.venue === 'GMX' && (
-                            <li>• Authorize GMX executor</li>
-                          )}
-                          {deployment.agent.venue === 'HYPERLIQUID' && (
+                          {deployment.agent.venue === 'MULTI' ? (
                             <>
-                              <li>• Approve USDC for Hyperliquid bridge</li>
-                              <li>• Register agent wallet for trading</li>
+                              <li>• Connect to all available trading venues</li>
+                              <li>• Setup Hyperliquid and Ostium for trading</li>
+                              <li>• Agent will route trades intelligently</li>
+                            </>
+                          ) : (
+                            <>
+                              <li>• Enable Maxxit Trading Module on your Safe</li>
+                              {deployment.agent.venue === 'GMX' && (
+                                <li>• Authorize GMX executor</li>
+                              )}
+                              {deployment.agent.venue === 'HYPERLIQUID' && (
+                                <>
+                                  <li>• Approve USDC for Hyperliquid bridge</li>
+                                  <li>• Register agent wallet for trading</li>
+                                </>
+                              )}
+                              {deployment.agent.venue === 'OSTIUM' && (
+                                <>
+                                  <li>• Connect your Arbitrum wallet</li>
+                                  <li>• Generate agent wallet for trading</li>
+                                  <li>• Approve agent to trade on your behalf</li>
+                                </>
+                              )}
+                              <li>• {deployment.agent.venue === 'GMX' ? 'Sign ONE transaction and you\'re ready!' : deployment.agent.venue === 'HYPERLIQUID' ? 'Sign ONE transaction and bridge USDC to start trading!' : deployment.agent.venue === 'OSTIUM' ? 'Quick setup - start trading on Arbitrum!' : 'Then the system will auto-setup on first trade'}</li>
                             </>
                           )}
-                          {deployment.agent.venue === 'OSTIUM' && (
-                            <>
-                              <li>• Connect your Arbitrum wallet</li>
-                              <li>• Generate agent wallet for trading</li>
-                              <li>• Approve agent to trade on your behalf</li>
-                            </>
-                          )}
-                          <li>• {deployment.agent.venue === 'GMX' ? 'Sign ONE transaction and you\'re ready!' : deployment.agent.venue === 'HYPERLIQUID' ? 'Sign ONE transaction and bridge USDC to start trading!' : deployment.agent.venue === 'OSTIUM' ? 'Quick setup - start trading on Arbitrum!' : 'Then the system will auto-setup on first trade'}</li>
                         </ul>
                       </div>
-                      {deployment.agent.venue === 'GMX' ? (
+                      {deployment.agent.venue === 'MULTI' ? (
+                        <div className="space-y-2">
+                          {deployment.enabledVenues?.includes('SPOT') && (
+                            <SPOTSetupButton 
+                              safeAddress={deployment.safeWallet}
+                              onSetupComplete={() => fetchDeployments()}
+                            />
+                          )}
+                          {deployment.enabledVenues?.includes('HYPERLIQUID') && (
+                            <HyperliquidSetupButton 
+                              safeAddress={deployment.safeWallet}
+                              onSetupComplete={() => fetchDeployments()}
+                            />
+                          )}
+                          {deployment.enabledVenues?.includes('OSTIUM') && (
+                            <OstiumSetupButton 
+                              agentId={deployment.agentId}
+                              agentName={deployment.agent.name}
+                              onSetupComplete={() => fetchDeployments()}
+                            />
+                          )}
+                        </div>
+                      ) : deployment.agent.venue === 'GMX' ? (
                         <GMXSetupButton 
                           safeAddress={deployment.safeWallet}
                           onSetupComplete={() => fetchDeployments()}

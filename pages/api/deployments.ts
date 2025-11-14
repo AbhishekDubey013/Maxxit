@@ -47,6 +47,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       moduleEnabled: deployment.module_enabled || false,
       status: deployment.status || 'active',
       telegramLinked: false, // TODO: Check actual telegram link status
+      enabledVenues: deployment.enabled_venues || [],
     }));
 
     return res.status(200).json(formattedDeployments);
