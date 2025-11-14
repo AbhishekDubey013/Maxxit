@@ -61,7 +61,7 @@ export class LLMTweetClassifier {
       return this.parseResponse(response, tweetText);
     } catch (error: any) {
       console.error('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      console.error('⚠️  LLM CLASSIFIER ERROR - FALLING BACK TO REGEX!');
+      console.error('❌ LLM CLASSIFIER FAILED - TWEET WILL BE SKIPPED!');
       console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
       console.error(`Provider: ${this.provider.toUpperCase()}`);
       console.error(`Error: ${error.message}`);
@@ -70,11 +70,18 @@ export class LLMTweetClassifier {
         console.error('   → Check your API key in Railway environment variables');
         console.error('   → Verify your API credits at the provider dashboard');
       }
-      console.error('⚠️  Using fallback regex - signal detection will be less accurate!');
+      console.error('⚠️  Tweet marked as NOT a signal candidate (no fallback)');
+      console.error('⚠️  FIX YOUR API KEY TO RESUME SIGNAL DETECTION!');
       console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
       
-      // Fallback to regex-based classification
-      return this.fallbackClassification(tweetText);
+      // Return NOT a signal candidate (no fallback)
+      return {
+        isSignalCandidate: false,
+        extractedTokens: [],
+        sentiment: 'neutral',
+        confidence: 0,
+        reasoning: `LLM classification failed: ${error.message}`,
+      };
     }
   }
 
@@ -243,86 +250,20 @@ Respond ONLY with the JSON object, no other text.`;
         reasoning: parsed.reasoning || '',
       };
     } catch (error) {
-      console.error('[LLM Classifier] Failed to parse response:', error);
+      console.error('[LLM Classifier] Failed to parse LLM response:', error);
       console.error('[LLM Classifier] Response was:', response);
-      // Fallback to regex
-      return this.fallbackClassification(originalTweet);
+      
+      // Return NOT a signal candidate (parsing failed)
+      return {
+        isSignalCandidate: false,
+        extractedTokens: [],
+        sentiment: 'neutral',
+        confidence: 0,
+        reasoning: 'Failed to parse LLM response',
+      };
     }
   }
 
-  /**
-   * Fallback classification using regex (when LLM fails)
-   */
-  public fallbackClassification(tweetText: string): ClassificationResult {
-    console.log('[LLM Classifier] Using fallback regex-based classification');
-    
-    // Extract token symbols - Try both with $ prefix and without
-    const dollarTokenRegex = /\$([A-Z]{2,10})\b/g;
-    const plainTokenRegex = /\b(BTC|ETH|SOL|AVAX|ARB|OP|MATIC|LINK|UNI|AAVE|WETH|USDC|USDT|DAI|DOGE|SHIB|PEPE|XRP|ADA|DOT|ATOM|NEAR|FTM|CRV|SNX|MKR|COMP|YFI|SUSHI|CAKE|GMX)\b/gi;
-    
-    // First try with $ prefix
-    let dollarMatches = tweetText.match(dollarTokenRegex);
-    let extractedTokens = dollarMatches 
-      ? [...new Set(dollarMatches.map(token => token.substring(1).toUpperCase()))]
-      : [];
-    
-    // If no $ tokens found, try plain token names
-    if (extractedTokens.length === 0) {
-      let plainMatches = tweetText.match(plainTokenRegex);
-      extractedTokens = plainMatches
-        ? [...new Set(plainMatches.map(token => token.toUpperCase()))]
-        : [];
-    }
-    
-    // Determine sentiment based on keywords
-    const lowerText = tweetText.toLowerCase();
-    
-    // Expanded keyword lists
-    const bullishKeywords = [
-      'bullish', 'buy', 'long', 'moon', 'pump', 'breakout', 'target', 
-      'accumulate', 'strong', 'rally', 'up', 'going up', 'reach', 
-      'hit', 'breaking', 'squeeze', 'rocket', 'launching', 'parabolic',
-      'undervalued', 'dip buy', 'entry', 'accumulation'
-    ];
-    
-    const bearishKeywords = [
-      'bearish', 'sell', 'short', 'dump', 'drop', 'breakdown', 'weak', 
-      'crash', 'down', 'falling', 'plunge', 'tank', 'bleeding', 
-      'overvalued', 'exit', 'distribution'
-    ];
-    
-    // Context-aware bullish phrases (even without explicit keywords)
-    const bullishPhrases = [
-      'gonna reach', 'going to reach', 'will reach', 'heading to',
-      'target', 'next stop', 'breakout', 'ready to', 'about to',
-      'looking good', 'extremely bullish', 'very bullish'
-    ];
-    
-    const hasBullish = bullishKeywords.some(kw => lowerText.includes(kw));
-    const hasBearish = bearishKeywords.some(kw => lowerText.includes(kw));
-    const hasBullishPhrase = bullishPhrases.some(phrase => lowerText.includes(phrase));
-    
-    // Sentiment determination
-    let sentiment: 'bullish' | 'bearish' | 'neutral' = 'neutral';
-    if ((hasBullish || hasBullishPhrase) && !hasBearish) sentiment = 'bullish';
-    if (hasBearish && !hasBullish) sentiment = 'bearish';
-    
-    // Check if it's a signal candidate
-    // More lenient: token + (keyword OR bullish phrase)
-    const isSignalCandidate = 
-      extractedTokens.length > 0 && 
-      (hasBullish || hasBearish || hasBullishPhrase);
-    
-    const confidence = isSignalCandidate ? 0.5 : 0.0;
-    
-    return {
-      isSignalCandidate,
-      extractedTokens,
-      sentiment,
-      confidence,
-      reasoning: 'Fallback regex-based classification (enhanced)',
-    };
-  }
 }
 
 /**
@@ -373,9 +314,16 @@ export async function classifyTweet(tweetText: string): Promise<ClassificationRe
   const classifier = createLLMClassifier();
   
   if (!classifier) {
-    // Use fallback
-    console.log('[LLM Classifier] Using fallback classification (no API key)');
-    return new LLMTweetClassifier({ provider: 'perplexity', apiKey: 'dummy' }).fallbackClassification(tweetText);
+    // No API key - return NOT a signal candidate
+    console.error('[LLM Classifier] ❌ NO LLM API KEY - Tweet cannot be classified!');
+    console.error('   Set PERPLEXITY_API_KEY, OPENAI_API_KEY, or ANTHROPIC_API_KEY');
+    return {
+      isSignalCandidate: false,
+      extractedTokens: [],
+      sentiment: 'neutral',
+      confidence: 0,
+      reasoning: 'No LLM API key configured',
+    };
   }
   
   return classifier.classifyTweet(tweetText);
