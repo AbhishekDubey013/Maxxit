@@ -26,16 +26,16 @@ router.get('/', async (req: Request, res: Response) => {
 // POST /api/agent-accounts - Link X account to agent
 router.post('/', async (req: Request, res: Response) => {
   try {
-    const { agentId, accountUrl } = req.body;
+    const { agentId, ctAccountId } = req.body;
 
-    if (!agentId || !accountUrl) {
-      return res.status(400).json({ error: 'Agent ID and account URL are required' });
+    if (!agentId || !ctAccountId) {
+      return res.status(400).json({ error: 'Agent ID and CT account ID are required' });
     }
 
     const account = await prisma.agent_accounts.create({
       data: {
         agent_id: agentId,
-        account_url: accountUrl,
+        ct_account_id: ctAccountId,
       },
     });
 
