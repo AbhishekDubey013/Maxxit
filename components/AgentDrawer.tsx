@@ -145,6 +145,11 @@ export function AgentDrawer({ agentId, agentName, agentVenue, onClose }: AgentDr
       } finally {
         setLoading(false);
       }
+    } else if (venue === 'MULTI') {
+      // For MULTI venue agents, start with Hyperliquid setup
+      // User can add other venues from My Deployments page
+      alert('Multi-venue agent deployment:\n\n1. First, connect to Hyperliquid\n2. Then go to "My Deployments" to add Ostium and other venues');
+      setHyperliquidModalOpen(true);
     } else {
       // For SPOT/GMX, navigate to Safe wallet deployment page
       window.location.href = `/deploy-agent/${agentId}`;
