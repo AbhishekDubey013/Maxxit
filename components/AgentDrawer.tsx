@@ -28,6 +28,7 @@ export function AgentDrawer({ agentId, agentName, agentVenue, onClose }: AgentDr
   const [venue, setVenue] = useState<string>(agentVenue || '');
   const [hyperliquidModalOpen, setHyperliquidModalOpen] = useState(false);
   const [ostiumModalOpen, setOstiumModalOpen] = useState(false);
+  const [multiVenueSelectorOpen, setMultiVenueSelectorOpen] = useState(false);
   const [ostiumApprovalModal, setOstiumApprovalModal] = useState<{
     deploymentId: string;
     agentAddress: string;
@@ -146,36 +147,8 @@ export function AgentDrawer({ agentId, agentName, agentVenue, onClose }: AgentDr
         setLoading(false);
       }
     } else if (venue === 'MULTI') {
-      // For MULTI venue agents, redirect to My Deployments where they can see all venue buttons
-      // First create a basic deployment record
-      try {
-        setLoading(true);
-        const userWallet = user.wallet.address;
-        
-        // Create deployment with all venues enabled
-        const response = await fetch('/api/deployments/create-multi', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            agentId, 
-            userWallet,
-            enabledVenues: ['HYPERLIQUID', 'OSTIUM', 'SPOT']
-          }),
-        });
-
-        if (!response.ok) {
-          const data = await response.json();
-          throw new Error(data.error || 'Failed to create deployment');
-        }
-
-        // Redirect to My Deployments where user can see all setup buttons
-        window.location.href = '/my-deployments';
-      } catch (err: any) {
-        console.error('[Multi Deploy from Drawer] Error:', err);
-        alert(`Failed to create deployment: ${err.message}`);
-      } finally {
-        setLoading(false);
-      }
+      // For MULTI venue agents, open venue selector modal
+      setMultiVenueSelectorOpen(true);
     } else {
       // For SPOT/GMX, navigate to Safe wallet deployment page
       window.location.href = `/deploy-agent/${agentId}`;
