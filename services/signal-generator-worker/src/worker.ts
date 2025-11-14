@@ -189,11 +189,7 @@ async function generateSignalForAgentAndToken(
       console.log(`    ⚠️  LunarCrush not configured - using default 5% position size`);
     }
 
-    // Simple risk model (fixed percentages - matching monolith)
-    const stopLossPercent = 5;  // 5% stop loss
-    const takeProfitPercent = 15; // 15% take profit
-
-    // Create signal
+    // Create signal (risk_model is just metadata, not used by executor or monitor)
     const signal = await prisma.signals.create({
       data: {
         agent_id: agent.id,
@@ -205,10 +201,7 @@ async function generateSignalForAgentAndToken(
           value: positionSizePercent, // Dynamic from LunarCrush!
           impactFactor: tweet.ct_accounts.impact_factor || 0,
         },
-        risk_model: {
-          stopLoss: stopLossPercent / 100, // Convert to decimal
-          takeProfit: takeProfitPercent / 100,
-        },
+        risk_model: {}, // Empty - not used by any service, just kept for schema compliance
         source_tweets: [tweet.tweet_id],
         lunarcrush_score: lunarcrushScore,
         lunarcrush_reasoning: lunarcrushReasoning,
@@ -232,7 +225,8 @@ async function runWorker() {
   console.log('📋 Signal Generation Flow:');
   console.log('   1. Tweet classified by LLM (in tweet-ingestion-worker)');
   console.log('   2. LunarCrush scores market data → position size (0-10%)');
-  console.log('   3. Simple rules → stop loss (5%) & take profit (15%)');
+  console.log('   3. Signal created with side (LONG/SHORT) + size');
+  console.log('   Note: Stop loss & take profit NOT used by any service');
   console.log('');
   
   // Check LunarCrush availability
