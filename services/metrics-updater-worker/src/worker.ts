@@ -124,14 +124,9 @@ async function updateAgentMetrics(agentId: string): Promise<{
     const deploymentIds = deployments.map((d: { id: string }) => d.id);
 
     // Get closed positions
-    const venueFilter = agent.venue === 'MULTI'
-      ? { in: ['HYPERLIQUID', 'OSTIUM', 'GMX', 'SPOT'] }
-      : agent.venue;
-
     const positions = await prisma.positions.findMany({
       where: {
         deployment_id: { in: deploymentIds },
-        venue: venueFilter,
         closed_at: { not: null },
       },
       orderBy: { closed_at: 'desc' },
@@ -196,8 +191,6 @@ async function updateAgentMetrics(agentId: string): Promise<{
     };
 
     const sharpe30d = calculateSharpeRatio(positions30d, 365 / 30);
-    const sharpe90d = calculateSharpeRatio(positions90d, 365 / 90);
-    const sharpeSi = calculateSharpeRatio(positions, 365);
 
     // Update agent metrics
     await prisma.agents.update({
@@ -207,8 +200,6 @@ async function updateAgentMetrics(agentId: string): Promise<{
         apr_90d: apr90d,
         apr_si: aprSi,
         sharpe_30d: sharpe30d,
-        sharpe_90d: sharpe90d,
-        sharpe_si: sharpeSi,
       },
     });
 

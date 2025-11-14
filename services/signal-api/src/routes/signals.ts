@@ -138,11 +138,9 @@ router.get('/agent/:agentId/stats', async (req: Request, res: Response) => {
   try {
     const { agentId } = req.params;
 
-    // Get signal counts by status
-    const signalCounts = await prisma.signals.groupBy({
-      by: ['status'],
+    // Get total signal count
+    const totalSignals = await prisma.signals.count({
       where: { agent_id: agentId },
-      _count: true,
     });
 
     // Get signal counts by venue (for multi-venue agents)
@@ -160,10 +158,7 @@ router.get('/agent/:agentId/stats', async (req: Request, res: Response) => {
     });
 
     return res.status(200).json({
-      signalCounts: signalCounts.map((sc: any) => ({
-        status: sc.status,
-        count: sc._count,
-      })),
+      totalSignals,
       venueCounts: venueCounts.map((vc: any) => ({
         venue: vc.venue,
         count: vc._count,
