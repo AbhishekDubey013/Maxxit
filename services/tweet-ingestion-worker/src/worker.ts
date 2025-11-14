@@ -9,6 +9,7 @@ import express from 'express';
 import { prisma } from './lib/prisma-client';
 import { setupGracefulShutdown, registerCleanup } from './lib/graceful-shutdown';
 import { checkDatabaseHealth } from './lib/prisma-client';
+import { createLLMClassifier } from './lib/llm-classifier';
 
 dotenv.config();
 
@@ -126,10 +127,13 @@ async function ingestTweets() {
         console.log(`[${account.x_username}] ✅ Fetched ${tweets.length} new tweets`);
         totalFetched += tweets.length;
 
-        // Store tweets in database
+        // Store and classify tweets
+        const classifier = createLLMClassifier();
+        
         for (const tweet of tweets) {
           try {
-            await prisma.ct_posts.create({
+            // Store tweet
+            const storedTweet = await prisma.ct_posts.create({
               data: {
                 ct_account_id: account.id,
                 tweet_id: tweet.id,
@@ -138,6 +142,32 @@ async function ingestTweets() {
               },
             });
             totalProcessed++;
+            
+            // Classify tweet immediately
+            if (classifier) {
+              try {
+                const classification = await classifier.classifyTweet(tweet.text);
+                
+                // Update tweet with classification
+                await prisma.ct_posts.update({
+                  where: { id: storedTweet.id },
+                  data: {
+                    is_signal_candidate: classification.isSignalCandidate,
+                    extracted_tokens: classification.extractedTokens,
+                    confidence_score: classification.confidence,
+                    signal_type: classification.sentiment === 'bullish' ? 'LONG' : 
+                                 classification.sentiment === 'bearish' ? 'SHORT' : null,
+                  },
+                });
+                
+                if (classification.isSignalCandidate) {
+                  console.log(`[${account.x_username}] ✅ Signal detected: ${classification.extractedTokens.join(', ')} - ${classification.sentiment}`);
+                }
+              } catch (classifyError: any) {
+                console.error(`[${account.x_username}] ⚠️  Classification failed for tweet ${tweet.id}:`, classifyError.message);
+                // Continue anyway - tweet is stored, just not classified
+              }
+            }
           } catch (error: any) {
             // Tweet might already exist (duplicate), skip
             if (error.code !== 'P2002') {
@@ -171,6 +201,16 @@ async function runWorker() {
   console.log('🚀 Tweet Ingestion Worker starting...');
   console.log(`⏱️  Interval: ${INTERVAL}ms (${INTERVAL / 1000}s)`);
   console.log(`🔗 X API Proxy: ${process.env.X_API_PROXY_URL || process.env.TWITTER_PROXY_URL || 'https://maxxit.onrender.com'}`);
+  
+  // Check LLM classifier availability
+  const classifier = createLLMClassifier();
+  if (classifier) {
+    console.log('🤖 LLM Classifier: ENABLED');
+  } else {
+    console.log('⚠️  LLM Classifier: DISABLED (using fallback regex)');
+    console.log('   Set PERPLEXITY_API_KEY, OPENAI_API_KEY, or ANTHROPIC_API_KEY to enable');
+  }
+  
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   
   // Run immediately on startup
