@@ -5,8 +5,10 @@
   "main": "dist/server.js",
   "scripts": {
     "dev": "tsx watch src/worker.ts",
-    "build": "tsc",
-    "start": "node dist/trade-executor-worker/src/worker.js"
+    "build": "npm run build:shared && tsc",
+    "start": "node dist/trade-executor-worker/src/worker.js",
+    "build:shared": "cd ../shared && npm install && npm run build",
+    "build:standalone": "tsc"
   },
   "keywords": [
     "microservice",
