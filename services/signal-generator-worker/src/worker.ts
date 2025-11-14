@@ -206,30 +206,40 @@ async function generateSignalForAgentAndToken(
       console.log(`    ⚠️  LunarCrush not configured - using default 5% position size`);
     }
 
-    // Create signal
+    // Create signal (wrapped in try-catch to handle duplicates gracefully)
     // Note: risk_model is unused - position monitor has hardcoded risk management:
     //   • Hard stop loss: 10%
     //   • Trailing stop: Activates at +3% profit, trails by 1%
-    const signal = await prisma.signals.create({
-      data: {
-        agent_id: agent.id,
-        token_symbol: token,
-        venue: agent.venue,
-        side: side,
-        size_model: {
-          type: 'balance-percentage',
-          value: positionSizePercent, // Dynamic from LunarCrush!
-          impactFactor: tweet.ct_accounts.impact_factor || 0,
+    try {
+      const signal = await prisma.signals.create({
+        data: {
+          agent_id: agent.id,
+          token_symbol: token,
+          venue: agent.venue,
+          side: side,
+          size_model: {
+            type: 'balance-percentage',
+            value: positionSizePercent, // Dynamic from LunarCrush!
+            impactFactor: tweet.ct_accounts.impact_factor || 0,
+          },
+          risk_model: {}, // Empty - risk management is hardcoded in position monitor
+          source_tweets: [tweet.tweet_id],
+          lunarcrush_score: lunarcrushScore,
+          lunarcrush_reasoning: lunarcrushReasoning,
+          lunarcrush_breakdown: lunarcrushBreakdown,
         },
-        risk_model: {}, // Empty - risk management is hardcoded in position monitor
-        source_tweets: [tweet.tweet_id],
-        lunarcrush_score: lunarcrushScore,
-        lunarcrush_reasoning: lunarcrushReasoning,
-        lunarcrush_breakdown: lunarcrushBreakdown,
-      },
-    });
+      });
 
-    console.log(`    ✅ Signal created: ${side} ${token} on ${agent.venue} (${positionSizePercent.toFixed(2)}% position)`);
+      console.log(`    ✅ Signal created: ${side} ${token} on ${agent.venue} (${positionSizePercent.toFixed(2)}% position)`);
+    } catch (createError: any) {
+      // P2002: Unique constraint violation (signal already exists for this agent+token in 6h window)
+      if (createError.code === 'P2002') {
+        console.log(`    ⏭️  Signal already exists for ${token} (within 6-hour window)`);
+      } else {
+        // Re-throw unexpected errors
+        throw createError;
+      }
+    }
   } catch (error: any) {
     throw error;
   }
