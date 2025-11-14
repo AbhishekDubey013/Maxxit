@@ -57,3 +57,4 @@ typechain-types/
 *.db
 *.db-journal
 
+SIGNAL_GENERATOR_ENV_VALUES.txt
