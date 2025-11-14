@@ -4,6 +4,7 @@ import { db } from '../client/src/lib/db';
 import { AgentCard } from '@components/AgentCard';
 import { AgentDrawer } from '@components/AgentDrawer';
 import { HyperliquidConnect } from '@components/HyperliquidConnect';
+import { MultiVenueSelector } from '@components/MultiVenueSelector';
 import { Bot, TrendingUp, Shield, Zap } from 'lucide-react';
 import { Header } from '@components/Header';
 
@@ -25,6 +26,8 @@ export default function Home() {
   const [hyperliquidModalOpen, setHyperliquidModalOpen] = useState(false);
   const [hyperliquidAgentId, setHyperliquidAgentId] = useState<string>('');
   const [hyperliquidAgentName, setHyperliquidAgentName] = useState<string>('');
+  const [multiVenueSelectorOpen, setMultiVenueSelectorOpen] = useState(false);
+  const [multiVenueAgent, setMultiVenueAgent] = useState<{ id: string; name: string } | null>(null);
 
   useEffect(() => {
     async function fetchAgents() {
@@ -48,6 +51,17 @@ export default function Home() {
 
   const scrollToAgents = () => {
     document.getElementById('agents-list')?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const handleAgentClick = (agent: Agent) => {
+    if (agent.venue === 'MULTI') {
+      // For MULTI agents, open venue selector directly
+      setMultiVenueAgent({ id: agent.id, name: agent.name });
+      setMultiVenueSelectorOpen(true);
+    } else {
+      // For other agents, open the drawer
+      setSelectedAgent(agent);
+    }
   };
 
   return (
@@ -214,24 +228,26 @@ export default function Home() {
                 <div className="relative">
                   <AgentCard
                     agent={agent}
-                    onClick={() => setSelectedAgent(agent)}
+                    onClick={() => handleAgentClick(agent)}
                   />
-                  {/* Hyperliquid Button Overlay */}
-                  <div className="absolute bottom-4 right-4 z-10">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setHyperliquidAgentId(agent.id);
-                        setHyperliquidAgentName(agent.name);
-                        setHyperliquidModalOpen(true);
-                      }}
-                      className="inline-flex items-center justify-center gap-2 px-3 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg text-sm font-medium hover:shadow-lg transition-all"
-                      title="Setup Hyperliquid Trading"
-                    >
-                      <Zap className="h-4 w-4" />
-                      <span className="hidden sm:inline">Hyperliquid</span>
-                    </button>
-                  </div>
+                  {/* Hyperliquid Button Overlay - Only show for non-MULTI agents */}
+                  {agent.venue !== 'MULTI' && (
+                    <div className="absolute bottom-4 right-4 z-10">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setHyperliquidAgentId(agent.id);
+                          setHyperliquidAgentName(agent.name);
+                          setHyperliquidModalOpen(true);
+                        }}
+                        className="inline-flex items-center justify-center gap-2 px-3 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg text-sm font-medium hover:shadow-lg transition-all"
+                        title="Setup Hyperliquid Trading"
+                      >
+                        <Zap className="h-4 w-4" />
+                        <span className="hidden sm:inline">Hyperliquid</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
@@ -257,6 +273,22 @@ export default function Home() {
           onClose={() => setHyperliquidModalOpen(false)}
           onSuccess={() => {
             console.log('Hyperliquid setup complete!');
+          }}
+        />
+      )}
+
+      {/* Multi-Venue Selector Modal */}
+      {multiVenueSelectorOpen && multiVenueAgent && (
+        <MultiVenueSelector
+          agentId={multiVenueAgent.id}
+          agentName={multiVenueAgent.name}
+          onClose={() => {
+            setMultiVenueSelectorOpen(false);
+            setMultiVenueAgent(null);
+          }}
+          onComplete={() => {
+            setMultiVenueSelectorOpen(false);
+            setMultiVenueAgent(null);
           }}
         />
       )}
