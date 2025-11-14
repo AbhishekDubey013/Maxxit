@@ -85,8 +85,20 @@ export class SignalGenerator {
       }
       
       return this.parseResponse(response, input);
-    } catch (error) {
-      console.error('[SignalGen] LLM error:', error);
+    } catch (error: any) {
+      console.error('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      console.error('⚠️  SIGNAL GENERATOR LLM ERROR - USING FALLBACK!');
+      console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      console.error(`Provider: ${this.provider.toUpperCase()}`);
+      console.error(`Error: ${error.message}`);
+      if (error.message.includes('401')) {
+        console.error('❌ LIKELY CAUSE: API KEY INVALID OR CREDITS EXHAUSTED');
+        console.error('   → Check your API key in Railway environment variables');
+        console.error('   → Verify your API credits at the provider dashboard');
+      }
+      console.error('⚠️  Using fallback rule-based signal generation');
+      console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+      
       // Fallback to rule-based signal
       return this.fallbackSignal(input);
     }

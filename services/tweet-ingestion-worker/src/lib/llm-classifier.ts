@@ -59,8 +59,20 @@ export class LLMTweetClassifier {
       }
       
       return this.parseResponse(response, tweetText);
-    } catch (error) {
-      console.error('[LLM Classifier] Error:', error);
+    } catch (error: any) {
+      console.error('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      console.error('⚠️  LLM CLASSIFIER ERROR - FALLING BACK TO REGEX!');
+      console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      console.error(`Provider: ${this.provider.toUpperCase()}`);
+      console.error(`Error: ${error.message}`);
+      if (error.message.includes('401')) {
+        console.error('❌ LIKELY CAUSE: API KEY INVALID OR CREDITS EXHAUSTED');
+        console.error('   → Check your API key in Railway environment variables');
+        console.error('   → Verify your API credits at the provider dashboard');
+      }
+      console.error('⚠️  Using fallback regex - signal detection will be less accurate!');
+      console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+      
       // Fallback to regex-based classification
       return this.fallbackClassification(tweetText);
     }
