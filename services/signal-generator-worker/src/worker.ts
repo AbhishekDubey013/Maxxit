@@ -1,6 +1,9 @@
 /**
  * Signal Generator Worker (Microservice)
- * Generates trading signals from classified tweets using LLM + LunarCrush
+ * Generates trading signals from classified tweets
+ * - LLM classification happens in tweet-ingestion-worker (extracts tokens, side, confidence)
+ * - This worker uses LunarCrush for position sizing (0-10% based on market sentiment)
+ * - Risk management (stop loss, take profit) is hardcoded in position-monitor-worker
  * Interval: 5 minutes (configurable via WORKER_INTERVAL)
  */
 
