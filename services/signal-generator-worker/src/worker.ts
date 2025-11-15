@@ -157,21 +157,46 @@ async function generateSignalForAgentAndToken(
     }
 
     // Check if token is available on the target venue
-    const venueMarket = await prisma.venue_markets.findFirst({
-      where: {
-        token_symbol: token.toUpperCase(),
-        venue: agent.venue,
-        is_active: true,
-      },
-    });
+    // For MULTI agents, check if token is available on ANY enabled venue
+    let venueMarket: any;
+    
+    if (agent.venue === 'MULTI') {
+      // For multi-venue agents, check if token is available on Hyperliquid OR Ostium
+      const multiVenueMarkets = await prisma.venue_markets.findMany({
+        where: {
+          token_symbol: token.toUpperCase(),
+          venue: { in: ['HYPERLIQUID', 'OSTIUM'] },
+          is_active: true,
+        },
+      });
+      
+      if (multiVenueMarkets.length === 0) {
+        console.log(`    ⏭️  Skipping ${token} - not available on Hyperliquid or Ostium`);
+        console.log(`       (Multi-venue agents need token on at least one enabled venue)`);
+        return;
+      }
+      
+      venueMarket = multiVenueMarkets[0]; // Use first available venue for market info
+      const venueNames = multiVenueMarkets.map(m => m.venue).join(', ');
+      console.log(`    ✅ ${token} available on ${venueNames} (multi-venue)`);
+    } else {
+      // For single-venue agents, check specific venue
+      venueMarket = await prisma.venue_markets.findFirst({
+        where: {
+          token_symbol: token.toUpperCase(),
+          venue: agent.venue,
+          is_active: true,
+        },
+      });
 
-    if (!venueMarket) {
-      console.log(`    ⏭️  Skipping ${token} - not available on ${agent.venue}`);
-      console.log(`       (Only ${agent.venue}-supported tokens will generate signals)`);
-      return;
+      if (!venueMarket) {
+        console.log(`    ⏭️  Skipping ${token} - not available on ${agent.venue}`);
+        console.log(`       (Only ${agent.venue}-supported tokens will generate signals)`);
+        return;
+      }
+
+      console.log(`    ✅ ${token} available on ${agent.venue} (${venueMarket.market_name})`);
     }
-
-    console.log(`    ✅ ${token} available on ${agent.venue} (${venueMarket.market_name})`);
 
     // Determine side from tweet sentiment (already classified by LLM)
     const side = tweet.signal_type === 'SHORT' ? 'SHORT' : 'LONG';
