@@ -210,7 +210,8 @@ export async function monitorOstiumPositions() {
               } catch (createError: any) {
                 // P2002: Unique constraint violation (another worker discovered this position first)
                 if (createError.code === 'P2002') {
-                  console.log(`   ℹ️  Position already discovered by another worker (race condition handled)`);
+                  console.log(`   ℹ️  Position/signal already exists in DB (another worker got here first)`);
+                  console.log(`   ✅ This is normal - position will be monitored in next cycle`);
                 } else {
                   // Re-throw unexpected errors
                   throw createError;
