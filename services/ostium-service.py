@@ -167,7 +167,7 @@ def health():
         "service": "ostium",
         "network": "testnet" if OSTIUM_TESTNET else "mainnet",
         "timestamp": datetime.utcnow().isoformat(),
-        "version": "v1.3-TESTING-DEPLOYMENT",  # Changed to verify deployment
+        "version": "v1.4-CLOSE-FIX-FINAL",  # Changed to verify deployment
         "close_endpoint_fixed": True,
         "deployment_test": "IF_YOU_SEE_THIS_NEW_CODE_IS_DEPLOYED"
     })
@@ -623,8 +623,24 @@ def close_position():
         # Close the trade
         trade_index = trade_to_close.get('index')
         pair_index = trade_to_close.get('pairIndex')
+        
+        # Validate required fields
+        if trade_index is None:
+            logger.error(f"Missing trade index in trade data: {trade_to_close}")
+            return jsonify({
+                "success": False,
+                "error": "Trade index not found"
+            }), 400
+        
+        if pair_index is None:
+            logger.error(f"Missing pairIndex in trade data: {trade_to_close}")
+            return jsonify({
+                "success": False,
+                "error": "Pair index not found"
+            }), 400
+        
         logger.info(f"Closing position: {market} (index: {trade_index}, pairIndex: {pair_index})")
-        logger.info(f"Trade data: {trade_to_close}")
+        logger.info(f"Trade data keys: {list(trade_to_close.keys())}")
         
         # Get current market price (use entry price as default)
         # TODO: Fetch real-time price from oracle
