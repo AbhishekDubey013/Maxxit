@@ -86,12 +86,17 @@ export async function monitorOstiumPositions() {
 
   try {
     // Get ALL active deployments for Ostium venue
+    // Include both OSTIUM agents and MULTI agents with Ostium enabled
     const deployments = await prisma.agent_deployments.findMany({
       where: {
         status: 'ACTIVE',
-        agents: {
-          venue: 'OSTIUM',
-        },
+        OR: [
+          { agents: { venue: 'OSTIUM' } },
+          { 
+            agents: { venue: 'MULTI' },
+            enabled_venues: { has: 'OSTIUM' }
+          },
+        ],
       },
       include: {
         agents: {
@@ -104,7 +109,7 @@ export async function monitorOstiumPositions() {
       },
     });
 
-    console.log(`🔍 Found ${deployments.length} active Ostium deployments\n`);
+    console.log(`🔍 Found ${deployments.length} active Ostium deployments (including MULTI agents)\n`);
 
     if (deployments.length === 0) {
       console.log('✅ No Ostium deployments to monitor\n');
