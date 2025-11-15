@@ -167,7 +167,7 @@ def health():
         "service": "ostium",
         "network": "testnet" if OSTIUM_TESTNET else "mainnet",
         "timestamp": datetime.utcnow().isoformat(),
-        "version": "v1.5-DEBUG-LOGGING",  # Changed to verify deployment
+        "version": "v1.6-PAIR-OBJECT-FIX",  # Changed to verify deployment
         "close_endpoint_fixed": True,
         "deployment_test": "IF_YOU_SEE_THIS_NEW_CODE_IS_DEPLOYED"
     })
@@ -632,15 +632,19 @@ def close_position():
         # Close the trade
         trade_index = trade_to_close.get('index')
         
-        # Try multiple ways to get pair_index
-        pair_index = trade_to_close.get('pairIndex')
-        if pair_index is None:
-            # Try from pair object
-            pair_info = trade_to_close.get('pair', {})
+        # Get pair object - it's a nested dict
+        pair_info = trade_to_close.get('pair', {})
+        logger.info(f"Pair info type: {type(pair_info)}, value: {pair_info}")
+        
+        # Try to get pairIndex from the pair object
+        if isinstance(pair_info, dict):
             pair_index = pair_info.get('pairIndex', pair_info.get('index'))
+        else:
+            # If pair is not a dict, it might be the index itself
+            pair_index = pair_info
         
         logger.info(f"Trade data keys: {list(trade_to_close.keys())}")
-        logger.info(f"Trade data: {trade_to_close}")
+        logger.info(f"Extracted - trade_index: {trade_index}, pair_index: {pair_index}")
         
         # Validate required fields
         if trade_index is None:
@@ -651,13 +655,13 @@ def close_position():
             }), 400
         
         if pair_index is None:
-            logger.error(f"Missing pairIndex - tried 'pairIndex' and 'pair.pairIndex'")
+            logger.error(f"Missing pairIndex. Pair object: {pair_info}")
             return jsonify({
                 "success": False,
-                "error": f"Pair index not found. Available keys: {list(trade_to_close.keys())}"
+                "error": f"Pair index not found. Pair object: {pair_info}"
             }), 400
         
-        logger.info(f"Closing position: {market} (index: {trade_index}, pairIndex: {pair_index})")
+        logger.info(f"Closing position: {market} (trade_index: {trade_index}, pair_index: {pair_index})")
         
         # Get current market price (use entry price as default)
         # TODO: Fetch real-time price from oracle
