@@ -167,8 +167,19 @@ def health():
         "service": "ostium",
         "network": "testnet" if OSTIUM_TESTNET else "mainnet",
         "timestamp": datetime.utcnow().isoformat(),
-        "version": "v1.2-close-fix",  # Version identifier to verify deployment
-        "close_endpoint_fixed": True
+        "version": "v1.3-TESTING-DEPLOYMENT",  # Changed to verify deployment
+        "close_endpoint_fixed": True,
+        "deployment_test": "IF_YOU_SEE_THIS_NEW_CODE_IS_DEPLOYED"
+    })
+
+
+@app.route('/test-deployment', methods=['GET'])
+def test_deployment():
+    """Test endpoint to verify new code is deployed"""
+    return jsonify({
+        "message": "🎉 NEW CODE IS DEPLOYED!",
+        "timestamp": datetime.utcnow().isoformat(),
+        "close_fix_present": True
     })
 
 
