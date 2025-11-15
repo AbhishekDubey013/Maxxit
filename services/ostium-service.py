@@ -166,7 +166,9 @@ def health():
         "status": "ok",
         "service": "ostium",
         "network": "testnet" if OSTIUM_TESTNET else "mainnet",
-        "timestamp": datetime.utcnow().isoformat()
+        "timestamp": datetime.utcnow().isoformat(),
+        "version": "v1.2-close-fix",  # Version identifier to verify deployment
+        "close_endpoint_fixed": True
     })
 
 
