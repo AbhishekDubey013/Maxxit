@@ -167,7 +167,7 @@ def health():
         "service": "ostium",
         "network": "testnet" if OSTIUM_TESTNET else "mainnet",
         "timestamp": datetime.utcnow().isoformat(),
-        "version": "v1.7-PAIR-ID-FINAL",  # Changed to verify deployment
+        "version": "v1.8-DB-LOOKUP",  # Changed to verify deployment
         "close_endpoint_fixed": True,
         "deployment_test": "IF_YOU_SEE_THIS_NEW_CODE_IS_DEPLOYED"
     })
@@ -632,24 +632,48 @@ def close_position():
         # Close the trade
         trade_index = trade_to_close.get('index')
         
-        # Get pair object - it's a nested dict with 'id' field
-        pair_info = trade_to_close.get('pair', {})
-        
-        # Extract pair_index from pair.id (it's a string, need to convert to int)
-        if isinstance(pair_info, dict):
-            pair_id_str = pair_info.get('id')
-            if pair_id_str is not None:
-                pair_index = int(pair_id_str)
+        # Look up pair_index from venue_markets table using token symbol
+        try:
+            conn = psycopg2.connect(database_url)
+            cur = conn.cursor(cursor_factory=RealDictCursor)
+            cur.execute(
+                """
+                SELECT market_index FROM venue_markets 
+                WHERE venue = 'OSTIUM' 
+                AND UPPER(token_symbol) = UPPER(%s)
+                AND is_active = true
+                LIMIT 1
+                """,
+                (market,)
+            )
+            market_data = cur.fetchone()
+            cur.close()
+            conn.close()
+            
+            if market_data:
+                pair_index = market_data['market_index']
+                logger.info(f"Found pair_index for {market} from venue_markets table: {pair_index}")
+            else:
+                # Fallback: try to get from trade data
+                pair_info = trade_to_close.get('pair', {})
+                if isinstance(pair_info, dict):
+                    pair_id_str = pair_info.get('id')
+                    pair_index = int(pair_id_str) if pair_id_str else None
+                    logger.warning(f"Market {market} not in venue_markets, using trade data: {pair_index}")
+                else:
+                    pair_index = None
+                    logger.error(f"Could not find pair_index for {market}")
+        except Exception as e:
+            logger.error(f"Error querying venue_markets: {e}")
+            # Fallback to trade data
+            pair_info = trade_to_close.get('pair', {})
+            if isinstance(pair_info, dict):
+                pair_id_str = pair_info.get('id')
+                pair_index = int(pair_id_str) if pair_id_str else None
             else:
                 pair_index = None
-        else:
-            # If pair is not a dict, it might be the index itself
-            pair_index = pair_info
         
-        logger.info(f"Pair info: {pair_info.get('from', '')}/{pair_info.get('to', '')} (id: {pair_info.get('id', 'N/A')})")
-        
-        logger.info(f"Trade data keys: {list(trade_to_close.keys())}")
-        logger.info(f"Extracted - trade_index: {trade_index}, pair_index: {pair_index}")
+        logger.info(f"Closing {market} - trade_index: {trade_index}, pair_index: {pair_index}")
         
         # Validate required fields
         if trade_index is None:
