@@ -571,12 +571,30 @@ def close_position():
         
         # Check if position exists
         address_to_check = user_address if use_delegation else sdk.ostium.get_public_address()
-        open_trades = sdk.get_open_trades(address_to_check)
         
-        # Find matching trade
+        # get_open_trades is async, need to run it
+        import asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        result = loop.run_until_complete(sdk.get_open_trades(trader_address=address_to_check))
+        loop.close()
+        
+        # Parse result - SDK returns tuple (trades_list, trader_address)
+        open_trades = []
+        if isinstance(result, tuple) and len(result) > 0:
+            open_trades = result[0] if isinstance(result[0], list) else []
+        
+        # Find matching trade (by tradeId if provided, or by market)
         trade_to_close = None
         for trade in open_trades:
-            if trade.get('pairIndex') == market:
+            # Match by tradeId if provided
+            if trade_id and str(trade.get('tradeID', trade.get('index'))) == str(trade_id):
+                trade_to_close = trade
+                break
+            # Otherwise match by market symbol
+            pair_info = trade.get('pair', {})
+            market_symbol = pair_info.get('from', '')
+            if market_symbol.upper() == market.upper():
                 trade_to_close = trade
                 break
         
@@ -590,10 +608,10 @@ def close_position():
             })
         
         # Close the trade
-        trade_index = trade_to_close.get('index')
-        logger.info(f"Closing position: {market} (index: {trade_index})")
+        trade_id_to_close = trade_to_close.get('tradeID', trade_to_close.get('index'))
+        logger.info(f"Closing position: {market} (tradeID: {trade_id_to_close})")
         
-        result = sdk.ostium.close_trade(trade_index)
+        result = sdk.ostium.close_trade(trade_id_to_close)
         
         # Get realized PnL from result
         realized_pnl = float(trade_to_close.get('pnl', 0))
