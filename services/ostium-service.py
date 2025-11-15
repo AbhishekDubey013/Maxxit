@@ -623,14 +623,23 @@ def close_position():
         # Close the trade
         trade_index = trade_to_close.get('index')
         logger.info(f"Closing position: {market} (index: {trade_index})")
+        logger.info(f"Trade data: {trade_to_close}")
         
         # Get current market price (use entry price as default)
         # TODO: Fetch real-time price from oracle
-        current_price = float(int(trade_to_close.get('openPrice', 0)) / 1e18)
+        open_price_raw = trade_to_close.get('openPrice', 0)
+        logger.info(f"openPrice from trade: {open_price_raw}")
+        
+        if open_price_raw and open_price_raw != 0:
+            current_price = float(int(open_price_raw) / 1e18)
+        else:
+            # Fallback to a reasonable default
+            current_price = 100.0
         
         logger.info(f"Closing trade at approx price: ${current_price}")
         
-        result = sdk.ostium.close_trade(trade_index, current_price)
+        # Try as keyword argument since SDK might expect it that way
+        result = sdk.ostium.close_trade(trade_index=trade_index, market_price=current_price)
         
         # Get realized PnL from result
         realized_pnl = float(trade_to_close.get('pnl', 0))
