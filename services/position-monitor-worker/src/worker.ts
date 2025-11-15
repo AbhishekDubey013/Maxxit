@@ -135,15 +135,27 @@ async function monitorHyperliquidPositions() {
   try {
     const { spawn } = await import('child_process');
     const path = await import('path');
+    const fs = await import('fs');
     
     console.log(`[Hyperliquid] 🔵 Starting full monitoring with price tracking...\n`);
     
-    // Run the worker script from project root
-    const workerPath = path.join(__dirname, '../../../workers/position-monitor-hyperliquid.ts');
+    // Find project root by looking for package.json
+    let projectRoot = process.cwd();
+    while (!fs.existsSync(path.join(projectRoot, 'workers'))) {
+      const parent = path.dirname(projectRoot);
+      if (parent === projectRoot) {
+        console.error('[Hyperliquid] ❌ Cannot find project root with workers/ directory');
+        return;
+      }
+      projectRoot = parent;
+    }
+    
+    const workerPath = path.join(projectRoot, 'workers/position-monitor-hyperliquid.ts');
+    console.log(`[Hyperliquid] 📂 Worker path: ${workerPath}`);
     
     return new Promise((resolve) => {
       const worker = spawn('npx', ['tsx', workerPath], {
-        cwd: path.join(__dirname, '../../..'),
+        cwd: projectRoot,
         stdio: 'inherit', // Forward output to parent process
         env: process.env,
       });
@@ -177,15 +189,27 @@ async function monitorOstiumPositions() {
   try {
     const { spawn } = await import('child_process');
     const path = await import('path');
+    const fs = await import('fs');
     
     console.log(`[Ostium] 🟢 Starting full monitoring with price tracking...\n`);
     
-    // Run the worker script from project root
-    const workerPath = path.join(__dirname, '../../../workers/position-monitor-ostium.ts');
+    // Find project root by looking for package.json
+    let projectRoot = process.cwd();
+    while (!fs.existsSync(path.join(projectRoot, 'workers'))) {
+      const parent = path.dirname(projectRoot);
+      if (parent === projectRoot) {
+        console.error('[Ostium] ❌ Cannot find project root with workers/ directory');
+        return;
+      }
+      projectRoot = parent;
+    }
+    
+    const workerPath = path.join(projectRoot, 'workers/position-monitor-ostium.ts');
+    console.log(`[Ostium] 📂 Worker path: ${workerPath}`);
     
     return new Promise((resolve) => {
       const worker = spawn('npx', ['tsx', workerPath], {
-        cwd: path.join(__dirname, '../../..'),
+        cwd: projectRoot,
         stdio: 'inherit', // Forward output to parent process
         env: {
           ...process.env,
