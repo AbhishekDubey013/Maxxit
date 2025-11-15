@@ -167,7 +167,7 @@ def health():
         "service": "ostium",
         "network": "testnet" if OSTIUM_TESTNET else "mainnet",
         "timestamp": datetime.utcnow().isoformat(),
-        "version": "v2.1-DEBUG-RESULT",  # Changed to verify deployment
+        "version": "v2.2-AGGRESSIVE-DEBUG",  # Changed to verify deployment
         "close_endpoint_fixed": True,
         "deployment_test": "IF_YOU_SEE_THIS_NEW_CODE_IS_DEPLOYED"
     })
@@ -718,25 +718,39 @@ def close_position():
         # Close trade - for delegation, pass trader_address like we do for opening
         logger.info(f"Calling close_trade: trade_index={trade_index}, pair_id={pair_index}, price={current_price}")
         
-        if use_delegation:
-            logger.info(f"Using delegation - closing on behalf of {user_address}")
-            result = sdk.ostium.close_trade(
-                trade_index=trade_index,
-                market_price=current_price,
-                pair_id=pair_index,
-                trader_address=user_address  # THIS IS THE KEY!
-            )
-        else:
-            logger.info("Direct close (no delegation)")
-            result = sdk.ostium.close_trade(
-                trade_index=trade_index,
-                market_price=current_price,
-                pair_id=pair_index
-            )
-        
-        # Log what SDK actually returns
-        logger.info(f"SDK close_trade returned: {result}")
-        logger.info(f"Result type: {type(result)}")
+        try:
+            if use_delegation:
+                logger.info(f"Using delegation - closing on behalf of {user_address}")
+                result = sdk.ostium.close_trade(
+                    trade_index=trade_index,
+                    market_price=current_price,
+                    pair_id=pair_index,
+                    trader_address=user_address  # THIS IS THE KEY!
+                )
+            else:
+                logger.info("Direct close (no delegation)")
+                result = sdk.ostium.close_trade(
+                    trade_index=trade_index,
+                    market_price=current_price,
+                    pair_id=pair_index
+                )
+            
+            # Log what SDK actually returns
+            logger.info(f"✅ SDK close_trade SUCCESS")
+            logger.info(f"   Returned: {result}")
+            logger.info(f"   Type: {type(result)}")
+            logger.info(f"   Dir: {dir(result) if result else 'None'}")
+            
+            # Check if result is None or empty
+            if not result:
+                logger.error(f"❌ SDK returned empty result! Position might not be closeable yet.")
+                
+        except Exception as sdk_error:
+            logger.error(f"❌ SDK close_trade FAILED: {sdk_error}")
+            logger.error(f"   Error type: {type(sdk_error)}")
+            logger.error(traceback.format_exc())
+            # Re-raise to be caught by outer exception handler
+            raise
         
         # Get realized PnL from result
         realized_pnl = float(trade_to_close.get('pnl', 0))
