@@ -182,7 +182,7 @@ export async function monitorOstiumPositions() {
                       type: 'trailing-stop',
                       trailingPercent: 1,
                     },
-                    source_tweets: ['DISCOVERED_FROM_OSTIUM'],
+                    source_tweets: [`DISCOVERED_FROM_OSTIUM_${ostPosition.tradeId}`],
                   },
                 });
 
