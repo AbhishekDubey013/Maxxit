@@ -167,7 +167,7 @@ def health():
         "service": "ostium",
         "network": "testnet" if OSTIUM_TESTNET else "mainnet",
         "timestamp": datetime.utcnow().isoformat(),
-        "version": "v2.0-DELEGATION-FIX",  # Changed to verify deployment
+        "version": "v2.1-DEBUG-RESULT",  # Changed to verify deployment
         "close_endpoint_fixed": True,
         "deployment_test": "IF_YOU_SEE_THIS_NEW_CODE_IS_DEPLOYED"
     })
@@ -734,15 +734,28 @@ def close_position():
                 pair_id=pair_index
             )
         
+        # Log what SDK actually returns
+        logger.info(f"SDK close_trade returned: {result}")
+        logger.info(f"Result type: {type(result)}")
+        
         # Get realized PnL from result
         realized_pnl = float(trade_to_close.get('pnl', 0))
         
-        logger.info(f"✅ Position closed: PnL = ${realized_pnl:.2f}")
+        # Extract tx hash - SDK might return dict or receipt object
+        tx_hash = ''
+        if isinstance(result, dict):
+            tx_hash = result.get('transactionHash', result.get('hash', ''))
+        elif hasattr(result, 'transactionHash'):
+            tx_hash = result.transactionHash
+        elif hasattr(result, 'hash'):
+            tx_hash = result.hash
+        
+        logger.info(f"✅ Position closed: PnL = ${realized_pnl:.2f}, TX: {tx_hash}")
         
         return jsonify({
             "success": True,
             "result": {
-                "txHash": result.get('transactionHash', ''),
+                "txHash": tx_hash,
                 "market": market,
                 "closePnl": realized_pnl
             },
