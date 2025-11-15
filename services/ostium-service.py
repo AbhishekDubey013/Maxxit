@@ -167,7 +167,7 @@ def health():
         "service": "ostium",
         "network": "testnet" if OSTIUM_TESTNET else "mainnet",
         "timestamp": datetime.utcnow().isoformat(),
-        "version": "v2.2-AGGRESSIVE-DEBUG",  # Changed to verify deployment
+        "version": "v2.3-PRINT-DEBUG",  # Changed to verify deployment
         "close_endpoint_fixed": True,
         "deployment_test": "IF_YOU_SEE_THIS_NEW_CODE_IS_DEPLOYED"
     })
@@ -520,8 +520,10 @@ def close_position():
         "userAddress": "0x..."
     }
     """
+    print("[CLOSE] ========== close_position() called ==========")
     try:
         data = request.json
+        print(f"[CLOSE] Request data: {data}")
         
         # Support both agentAddress and privateKey formats
         agent_address = data.get('agentAddress')
@@ -716,10 +718,12 @@ def close_position():
         logger.info(f"Closing trade at approx price: ${current_price}")
         
         # Close trade - for delegation, pass trader_address like we do for opening
+        print(f"[CLOSE] Calling close_trade: trade_index={trade_index}, pair_id={pair_index}, price={current_price}")
         logger.info(f"Calling close_trade: trade_index={trade_index}, pair_id={pair_index}, price={current_price}")
         
         try:
             if use_delegation:
+                print(f"[CLOSE] Using delegation - closing on behalf of {user_address}")
                 logger.info(f"Using delegation - closing on behalf of {user_address}")
                 result = sdk.ostium.close_trade(
                     trade_index=trade_index,
@@ -728,6 +732,7 @@ def close_position():
                     trader_address=user_address  # THIS IS THE KEY!
                 )
             else:
+                print("[CLOSE] Direct close (no delegation)")
                 logger.info("Direct close (no delegation)")
                 result = sdk.ostium.close_trade(
                     trade_index=trade_index,
@@ -736,6 +741,10 @@ def close_position():
                 )
             
             # Log what SDK actually returns
+            print(f"[CLOSE] ✅ SDK close_trade SUCCESS")
+            print(f"[CLOSE]    Returned: {result}")
+            print(f"[CLOSE]    Type: {type(result)}")
+            print(f"[CLOSE]    Dir: {dir(result) if result else 'None'}")
             logger.info(f"✅ SDK close_trade SUCCESS")
             logger.info(f"   Returned: {result}")
             logger.info(f"   Type: {type(result)}")
@@ -743,9 +752,13 @@ def close_position():
             
             # Check if result is None or empty
             if not result:
+                print(f"[CLOSE] ❌ SDK returned empty result! Position might not be closeable yet.")
                 logger.error(f"❌ SDK returned empty result! Position might not be closeable yet.")
                 
         except Exception as sdk_error:
+            print(f"[CLOSE] ❌ SDK close_trade FAILED: {sdk_error}")
+            print(f"[CLOSE]    Error type: {type(sdk_error)}")
+            print(f"[CLOSE]    Traceback: {traceback.format_exc()}")
             logger.error(f"❌ SDK close_trade FAILED: {sdk_error}")
             logger.error(f"   Error type: {type(sdk_error)}")
             logger.error(traceback.format_exc())
