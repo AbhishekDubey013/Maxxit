@@ -628,14 +628,24 @@ def close_position():
         
         # Get current market price (use entry price as default)
         # TODO: Fetch real-time price from oracle
-        open_price_raw = trade_to_close.get('openPrice', 0)
+        open_price_raw = trade_to_close.get('openPrice')
         logger.info(f"openPrice from trade: {open_price_raw}")
         
-        if open_price_raw and open_price_raw != 0:
-            current_price = float(int(open_price_raw) / 1e18)
+        # Calculate price safely
+        if open_price_raw is not None and open_price_raw != 0:
+            try:
+                current_price = float(int(open_price_raw) / 1e18)
+            except (TypeError, ValueError) as e:
+                logger.warning(f"Could not parse openPrice: {e}, using default")
+                current_price = 100.0
         else:
-            # Fallback to a reasonable default
-            current_price = 100.0
+            # Fallback: use reasonable default for the market
+            price_defaults = {
+                'BTC': 90000.0, 'ETH': 3000.0, 'SOL': 200.0,
+                'ADA': 0.5, 'XRP': 2.5, 'HYPE': 40.0
+            }
+            current_price = price_defaults.get(market.upper(), 100.0)
+            logger.info(f"Using default price for {market}: ${current_price}")
         
         logger.info(f"Closing trade at approx price: ${current_price}")
         
