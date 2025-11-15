@@ -36,8 +36,10 @@ export interface OpenPositionParams {
 }
 
 export interface ClosePositionParams {
-  privateKey: string;
+  privateKey?: string; // Legacy format
+  agentAddress?: string; // New format (preferred)
   market: string;
+  tradeId?: string; // Optional - more precise than market matching
   useDelegation?: boolean;
   userAddress?: string;
 }

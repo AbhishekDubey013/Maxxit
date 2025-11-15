@@ -1615,8 +1615,9 @@ export class TradeExecutor {
 
       // Close position via Ostium adapter
       const result = await closeOstiumPosition({
-        privateKey: agentPrivateKey,
+        agentAddress: agentAddress, // Use agentAddress instead of privateKey (service will look up key)
         market: position.token_symbol,
+        tradeId: position.entry_tx_hash, // Use tradeId for precise matching
         useDelegation: true,
         userAddress: userArbitrumAddress,
       });
