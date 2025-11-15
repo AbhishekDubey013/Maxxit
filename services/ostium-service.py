@@ -167,9 +167,13 @@ def health():
         "service": "ostium",
         "network": "testnet" if OSTIUM_TESTNET else "mainnet",
         "timestamp": datetime.utcnow().isoformat(),
-        "version": "v2.3-PRINT-DEBUG",  # Changed to verify deployment
-        "close_endpoint_fixed": True,
-        "deployment_test": "IF_YOU_SEE_THIS_NEW_CODE_IS_DEPLOYED"
+        "version": "v3.0-PRICE-TRACKING",  # Latest version with price feed
+        "features": {
+            "price_feed": True,
+            "delegation": True,
+            "trailing_stops": True,
+            "position_monitoring": True
+        }
     })
 
 
@@ -1048,6 +1052,50 @@ def validate_market_endpoint():
         })
     except Exception as e:
         logger.error(f"Market validation error: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route('/price/<token>', methods=['GET'])
+def get_price(token):
+    """
+    Get current market price for a token from Ostium price feed
+    Example: GET /price/BTC
+    """
+    try:
+        logger.info(f"Getting price for {token}")
+        
+        # Create SDK instance for price feed access
+        dummy_key = '0x' + '1' * 64
+        network = 'testnet' if OSTIUM_TESTNET else 'mainnet'
+        sdk = OstiumSDK(network=network, private_key=dummy_key, rpc_url=OSTIUM_RPC_URL)
+        
+        # Get price from Ostium SDK
+        # Returns tuple: (price, isMarketOpen, isDayTradingClosed)
+        price_result = sdk.price.get_price(token.upper(), 'USD')
+        
+        if isinstance(price_result, tuple) and len(price_result) >= 1:
+            price = price_result[0]
+            is_market_open = price_result[1] if len(price_result) > 1 else True
+            is_day_trading_closed = price_result[2] if len(price_result) > 2 else False
+            
+            logger.info(f"{token}/USD price: ${price} (Open: {is_market_open})")
+            
+            return jsonify({
+                "success": True,
+                "token": token.upper(),
+                "price": float(price),
+                "isMarketOpen": is_market_open,
+                "isDayTradingClosed": is_day_trading_closed
+            })
+        else:
+            return jsonify({
+                "success": False,
+                "error": "Invalid price data format"
+            }), 500
+            
+    except Exception as e:
+        logger.error(f"Get price error for {token}: {str(e)}")
+        logger.error(traceback.format_exc())
         return jsonify({"success": False, "error": str(e)}), 500
 
 
