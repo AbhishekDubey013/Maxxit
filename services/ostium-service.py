@@ -167,7 +167,7 @@ def health():
         "service": "ostium",
         "network": "testnet" if OSTIUM_TESTNET else "mainnet",
         "timestamp": datetime.utcnow().isoformat(),
-        "version": "v1.8-DB-LOOKUP",  # Changed to verify deployment
+        "version": "v1.9-SIMPLE-CLOSE",  # Changed to verify deployment
         "close_endpoint_fixed": True,
         "deployment_test": "IF_YOU_SEE_THIS_NEW_CODE_IS_DEPLOYED"
     })
@@ -715,12 +715,19 @@ def close_position():
         
         logger.info(f"Closing trade at approx price: ${current_price}")
         
-        # close_trade requires: trade_index, market_price, pair_id
-        result = sdk.ostium.close_trade(
-            trade_index=trade_index,
-            market_price=current_price,
-            pair_id=pair_index
-        )
+        # Try close_trade with just trade_index first (simplest approach)
+        logger.info(f"Calling close_trade with trade_index={trade_index}")
+        try:
+            result = sdk.ostium.close_trade(trade_index)
+            logger.info(f"Close trade result: {result}")
+        except TypeError as te:
+            # If it needs more params, try with all three
+            logger.warning(f"TypeError with single param: {te}, trying with all params")
+            result = sdk.ostium.close_trade(
+                trade_index=trade_index,
+                market_price=current_price,
+                pair_id=pair_index
+            )
         
         # Get realized PnL from result
         realized_pnl = float(trade_to_close.get('pnl', 0))
