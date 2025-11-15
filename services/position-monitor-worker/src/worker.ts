@@ -129,23 +129,40 @@ async function monitorOpenPositions() {
 
 /**
  * Monitor Hyperliquid positions
- * Delegates to the full Hyperliquid monitor in workers/
+ * Runs the standalone Hyperliquid monitor script
  */
 async function monitorHyperliquidPositions() {
   try {
-    // Import and run the REAL Hyperliquid monitor
-    const { monitorHyperliquidPositions: realMonitor } = await import('../../../workers/position-monitor-hyperliquid');
+    const { spawn } = await import('child_process');
+    const path = await import('path');
     
     console.log(`[Hyperliquid] 🔵 Starting full monitoring with price tracking...\n`);
-    const result = await realMonitor();
     
-    if (result.success) {
-      console.log(`[Hyperliquid] ✅ Monitoring complete`);
-      console.log(`[Hyperliquid]    Monitored: ${result.positionsMonitored} positions`);
-      console.log(`[Hyperliquid]    Closed: ${result.positionsClosed} positions\n`);
-    } else {
-      console.error(`[Hyperliquid] ❌ Monitoring failed: ${result.error}\n`);
-    }
+    // Run the worker script from project root
+    const workerPath = path.join(__dirname, '../../../workers/position-monitor-hyperliquid.ts');
+    
+    return new Promise((resolve) => {
+      const worker = spawn('npx', ['tsx', workerPath], {
+        cwd: path.join(__dirname, '../../..'),
+        stdio: 'inherit', // Forward output to parent process
+        env: process.env,
+      });
+
+      worker.on('close', (code) => {
+        if (code === 0) {
+          console.log(`[Hyperliquid] ✅ Monitoring complete (exit code: ${code})\n`);
+          resolve(undefined);
+        } else {
+          console.error(`[Hyperliquid] ❌ Monitoring failed (exit code: ${code})\n`);
+          resolve(undefined);
+        }
+      });
+
+      worker.on('error', (error) => {
+        console.error(`[Hyperliquid] ❌ Error spawning worker:`, error.message);
+        resolve(undefined);
+      });
+    });
   } catch (error: any) {
     console.error(`[Hyperliquid] ❌ Error:`, error.message);
     console.error(error.stack);
@@ -154,23 +171,43 @@ async function monitorHyperliquidPositions() {
 
 /**
  * Monitor Ostium positions
- * Delegates to the full Ostium monitor in workers/
+ * Runs the standalone Ostium monitor script
  */
 async function monitorOstiumPositions() {
   try {
-    // Import and run the REAL Ostium monitor
-    const { monitorOstiumPositions: realMonitor } = await import('../../../workers/position-monitor-ostium');
+    const { spawn } = await import('child_process');
+    const path = await import('path');
     
     console.log(`[Ostium] 🟢 Starting full monitoring with price tracking...\n`);
-    const result = await realMonitor();
     
-    if (result.success) {
-      console.log(`[Ostium] ✅ Monitoring complete`);
-      console.log(`[Ostium]    Monitored: ${result.positionsMonitored} positions`);
-      console.log(`[Ostium]    Closed: ${result.positionsClosed} positions\n`);
-    } else {
-      console.error(`[Ostium] ❌ Monitoring failed: ${result.error}\n`);
-    }
+    // Run the worker script from project root
+    const workerPath = path.join(__dirname, '../../../workers/position-monitor-ostium.ts');
+    
+    return new Promise((resolve) => {
+      const worker = spawn('npx', ['tsx', workerPath], {
+        cwd: path.join(__dirname, '../../..'),
+        stdio: 'inherit', // Forward output to parent process
+        env: {
+          ...process.env,
+          OSTIUM_SERVICE_URL: process.env.OSTIUM_SERVICE_URL || 'https://maxxit-1.onrender.com',
+        },
+      });
+
+      worker.on('close', (code) => {
+        if (code === 0) {
+          console.log(`[Ostium] ✅ Monitoring complete (exit code: ${code})\n`);
+          resolve(undefined);
+        } else {
+          console.error(`[Ostium] ❌ Monitoring failed (exit code: ${code})\n`);
+          resolve(undefined);
+        }
+      });
+
+      worker.on('error', (error) => {
+        console.error(`[Ostium] ❌ Error spawning worker:`, error.message);
+        resolve(undefined);
+      });
+    });
   } catch (error: any) {
     console.error(`[Ostium] ❌ Error:`, error.message);
     console.error(error.stack);
