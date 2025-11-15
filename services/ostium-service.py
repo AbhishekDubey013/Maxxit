@@ -167,7 +167,7 @@ def health():
         "service": "ostium",
         "network": "testnet" if OSTIUM_TESTNET else "mainnet",
         "timestamp": datetime.utcnow().isoformat(),
-        "version": "v1.4-CLOSE-FIX-FINAL",  # Changed to verify deployment
+        "version": "v1.5-DEBUG-LOGGING",  # Changed to verify deployment
         "close_endpoint_fixed": True,
         "deployment_test": "IF_YOU_SEE_THIS_NEW_CODE_IS_DEPLOYED"
     })
@@ -599,16 +599,25 @@ def close_position():
         
         # Find matching trade (by tradeId if provided, or by market)
         trade_to_close = None
+        logger.info(f"Looking for trade - market: {market}, tradeId: {trade_id}")
+        logger.info(f"Total open trades found: {len(open_trades)}")
+        
         for trade in open_trades:
-            # Match by tradeId if provided
-            if trade_id and str(trade.get('tradeID', trade.get('index'))) == str(trade_id):
+            # Log each trade for debugging
+            trade_id_field = trade.get('tradeID', trade.get('index'))
+            logger.info(f"Checking trade: {trade_id_field}, keys: {list(trade.keys())}")
+            
+            # Match by tradeId if provided (primary method)
+            if trade_id and str(trade_id_field) == str(trade_id):
                 trade_to_close = trade
+                logger.info(f"Matched by tradeId: {trade_id}")
                 break
             # Otherwise match by market symbol
             pair_info = trade.get('pair', {})
             market_symbol = pair_info.get('from', '')
             if market_symbol.upper() == market.upper():
                 trade_to_close = trade
+                logger.info(f"Matched by market: {market}")
                 break
         
         # Idempotency: if no position, return success
@@ -622,25 +631,33 @@ def close_position():
         
         # Close the trade
         trade_index = trade_to_close.get('index')
+        
+        # Try multiple ways to get pair_index
         pair_index = trade_to_close.get('pairIndex')
+        if pair_index is None:
+            # Try from pair object
+            pair_info = trade_to_close.get('pair', {})
+            pair_index = pair_info.get('pairIndex', pair_info.get('index'))
+        
+        logger.info(f"Trade data keys: {list(trade_to_close.keys())}")
+        logger.info(f"Trade data: {trade_to_close}")
         
         # Validate required fields
         if trade_index is None:
-            logger.error(f"Missing trade index in trade data: {trade_to_close}")
+            logger.error(f"Missing trade index")
             return jsonify({
                 "success": False,
                 "error": "Trade index not found"
             }), 400
         
         if pair_index is None:
-            logger.error(f"Missing pairIndex in trade data: {trade_to_close}")
+            logger.error(f"Missing pairIndex - tried 'pairIndex' and 'pair.pairIndex'")
             return jsonify({
                 "success": False,
-                "error": "Pair index not found"
+                "error": f"Pair index not found. Available keys: {list(trade_to_close.keys())}"
             }), 400
         
         logger.info(f"Closing position: {market} (index: {trade_index}, pairIndex: {pair_index})")
-        logger.info(f"Trade data keys: {list(trade_to_close.keys())}")
         
         # Get current market price (use entry price as default)
         # TODO: Fetch real-time price from oracle
