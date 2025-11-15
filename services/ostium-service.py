@@ -492,24 +492,78 @@ def open_position():
 def close_position():
     """
     Close a position (idempotent)
-    Body: {
+    Body (Format 1 - Agent):
+    {
+        "agentAddress": "0x...",
+        "userAddress": "0x...",
+        "market": "BTC",
+        "tradeId": "12345"  # Optional
+    }
+    Body (Format 2 - Legacy):
+    {
         "privateKey": "0x...",
         "market": "BTC-USD",
         "useDelegation": false,
-        "userAddress": "0x..."  # If delegation
+        "userAddress": "0x..."
     }
     """
     try:
         data = request.json
+        
+        # Support both agentAddress and privateKey formats
+        agent_address = data.get('agentAddress')
         private_key = data.get('privateKey')
+        
+        # If agentAddress is provided, look up agent's private key from database
+        if agent_address:
+            try:
+                import psycopg2
+                from psycopg2.extras import RealDictCursor
+                
+                database_url = os.getenv('DATABASE_URL')
+                if not database_url:
+                    return jsonify({
+                        "success": False,
+                        "error": "DATABASE_URL not configured"
+                    }), 500
+                
+                conn = psycopg2.connect(database_url)
+                cur = conn.cursor(cursor_factory=RealDictCursor)
+                cur.execute(
+                    "SELECT private_key FROM wallet_pool WHERE LOWER(address) = LOWER(%s)",
+                    (agent_address,)
+                )
+                wallet = cur.fetchone()
+                cur.close()
+                conn.close()
+                
+                if not wallet:
+                    return jsonify({
+                        "success": False,
+                        "error": f"Agent address {agent_address} not found in wallet pool"
+                    }), 404
+                
+                private_key = wallet['private_key']
+                use_delegation = True
+                logger.info(f"Found agent key for {agent_address} in wallet pool")
+                
+            except Exception as e:
+                logger.error(f"Error fetching agent key: {e}")
+                return jsonify({
+                    "success": False,
+                    "error": f"Failed to fetch agent key: {str(e)}"
+                }), 500
+        else:
+            use_delegation = data.get('useDelegation', False)
+        
         market = data.get('market')
-        use_delegation = data.get('useDelegation', False)
+        trade_id = data.get('tradeId')
         user_address = data.get('userAddress')
         
         if not all([private_key, market]):
             return jsonify({
                 "success": False,
-                "error": "Missing required fields: privateKey, market"
+                "error": "Missing required fields: agentAddress/privateKey, market"
             }), 400
         
         # Get SDK
