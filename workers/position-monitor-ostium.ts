@@ -86,16 +86,13 @@ export async function monitorOstiumPositions() {
 
   try {
     // Get ALL active deployments for Ostium venue
-    // Include both OSTIUM agents and MULTI agents with Ostium enabled
+    // Include: 1) OSTIUM agents, 2) MULTI agents (assume they have Ostium enabled)
     const deployments = await prisma.agent_deployments.findMany({
       where: {
         status: 'ACTIVE',
         OR: [
           { agents: { venue: 'OSTIUM' } },
-          { 
-            agents: { venue: 'MULTI' },
-            enabled_venues: { has: 'OSTIUM' }
-          },
+          { agents: { venue: 'MULTI' } }, // All MULTI agents (Ostium is a default venue)
         ],
       },
       include: {
