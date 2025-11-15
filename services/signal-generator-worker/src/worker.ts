@@ -216,15 +216,16 @@ async function generateSignalForAgentAndToken(
           lunarcrushReasoning = lcResult.reasoning;
           lunarcrushBreakdown = lcResult.breakdown;
           
-          // LunarCrush determines position size (0-10%)
-          // Score > 0 means tradeable, score <= 0 means skip
+          // LunarCrush determines position size (0.5-10%)
+          // Positive score = larger position, negative/zero = minimum position
           if (lunarcrushScore > 0) {
-            // Convert score (-1 to 1) to position size (0-10%)
-            positionSizePercent = Math.max(0, Math.min(10, lunarcrushScore * 10));
+            // Convert score (0 to 1) to position size (0.5-10%)
+            positionSizePercent = Math.max(0.5, Math.min(10, lunarcrushScore * 10));
             console.log(`    📊 LunarCrush: ${token} score=${lunarcrushScore.toFixed(3)}, position=${positionSizePercent.toFixed(2)}%`);
           } else {
-            console.log(`    ⏭️  LunarCrush: ${token} score=${lunarcrushScore.toFixed(3)} - NOT TRADEABLE`);
-            return; // Skip this signal
+            // Negative/zero score = use minimum position (0.5%) instead of blocking
+            positionSizePercent = 0.5;
+            console.log(`    📊 LunarCrush: ${token} score=${lunarcrushScore.toFixed(3)} - CAUTION: minimum position (${positionSizePercent}%)`);
           }
         }
       } catch (lcError: any) {
