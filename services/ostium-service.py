@@ -167,7 +167,7 @@ def health():
         "service": "ostium",
         "network": "testnet" if OSTIUM_TESTNET else "mainnet",
         "timestamp": datetime.utcnow().isoformat(),
-        "version": "v1.6-PAIR-OBJECT-FIX",  # Changed to verify deployment
+        "version": "v1.7-PAIR-ID-FINAL",  # Changed to verify deployment
         "close_endpoint_fixed": True,
         "deployment_test": "IF_YOU_SEE_THIS_NEW_CODE_IS_DEPLOYED"
     })
@@ -632,16 +632,21 @@ def close_position():
         # Close the trade
         trade_index = trade_to_close.get('index')
         
-        # Get pair object - it's a nested dict
+        # Get pair object - it's a nested dict with 'id' field
         pair_info = trade_to_close.get('pair', {})
-        logger.info(f"Pair info type: {type(pair_info)}, value: {pair_info}")
         
-        # Try to get pairIndex from the pair object
+        # Extract pair_index from pair.id (it's a string, need to convert to int)
         if isinstance(pair_info, dict):
-            pair_index = pair_info.get('pairIndex', pair_info.get('index'))
+            pair_id_str = pair_info.get('id')
+            if pair_id_str is not None:
+                pair_index = int(pair_id_str)
+            else:
+                pair_index = None
         else:
             # If pair is not a dict, it might be the index itself
             pair_index = pair_info
+        
+        logger.info(f"Pair info: {pair_info.get('from', '')}/{pair_info.get('to', '')} (id: {pair_info.get('id', 'N/A')})")
         
         logger.info(f"Trade data keys: {list(trade_to_close.keys())}")
         logger.info(f"Extracted - trade_index: {trade_index}, pair_index: {pair_index}")
