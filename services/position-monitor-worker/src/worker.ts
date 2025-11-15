@@ -129,55 +129,51 @@ async function monitorOpenPositions() {
 
 /**
  * Monitor Hyperliquid positions
+ * Delegates to the full Hyperliquid monitor in workers/
  */
 async function monitorHyperliquidPositions() {
   try {
-    const positions = await prisma.positions.findMany({
-      where: {
-        venue: 'HYPERLIQUID',
-        closed_at: null,
-        status: 'OPEN',
-      },
-    });
-
-    console.log(`[Hyperliquid] 📊 Monitoring ${positions.length} positions`);
-
-    // TODO: Implement actual position monitoring logic
-    // - Fetch current prices from Hyperliquid service
-    // - Check if TP or SL is hit
-    // - Close positions if conditions are met
-    // - Call: ${process.env.HYPERLIQUID_SERVICE_URL}/close-position
-
-    console.log(`[Hyperliquid] ✅ Monitoring complete (logic pending)\n`);
+    // Import and run the REAL Hyperliquid monitor
+    const { monitorHyperliquidPositions: realMonitor } = await import('../../../workers/position-monitor-hyperliquid');
+    
+    console.log(`[Hyperliquid] 🔵 Starting full monitoring with price tracking...\n`);
+    const result = await realMonitor();
+    
+    if (result.success) {
+      console.log(`[Hyperliquid] ✅ Monitoring complete`);
+      console.log(`[Hyperliquid]    Monitored: ${result.positionsMonitored} positions`);
+      console.log(`[Hyperliquid]    Closed: ${result.positionsClosed} positions\n`);
+    } else {
+      console.error(`[Hyperliquid] ❌ Monitoring failed: ${result.error}\n`);
+    }
   } catch (error: any) {
     console.error(`[Hyperliquid] ❌ Error:`, error.message);
+    console.error(error.stack);
   }
 }
 
 /**
  * Monitor Ostium positions
+ * Delegates to the full Ostium monitor in workers/
  */
 async function monitorOstiumPositions() {
   try {
-    const positions = await prisma.positions.findMany({
-      where: {
-        venue: 'OSTIUM',
-        closed_at: null,
-        status: 'OPEN',
-      },
-    });
-
-    console.log(`[Ostium] 📊 Monitoring ${positions.length} positions`);
-
-    // TODO: Implement actual position monitoring logic
-    // - Fetch current prices from Ostium service
-    // - Check if TP or SL is hit
-    // - Close positions if conditions are met
-    // - Call: ${process.env.OSTIUM_SERVICE_URL}/close-position
-
-    console.log(`[Ostium] ✅ Monitoring complete (logic pending)\n`);
+    // Import and run the REAL Ostium monitor
+    const { monitorOstiumPositions: realMonitor } = await import('../../../workers/position-monitor-ostium');
+    
+    console.log(`[Ostium] 🟢 Starting full monitoring with price tracking...\n`);
+    const result = await realMonitor();
+    
+    if (result.success) {
+      console.log(`[Ostium] ✅ Monitoring complete`);
+      console.log(`[Ostium]    Monitored: ${result.positionsMonitored} positions`);
+      console.log(`[Ostium]    Closed: ${result.positionsClosed} positions\n`);
+    } else {
+      console.error(`[Ostium] ❌ Monitoring failed: ${result.error}\n`);
+    }
   } catch (error: any) {
     console.error(`[Ostium] ❌ Error:`, error.message);
+    console.error(error.stack);
   }
 }
 
