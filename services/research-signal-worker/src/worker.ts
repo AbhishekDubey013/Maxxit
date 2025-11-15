@@ -92,10 +92,36 @@ setupGracefulShutdown('Research Signal Worker', server);
 
 // Start worker
 if (require.main === module) {
-  runWorker().catch(error => {
-    console.error('[ResearchSignal] ❌ Worker failed to start:', error);
+  // Check critical environment variables
+  if (!process.env.DATABASE_URL) {
+    console.error('❌ FATAL: DATABASE_URL environment variable is not set!');
+    console.error('   Please set DATABASE_URL in your deployment environment.');
     process.exit(1);
-  });
+  }
+
+  console.log('✅ Environment check passed');
+  console.log('   DATABASE_URL: [SET]');
+  console.log('   PORT:', PORT);
+  console.log('   NODE_ENV:', process.env.NODE_ENV || 'development');
+
+  // Test database connection before starting
+  checkDatabaseHealth()
+    .then(healthy => {
+      if (!healthy) {
+        console.error('❌ FATAL: Cannot connect to database!');
+        console.error('   Check DATABASE_URL and database availability.');
+        process.exit(1);
+      }
+      console.log('✅ Database connection verified');
+      
+      // Start worker
+      return runWorker();
+    })
+    .catch(error => {
+      console.error('[ResearchSignal] ❌ Worker failed to start:', error);
+      console.error('   Error details:', error.stack);
+      process.exit(1);
+    });
 }
 
 export { generateResearchSignals };
