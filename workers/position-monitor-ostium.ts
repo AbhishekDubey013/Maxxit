@@ -228,7 +228,7 @@ export async function monitorOstiumPositions() {
           where: {
             deployment_id: deployment.id,
             venue: 'OSTIUM',
-            closed_at: null,
+            status: 'OPEN', // Use status field for consistency
           },
         });
 
@@ -251,8 +251,10 @@ export async function monitorOstiumPositions() {
               await prisma.positions.update({
                 where: { id: position.id },
                 data: {
+                  status: 'CLOSED',
                   closed_at: new Date(),
                   exit_price: null, // Unknown exit price
+                  exit_reason: 'CLOSED_EXTERNALLY',
                   pnl: 0, // Unknown PnL (TODO: calculate from fills)
                 },
               });

@@ -792,7 +792,21 @@ def close_position():
             logger.error(f"❌ SDK close_trade FAILED: {sdk_error}")
             logger.error(f"   Error type: {type(sdk_error)}")
             logger.error(traceback.format_exc())
-            # Re-raise to be caught by outer exception handler
+            
+            # Check if the exception message contains the error tuple
+            error_str = str(sdk_error)
+            if '0xf77a8069' in error_str:
+                # This is "NoOpenPosition" or "PositionAlreadyClosed" error
+                logger.error(f"❌ Position already closed or doesn't exist (detected in exception)")
+                logger.error(f"   This is normal if position was closed externally")
+                return jsonify({
+                    "success": True,  # Treat as success (idempotent)
+                    "message": "Position already closed (idempotent)",
+                    "closePnl": 0,
+                    "alreadyClosed": True
+                })
+            
+            # Re-raise other errors to be caught by outer exception handler
             raise
         
         # Get realized PnL from result
