@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "tsx watch src/worker.ts",
     "build": "npx prisma generate && tsc",
+    "postinstall": "npx prisma generate",
     "start": "node dist/worker.js"
   },
   "keywords": [

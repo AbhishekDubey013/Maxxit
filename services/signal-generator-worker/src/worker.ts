@@ -157,21 +157,46 @@ async function generateSignalForAgentAndToken(
     }
 
     // Check if token is available on the target venue
-    const venueMarket = await prisma.venue_markets.findFirst({
-      where: {
-        token_symbol: token.toUpperCase(),
-        venue: agent.venue,
-        is_active: true,
-      },
-    });
+    // For MULTI agents, check if token is available on ANY enabled venue
+    let venueMarket: any;
+    
+    if (agent.venue === 'MULTI') {
+      // For multi-venue agents, check if token is available on Hyperliquid OR Ostium
+      const multiVenueMarkets = await prisma.venue_markets.findMany({
+        where: {
+          token_symbol: token.toUpperCase(),
+          venue: { in: ['HYPERLIQUID', 'OSTIUM'] },
+          is_active: true,
+        },
+      });
+      
+      if (multiVenueMarkets.length === 0) {
+        console.log(`    ⏭️  Skipping ${token} - not available on Hyperliquid or Ostium`);
+        console.log(`       (Multi-venue agents need token on at least one enabled venue)`);
+        return;
+      }
+      
+      venueMarket = multiVenueMarkets[0]; // Use first available venue for market info
+      const venueNames = multiVenueMarkets.map(m => m.venue).join(', ');
+      console.log(`    ✅ ${token} available on ${venueNames} (multi-venue)`);
+    } else {
+      // For single-venue agents, check specific venue
+      venueMarket = await prisma.venue_markets.findFirst({
+        where: {
+          token_symbol: token.toUpperCase(),
+          venue: agent.venue,
+          is_active: true,
+        },
+      });
 
-    if (!venueMarket) {
-      console.log(`    ⏭️  Skipping ${token} - not available on ${agent.venue}`);
-      console.log(`       (Only ${agent.venue}-supported tokens will generate signals)`);
-      return;
+      if (!venueMarket) {
+        console.log(`    ⏭️  Skipping ${token} - not available on ${agent.venue}`);
+        console.log(`       (Only ${agent.venue}-supported tokens will generate signals)`);
+        return;
+      }
+
+      console.log(`    ✅ ${token} available on ${agent.venue} (${venueMarket.market_name})`);
     }
-
-    console.log(`    ✅ ${token} available on ${agent.venue} (${venueMarket.market_name})`);
 
     // Determine side from tweet sentiment (already classified by LLM)
     const side = tweet.signal_type === 'SHORT' ? 'SHORT' : 'LONG';
@@ -191,15 +216,16 @@ async function generateSignalForAgentAndToken(
           lunarcrushReasoning = lcResult.reasoning;
           lunarcrushBreakdown = lcResult.breakdown;
           
-          // LunarCrush determines position size (0-10%)
-          // Score > 0 means tradeable, score <= 0 means skip
+          // LunarCrush determines position size (0.5-10%)
+          // Positive score = larger position, negative/zero = minimum position
           if (lunarcrushScore > 0) {
-            // Convert score (-1 to 1) to position size (0-10%)
-            positionSizePercent = Math.max(0, Math.min(10, lunarcrushScore * 10));
+            // Convert score (0 to 1) to position size (0.5-10%)
+            positionSizePercent = Math.max(0.5, Math.min(10, lunarcrushScore * 10));
             console.log(`    📊 LunarCrush: ${token} score=${lunarcrushScore.toFixed(3)}, position=${positionSizePercent.toFixed(2)}%`);
           } else {
-            console.log(`    ⏭️  LunarCrush: ${token} score=${lunarcrushScore.toFixed(3)} - NOT TRADEABLE`);
-            return; // Skip this signal
+            // Negative/zero score = use minimum position (0.5%) instead of blocking
+            positionSizePercent = 0.5;
+            console.log(`    📊 LunarCrush: ${token} score=${lunarcrushScore.toFixed(3)} - CAUTION: minimum position (${positionSizePercent}%)`);
           }
         }
       } catch (lcError: any) {

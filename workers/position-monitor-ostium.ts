@@ -13,6 +13,7 @@ import { getOstiumPositions, getOstiumBalance } from '../lib/adapters/ostium-ada
 import { updateMetricsForDeployment } from '../lib/metrics-updater';
 import * as fs from 'fs';
 import * as path from 'path';
+import axios from 'axios';
 
 const prisma = new PrismaClient();
 const executor = new TradeExecutor();
@@ -86,12 +87,14 @@ export async function monitorOstiumPositions() {
 
   try {
     // Get ALL active deployments for Ostium venue
+    // Include: 1) OSTIUM agents, 2) MULTI agents (assume they have Ostium enabled)
     const deployments = await prisma.agent_deployments.findMany({
       where: {
         status: 'ACTIVE',
-        agents: {
-          venue: 'OSTIUM',
-        },
+        OR: [
+          { agents: { venue: 'OSTIUM' } },
+          { agents: { venue: 'MULTI' } }, // All MULTI agents (Ostium is a default venue)
+        ],
       },
       include: {
         agents: {
@@ -104,7 +107,7 @@ export async function monitorOstiumPositions() {
       },
     });
 
-    console.log(`🔍 Found ${deployments.length} active Ostium deployments\n`);
+    console.log(`🔍 Found ${deployments.length} active Ostium deployments (including MULTI agents)\n`);
 
     if (deployments.length === 0) {
       console.log('✅ No Ostium deployments to monitor\n');
@@ -180,7 +183,7 @@ export async function monitorOstiumPositions() {
                       type: 'trailing-stop',
                       trailingPercent: 1,
                     },
-                    source_tweets: ['DISCOVERED_FROM_OSTIUM'],
+                    source_tweets: [`DISCOVERED_FROM_OSTIUM_${ostPosition.tradeId}`],
                   },
                 });
 
@@ -207,7 +210,8 @@ export async function monitorOstiumPositions() {
               } catch (createError: any) {
                 // P2002: Unique constraint violation (another worker discovered this position first)
                 if (createError.code === 'P2002') {
-                  console.log(`   ℹ️  Position already discovered by another worker (race condition handled)`);
+                  console.log(`   ℹ️  Position/signal already exists in DB (another worker got here first)`);
+                  console.log(`   ✅ This is normal - position will be monitored in next cycle`);
                 } else {
                   // Re-throw unexpected errors
                   throw createError;
@@ -263,59 +267,145 @@ export async function monitorOstiumPositions() {
               continue;
             }
 
-            // Update current price and check trailing stop
-            const currentPrice = ostPosition.entryPrice; // Ostium provides mark price
+            // Get CURRENT market price from Ostium service
+            let currentPrice: number;
+            try {
+              // Extract token symbol (e.g., "BTC" from "BTC/USD")
+              const tokenSymbol = position.token_symbol.replace('/USD', '').replace('/USDT', '');
+              
+              // Get current price from Ostium service (which uses SDK price feed)
+              const ostiumServiceUrl = process.env.OSTIUM_SERVICE_URL || 'http://localhost:5002';
+              const priceResponse = await axios.get(`${ostiumServiceUrl}/price/${tokenSymbol}`, { timeout: 5000 });
+              
+              if (priceResponse.data.success && priceResponse.data.price) {
+                currentPrice = parseFloat(priceResponse.data.price);
+                console.log(`   💰 Current Price: $${currentPrice.toFixed(4)} | Entry: $${position.entry_price.toFixed(4)}`);
+              } else {
+                throw new Error('Price not available');
+              }
+            } catch (priceError: any) {
+              console.error(`   ⚠️  Could not fetch current price for ${position.token_symbol}: ${priceError.message}`);
+              console.log(`   ⏭️  Skipping trailing stop check (using entry price as fallback)`);
+              currentPrice = ostPosition.entryPrice; // Fallback to entry price
+            }
+
+            // Calculate P&L
+            const positionValue = position.qty * currentPrice;
+            const entryValue = position.qty * position.entry_price;
+            const isLong = position.side === 'LONG' || position.side === 'BUY';
+            const pnlUSD = isLong ? positionValue - entryValue : entryValue - positionValue;
+            const pnlPercent = (pnlUSD / entryValue) * 100;
+            
+            console.log(`   📈 P&L: $${pnlUSD.toFixed(2)} (${pnlPercent.toFixed(2)}%)`);
+
+            // Check trailing stop logic
             const trailingParams = position.trailing_params as any;
+            let shouldClose = false;
+            let closeReason = '';
 
-            if (trailingParams?.enabled) {
-              // Initialize highest price on first check
-              if (!trailingParams.highestPrice) {
-                trailingParams.highestPrice = currentPrice;
-                await prisma.positions.update({
-                  where: { id: position.id },
-                  data: { trailing_params: trailingParams },
-                });
+            // HARD STOP LOSS: 10%
+            const HARD_STOP_LOSS = 10;
+            
+            if (isLong) {
+              const stopLossPrice = position.entry_price * (1 - HARD_STOP_LOSS / 100);
+              if (currentPrice <= stopLossPrice) {
+                shouldClose = true;
+                closeReason = 'HARD_STOP_LOSS';
+                console.log(`   🔴 HARD STOP LOSS HIT! Stop: $${stopLossPrice.toFixed(4)}`);
               }
-
-              // Update highest price if new high
-              const isLong = position.side === 'LONG' || position.side === 'BUY';
-              if (isLong && currentPrice > trailingParams.highestPrice) {
-                trailingParams.highestPrice = currentPrice;
-                await prisma.positions.update({
-                  where: { id: position.id },
-                  data: { trailing_params: trailingParams },
-                });
-                console.log(`   📈 New high for ${position.token_symbol}: $${currentPrice.toFixed(2)}`);
-              } else if (!isLong && currentPrice < trailingParams.highestPrice) {
-                trailingParams.highestPrice = currentPrice;
-                await prisma.positions.update({
-                  where: { id: position.id },
-                  data: { trailing_params: trailingParams },
-                });
-                console.log(`   📉 New low for ${position.token_symbol}: $${currentPrice.toFixed(2)}`);
+            } else { // SHORT
+              const stopLossPrice = position.entry_price * (1 + HARD_STOP_LOSS / 100);
+              if (currentPrice >= stopLossPrice) {
+                shouldClose = true;
+                closeReason = 'HARD_STOP_LOSS';
+                console.log(`   🔴 HARD STOP LOSS HIT! Stop: $${stopLossPrice.toFixed(4)}`);
               }
+            }
 
-              // Check if trailing stop triggered
+            // TRAILING STOP LOGIC
+            if (!shouldClose && trailingParams?.enabled) {
               const trailingPercent = trailingParams.trailingPercent || 1;
-              const stopPrice = isLong
-                ? trailingParams.highestPrice * (1 - trailingPercent / 100)
-                : trailingParams.highestPrice * (1 + trailingPercent / 100);
-
-              const shouldClose = isLong ? currentPrice <= stopPrice : currentPrice >= stopPrice;
-
-              if (shouldClose) {
-                console.log(`   🚨 Trailing stop triggered for ${position.token_symbol}`);
-                console.log(`      Current: $${currentPrice.toFixed(2)} | Stop: $${stopPrice.toFixed(2)}`);
+              
+              if (isLong) {
+                // LONG position: track highest price
+                const activationThreshold = position.entry_price * 1.03; // Activate after +3%
+                const highestPrice = trailingParams.highestPrice || position.entry_price;
+                const newHighest = Math.max(highestPrice, currentPrice);
                 
-                // Close position
-                const closeResult = await executor.closePosition(position.id);
-                
-                if (closeResult.success) {
-                  console.log(`   ✅ Position closed successfully`);
-                  totalPositionsClosed++;
-                } else {
-                  console.error(`   ❌ Failed to close position: ${closeResult.error}`);
+                // Update highest price if new high
+                if (newHighest > highestPrice) {
+                  await prisma.positions.update({
+                    where: { id: position.id },
+                    data: {
+                      trailing_params: {
+                        ...trailingParams,
+                        highestPrice: newHighest,
+                      }
+                    }
+                  });
+                  console.log(`   📈 New high: $${newHighest.toFixed(4)}`);
                 }
+
+                // Check if trailing stop should trigger
+                if (newHighest >= activationThreshold) {
+                  const trailingStopPrice = newHighest * (1 - trailingPercent / 100);
+                  if (currentPrice <= trailingStopPrice) {
+                    shouldClose = true;
+                    closeReason = 'TRAILING_STOP';
+                    console.log(`   🟢 Trailing stop triggered! High: $${newHighest.toFixed(4)}, Stop: $${trailingStopPrice.toFixed(4)}`);
+                  } else {
+                    console.log(`   ✅ Trailing stop active (High: $${newHighest.toFixed(4)}, Stop: $${trailingStopPrice.toFixed(4)})`);
+                  }
+                } else {
+                  console.log(`   ⏳ Trailing stop inactive (need +3% for activation, current: ${pnlPercent.toFixed(2)}%)`);
+                }
+              } else { // SHORT
+                // SHORT position: track lowest price
+                const activationThreshold = position.entry_price * 0.97; // Activate after +3%
+                const lowestPrice = trailingParams.lowestPrice || position.entry_price;
+                const newLowest = Math.min(lowestPrice, currentPrice);
+                
+                // Update lowest price if new low
+                if (newLowest < lowestPrice) {
+                  await prisma.positions.update({
+                    where: { id: position.id },
+                    data: {
+                      trailing_params: {
+                        ...trailingParams,
+                        lowestPrice: newLowest,
+                      }
+                    }
+                  });
+                  console.log(`   📉 New low: $${newLowest.toFixed(4)}`);
+                }
+
+                // Check if trailing stop should trigger
+                if (newLowest <= activationThreshold) {
+                  const trailingStopPrice = newLowest * (1 + trailingPercent / 100);
+                  if (currentPrice >= trailingStopPrice) {
+                    shouldClose = true;
+                    closeReason = 'TRAILING_STOP';
+                    console.log(`   🟢 Trailing stop triggered! Low: $${newLowest.toFixed(4)}, Stop: $${trailingStopPrice.toFixed(4)}`);
+                  } else {
+                    console.log(`   ✅ Trailing stop active (Low: $${newLowest.toFixed(4)}, Stop: $${trailingStopPrice.toFixed(4)})`);
+                  }
+                } else {
+                  console.log(`   ⏳ Trailing stop inactive (need +3% for activation, current: ${pnlPercent.toFixed(2)}%)`);
+                }
+              }
+            }
+
+            // Execute close if triggered
+            if (shouldClose) {
+              console.log(`   🔴 Closing position (Reason: ${closeReason})`);
+              
+              const closeResult = await executor.closePosition(position.id);
+              
+              if (closeResult.success) {
+                console.log(`   ✅ Position closed successfully`);
+                totalPositionsClosed++;
+              } else {
+                console.error(`   ❌ Failed to close position: ${closeResult.error}`);
               }
             }
 

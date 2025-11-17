@@ -347,6 +347,30 @@ if (require.main === module) {
     console.error("[ResearchSignal] ❌ Worker failed to start:", error);
     process.exit(1);
   });
+
+  console.log('✅ Environment check passed');
+  console.log('   DATABASE_URL: [SET]');
+  console.log('   PORT:', PORT);
+  console.log('   NODE_ENV:', process.env.NODE_ENV || 'development');
+
+  // Test database connection before starting
+  checkDatabaseHealth()
+    .then(healthy => {
+      if (!healthy) {
+        console.error('❌ FATAL: Cannot connect to database!');
+        console.error('   Check DATABASE_URL and database availability.');
+        process.exit(1);
+      }
+      console.log('✅ Database connection verified');
+      
+      // Start worker
+      return runWorker();
+    })
+    .catch(error => {
+      console.error('[ResearchSignal] ❌ Worker failed to start:', error);
+      console.error('   Error details:', error.stack);
+      process.exit(1);
+    });
 }
 
 export { generateResearchSignals };

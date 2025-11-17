@@ -194,70 +194,11 @@ export async function monitorHyperliquidPositions() {
             } catch (error: any) {
               if (error.code === 'P2002') {
                 // P2002: Unique constraint violation (race condition)
-                // Could be signal or position - another worker discovered this first
-                console.log(`     ℹ️  Position/signal already discovered by another worker (race condition handled)`);
-                
-                // Try to find the position by token and side (best effort)
-                dbPosition = await prisma.positions.findFirst({
-                  where: {
-                    deployment_id: deployment.id,
-                    venue: 'HYPERLIQUID',
-                    token_symbol: symbol,
-                    side: side,
-                    closed_at: null,
-                  }
-                });
-                
-                if (!dbPosition) {
-                  // If still not found, try by deployment + token + open status
-                  console.log(`     🔍 Searching by deployment + token...`);
-                  dbPosition = await prisma.positions.findFirst({
-                    where: {
-                      deployment_id: deployment.id,
-                      token_symbol: symbol,
-                      closed_at: null,
-                    },
-                    orderBy: {
-                      opened_at: 'desc'
-                    }
-                  });
-                }
-                
-                if (!dbPosition) {
-                  console.error(`     ❌ Could not find position after duplicate error`);
-                  console.error(`     💡 This might be a closed position - checking all positions...`);
-                  
-                  // Last resort: find any position (even closed) to understand what's happening
-                  const anyPosition = await prisma.positions.findFirst({
-                    where: {
-                      deployment_id: deployment.id,
-                      token_symbol: symbol,
-                    },
-                    orderBy: {
-                      opened_at: 'desc'
-                    }
-                  });
-                  
-                  if (anyPosition) {
-                    if (anyPosition.closed_at) {
-                      console.log(`     ℹ️  Found closed position (closed at ${anyPosition.closed_at.toISOString()})`);
-                      console.log(`     ℹ️  Hyperliquid still reports position as open - may be sync issue`);
-                    } else {
-                      console.log(`     ℹ️  Found open position ${anyPosition.id.substring(0, 8)}... - will monitor it`);
-                      dbPosition = anyPosition;
-                    }
-                  } else {
-                    console.error(`     ❌ No position found at all - skipping`);
-                  }
-                  
-                  if (!dbPosition) {
-                    continue; // Skip this position
-                  }
-                }
-                
-                if (dbPosition) {
-                  console.log(`     ✅ Found existing record: ${dbPosition.id.substring(0, 8)}...`);
-                }
+                // Another worker discovered this position first
+                console.log(`     ℹ️  Position/signal already exists in DB (another worker got here first)`);
+                console.log(`     ✅ This is normal - position will be monitored in next cycle (30 seconds)`);
+                console.log(`     ⏭️  Skipping for now...`);
+                continue; // Skip this position, it will be picked up in next cycle
               } else {
                 console.error(`     ❌ Error creating position: ${error.message}`);
                 continue; // Skip this position, don't crash the whole monitor
