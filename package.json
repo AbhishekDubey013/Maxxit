@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "license": "MIT",
   "scripts": {
-    "dev": "NODE_ENV=development tsx server/index.ts",
+    "dev": "tsx server/index.ts",
     "build": "npx prisma generate && next build",
     "start": "next start",
     "check": "tsc",
