@@ -210,7 +210,8 @@ export async function monitorOstiumPositions() {
               } catch (createError: any) {
                 // P2002: Unique constraint violation (another worker discovered this position first)
                 if (createError.code === 'P2002') {
-                  console.log(`   ℹ️  Position already discovered by another worker (race condition handled)`);
+                  console.log(`   ℹ️  Position/signal already exists in DB (another worker got here first)`);
+                  console.log(`   ✅ This is normal - position will be monitored in next cycle`);
                 } else {
                   // Re-throw unexpected errors
                   throw createError;
@@ -227,7 +228,7 @@ export async function monitorOstiumPositions() {
           where: {
             deployment_id: deployment.id,
             venue: 'OSTIUM',
-            closed_at: null,
+            status: 'OPEN', // Use status field for consistency
           },
         });
 
@@ -250,8 +251,10 @@ export async function monitorOstiumPositions() {
               await prisma.positions.update({
                 where: { id: position.id },
                 data: {
+                  status: 'CLOSED',
                   closed_at: new Date(),
                   exit_price: null, // Unknown exit price
+                  exit_reason: 'CLOSED_EXTERNALLY',
                   pnl: 0, // Unknown PnL (TODO: calculate from fills)
                 },
               });

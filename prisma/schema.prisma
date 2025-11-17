@@ -335,10 +335,12 @@ model research_institutes {
   logo_url                 String?
   website_url              String?
   x_handle                 String?
+  telegram_handle          String?                    // Telegram channel/group username
   is_active                Boolean                    @default(true)
   created_at               DateTime                   @default(now()) @db.Timestamptz(6)
   agent_research_institutes agent_research_institutes[]
   research_signals         research_signals[]
+  telegram_sources         telegram_sources[]         // Link to Telegram feed sources
 }
 
 model research_signals {
@@ -369,6 +371,51 @@ model agent_research_institutes {
   @@unique([agent_id, institute_id])
   @@index([agent_id])
   @@index([institute_id])
+}
+
+model telegram_sources {
+  id                  String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  institute_id        String?             @db.Uuid  // Optional link to research institute
+  source_name         String              @unique   // Display name
+  telegram_id         String?             @unique   // Telegram chat ID (for channels/groups)
+  telegram_username   String?             @unique   // @username (for public channels)
+  source_type         telegram_source_t   @default(CHANNEL)
+  is_active           Boolean             @default(true)
+  description         String?
+  created_at          DateTime            @default(now()) @db.Timestamptz(6)
+  last_fetched_at     DateTime?           @db.Timestamptz(6)
+  research_institutes research_institutes? @relation(fields: [institute_id], references: [id], onDelete: SetNull)
+  telegram_posts      telegram_posts[]
+
+  @@index([is_active])
+  @@index([institute_id])
+}
+
+model telegram_posts {
+  id                   String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  source_id            String             @db.Uuid
+  message_id           String             @unique  // Telegram message ID
+  message_text         String             // The actual message content
+  message_created_at   DateTime           @db.Timestamptz(6)
+  sender_id            String?            // Telegram user ID who sent it
+  sender_username      String?            // Telegram username
+  is_signal_candidate  Boolean?           // null = not processed, true/false = processed
+  extracted_tokens     String[]           @default([])
+  confidence_score     Float?             // 0-1 confidence from LLM
+  signal_type          String?            // 'LONG' | 'SHORT' | null
+  processed_for_signals Boolean           @default(false)
+  created_at           DateTime           @default(now()) @db.Timestamptz(6)
+  telegram_sources     telegram_sources   @relation(fields: [source_id], references: [id], onDelete: Cascade)
+
+  @@index([source_id])
+  @@index([is_signal_candidate, processed_for_signals])
+  @@index([message_created_at])
+}
+
+enum telegram_source_t {
+  CHANNEL    // Public/Private Telegram channel
+  GROUP      // Telegram group
+  USER       // Direct messages from a user
 }
 
 enum agent_status_t {
