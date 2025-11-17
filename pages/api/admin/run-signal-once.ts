@@ -32,10 +32,10 @@ export default async function handler(
       console.warn('[SIGNAL] LunarCrush API key not configured - using default 5% position size');
     }
 
-    // 1. Get candidate posts (is_signal_candidate=true) from ACTIVE accounts only
-    const candidatePosts = await prisma.ct_posts.findMany({
+    // 1. Get candidate posts from BOTH Twitter and Telegram
+    const ctPosts = await prisma.ct_posts.findMany({
       where: {
-        // is_signal_candidate: true,
+        is_signal_candidate: true,
         ct_accounts: {
           is_active: true
         }
@@ -45,12 +45,64 @@ export default async function handler(
       take: 10,
     });
 
-    if (candidatePosts.length === 0) {
+    const telegramPosts = await prisma.telegram_posts.findMany({
+      where: {
+        is_signal_candidate: true,
+        telegram_sources: {
+          is_active: true
+        }
+      },
+      include: { telegram_sources: true },
+      orderBy: { message_created_at: 'desc' },
+      take: 10,
+    });
+
+    console.log(`[SIGNAL] Found ${ctPosts.length} Twitter posts + ${telegramPosts.length} Telegram posts`);
+
+    if (ctPosts.length === 0 && telegramPosts.length === 0) {
       return res.status(200).json({ 
         message: 'No signal candidates found',
         signalsCreated: 0,
       });
     }
+
+    // Normalize posts to a common format for processing
+    interface NormalizedPost {
+      source: 'twitter' | 'telegram';
+      id: string;
+      text: string;
+      extracted_tokens: string[];
+      signal_type: string | null;
+      created_at: Date;
+      source_id: string;  // ct_account_id or telegram_source_id
+      source_name: string;
+      impact_factor?: number;
+    }
+
+    const candidatePosts: NormalizedPost[] = [
+      ...ctPosts.map(p => ({
+        source: 'twitter' as const,
+        id: p.tweet_id,
+        text: p.tweet_text,
+        extracted_tokens: p.extracted_tokens,
+        signal_type: p.signal_type,
+        created_at: p.tweet_created_at,
+        source_id: p.ct_account_id,
+        source_name: p.ct_accounts.x_username,
+        impact_factor: p.ct_accounts.impact_factor,
+      })),
+      ...telegramPosts.map(p => ({
+        source: 'telegram' as const,
+        id: p.message_id,
+        text: p.message_text,
+        extracted_tokens: p.extracted_tokens,
+        signal_type: p.signal_type,
+        created_at: p.message_created_at,
+        source_id: p.source_id,
+        source_name: p.telegram_sources.source_name,
+        impact_factor: 0.5, // Default impact factor for Telegram sources
+      })),
+    ].sort((a, b) => b.created_at.getTime() - a.created_at.getTime());
 
     const signalsCreated = [];
     
@@ -71,14 +123,41 @@ export default async function handler(
           orderBy: { window_start: 'desc' },
         });
 
-        // 3. Find agents that monitor this CT account
-        const agentLinks = await prisma.agent_accounts.findMany({
-          where: { ct_account_id: post.ct_account_id },
-          include: { agents: true },
-        });
+        // 3. Find agents that monitor this source
+        let agents: any[] = [];
+        
+        if (post.source === 'twitter') {
+          // For Twitter: find agents linked via agent_accounts
+          const agentLinks = await prisma.agent_accounts.findMany({
+            where: { ct_account_id: post.source_id },
+            include: { agents: true },
+          });
+          agents = agentLinks.map(link => link.agents);
+        } else {
+          // For Telegram: find agents linked via research_institutes
+          const telegramSource = await prisma.telegram_sources.findUnique({
+            where: { id: post.source_id },
+            include: {
+              research_institutes: {
+                include: {
+                  agent_research_institutes: {
+                    include: { agents: true }
+                  }
+                }
+              }
+            }
+          });
+          
+          if (telegramSource?.research_institutes) {
+            agents = telegramSource.research_institutes.agent_research_institutes.map(
+              ari => ari.agents
+            );
+          }
+        }
 
-        for (const link of agentLinks) {
-          const agent = link.agents;
+        console.log(`[SIGNAL] Found ${agents.length} agents monitoring ${post.source_name}`);
+
+        for (const agent of agents) {
 
           // Skip non-ACTIVE agents
           if (agent.status !== 'PUBLIC') continue; // Only generate signals for public agents
@@ -139,13 +218,13 @@ export default async function handler(
                 size_model: {
                   type: 'balance-percentage',
                   value: positionSizePercentage, // Dynamic from LunarCrush!
-                  impactFactor: post.ct_accounts.impact_factor,
+                  impactFactor: post.impact_factor || 0.5,
                 },
                 risk_model: {
                   stopLoss: 0.05,
                   takeProfit: 0.15,
                 },
-                source_tweets: [post.tweet_id],
+                source_tweets: [post.source === 'twitter' ? post.id : `TELEGRAM_${post.id}`],
                 lunarcrush_score: lunarCrushScore,
                 lunarcrush_reasoning: lunarCrushReasoning,
                 lunarcrush_breakdown: lunarCrushBreakdown,
@@ -153,7 +232,7 @@ export default async function handler(
             });
 
             signalsCreated.push(signal);
-            console.log(`[SIGNAL] Created signal: ${agent.name} - ${tokenSymbol} with ${positionSizePercentage.toFixed(2)}% position size`);
+            console.log(`[SIGNAL] Created signal from ${post.source}: ${agent.name} - ${tokenSymbol} with ${positionSizePercentage.toFixed(2)}% position size`);
           } catch (createError: any) {
             // P2002: Unique constraint violation (race condition - another worker created it first)
             if (createError.code === 'P2002') {
