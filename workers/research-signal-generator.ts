@@ -2,11 +2,14 @@
  * Research Signal Generator Worker
  * Processes research institute signals and creates trading signals for subscribed agents
  * 
+ * Uses Agent HOW: Personalized position sizing based on user preferences
+ * 
  * Run: npx tsx workers/research-signal-generator.ts
  */
 
 import { PrismaClient } from '@prisma/client';
 import { parseResearchSignal } from '../lib/research-signal-parser';
+import { getPositionSizeForSignal } from '../lib/agent-how';
 
 const prisma = new PrismaClient();
 
@@ -112,7 +115,44 @@ async function processResearchSignals() {
             // For MULTI venue agents, default to HYPERLIQUID (Agent Where will route dynamically)
             const signalVenue = agent.venue === 'MULTI' ? 'HYPERLIQUID' : agent.venue;
 
-            // Create trading signal with FIXED 5% position size
+            // Get personalized position size using Agent HOW
+            // Use first active deployment's user preferences (or default 5% if no deployments)
+            let positionSize = 5; // Default
+            let reasoning = 'Default position size (no user preferences available)';
+            
+            try {
+              // Get active deployments for this agent
+              const deployments = await prisma.agent_deployments.findMany({
+                where: {
+                  agent_id: agent.id,
+                  status: 'ACTIVE',
+                },
+                select: {
+                  user_wallet: true,
+                },
+                take: 1, // Use first deployment's preferences
+              });
+
+              if (deployments.length > 0) {
+                const userWallet = deployments[0].user_wallet;
+                
+                // Calculate personalized position size (Agent HOW)
+                const positionResult = await getPositionSizeForSignal({
+                  tokenSymbol: signal.extracted_token!,
+                  confidence: 0.7, // Research signals have default 70% confidence
+                  userWallet,
+                  venue: signalVenue,
+                });
+
+                positionSize = positionResult.value;
+                reasoning = positionResult.reasoning;
+                console.log(`      📊 Agent HOW: ${positionSize.toFixed(2)}% position`);
+              }
+            } catch (sizeError: any) {
+              console.log(`      ⚠️  Agent HOW failed: ${sizeError.message} - using default 5%`);
+            }
+
+            // Create trading signal with PERSONALIZED position size
             const tradingSignal = await prisma.signals.create({
               data: {
                 agent_id: agent.id,
@@ -121,7 +161,8 @@ async function processResearchSignals() {
                 side: signal.extracted_side!,
                 size_model: {
                   type: 'balance-percentage',
-                  value: 5, // FIXED 5% per trade
+                  value: positionSize, // PERSONALIZED via Agent HOW
+                  reasoning, // Store reasoning for transparency
                 },
                 risk_model: {
                   stopLoss: 0.05, // 5% stop loss
@@ -134,7 +175,7 @@ async function processResearchSignals() {
               },
             });
 
-            console.log(`      ✅ ${agent.name} (${agent.venue}): Created signal ${tradingSignal.id.substring(0, 8)}...`);
+            console.log(`      ✅ ${agent.name} (${agent.venue}): Signal ${tradingSignal.id.substring(0, 8)}... (${positionSize.toFixed(2)}% position)`);
             tradingSignalsCreated++;
           } catch (agentError: any) {
             console.error(`      ❌ ${agent.name}: Failed - ${agentError.message}`);
