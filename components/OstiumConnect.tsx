@@ -1,7 +1,7 @@
 /**
  * Ostium Connection Flow - SIMPLIFIED (Like Monolith)
  * 1. Connect wallet
- * 2. Assign agent from pool
+ * 2. Generate dedicated agent wallet
  * 3. User signs setDelegate transaction
  * 4. Done!
  */
@@ -205,9 +205,9 @@ export function OstiumConnect({
                 <div className="text-center space-y-4 py-8">
                   <Loader2 className="w-16 h-16 mx-auto text-primary animate-spin" />
                   <div>
-                    <h3 className="text-lg font-semibold mb-2">Assigning Agent...</h3>
+                    <h3 className="text-lg font-semibold mb-2">Generating Agent Wallet...</h3>
                     <p className="text-sm text-muted-foreground">
-                      Getting your agent wallet from the pool
+                      Creating a dedicated Ostium agent wallet for you
                     </p>
                   </div>
                 </div>

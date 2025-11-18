@@ -3,7 +3,7 @@
  * Routes signals to appropriate venue adapters and manages trade lifecycle
  */
 
-import { PrismaClient, Signal, Venue, AgentDeployment } from '@prisma/client';
+import { PrismaClient, type signals as Signal, type venue_t as Venue, type agent_deployments as AgentDeployment } from '@prisma/client';
 import { createSafeWallet, getChainIdForVenue, SafeWalletService } from './safe-wallet';
 import { createSpotAdapter, SpotAdapter } from './adapters/spot-adapter';
 import { createGMXAdapter, GMXAdapter } from './adapters/gmx-adapter';
@@ -30,6 +30,7 @@ export interface ExecutionResult {
   error?: string;
   reason?: string;
   executionSummary?: any;
+  message?: string;
 }
 
 export interface ExecutionContext {
@@ -535,7 +536,7 @@ export class TradeExecutor {
             // This might fail if racing with another process, but capital tracking will work anyway
           }
         } else {
-          console.log('[TradeExecutor] ✅ Capital already initialized (initial: ' + stats.initialCapitalUSDC + ' USDC)');
+          console.log('[TradeExecutor] ✅ Capital already initialized (initial: ' + stats.initialCapital + ' USDC)');
         }
       } catch (error: any) {
         console.warn('[TradeExecutor] ⚠️  Could not check/init capital:', error.message);
@@ -546,7 +547,7 @@ export class TradeExecutor {
       
       // Execute trade through module (gasless!) with proof of agreement
       // Get profit receiver from deployment's agent (more reliable than signal)
-      const profitReceiver = ctx.deployment.agents?.profit_receiver_address;
+      const profitReceiver = ctx.signal.agents?.profit_receiver_address;
       if (!profitReceiver) {
         return {
           success: false,
@@ -563,8 +564,6 @@ export class TradeExecutor {
         swapData: swapTx.data as string,
         minAmountOut,
         profitReceiver,
-        // Add proof of agreement message to transaction data
-        proofOfAgreement: `Proof of Agreement: Executor confirms trade execution for signal ${ctx.signal.id} at ${new Date().toISOString()}`,
       });
 
       if (!result.success) {
@@ -675,7 +674,7 @@ export class TradeExecutor {
       const actualTokenSymbol = ctx.signal.token_symbol.split('_MANUAL_')[0];
 
       // Calculate collateral and leverage
-      const sizeModel = ctx.signal.sizeModel as any;
+      const sizeModel = ctx.signal.size_model as any;
       const leverage = sizeModel.leverage || 1;
       
       // Get USDC balance
@@ -706,7 +705,7 @@ export class TradeExecutor {
       });
 
       // Get profit receiver from deployment's agent
-      const profitReceiverGMX = ctx.deployment.agents?.profit_receiver_address;
+      const profitReceiverGMX = ctx.signal.agents?.profit_receiver_address;
       if (!profitReceiverGMX) {
         return {
           success: false,
@@ -723,8 +722,6 @@ export class TradeExecutor {
         isLong: ctx.signal.side === 'LONG',
         slippage: 0.5,
         profitReceiver: profitReceiverGMX,
-        // Add proof of agreement message to transaction data
-        proofOfAgreement: `Proof of Agreement: Executor confirms trade execution for signal ${ctx.signal.id} at ${new Date().toISOString()}`,
       });
 
       if (!result.success) {
@@ -793,7 +790,17 @@ export class TradeExecutor {
     try {
       // Get agent private key from wallet pool (NO decryption needed!)
       const { getPrivateKeyForAddress } = await import('./wallet-pool');
-      const agentPrivateKey = await getPrivateKeyForAddress(ctx.deployment.hyperliquid_agent_address);
+      const hyperliquidAgentAddress = ctx.deployment.hyperliquid_agent_address;
+
+      if (!hyperliquidAgentAddress) {
+        return {
+          success: false,
+          error: 'Hyperliquid agent wallet not configured for this deployment. Please reconnect.',
+          reason: 'Agent wallet required for Hyperliquid trading',
+        };
+      }
+
+      const agentPrivateKey = await getPrivateKeyForAddress(hyperliquidAgentAddress);
       
       if (!agentPrivateKey) {
         return {
@@ -931,18 +938,24 @@ export class TradeExecutor {
    */
   private async executeOstiumTrade(ctx: ExecutionContext): Promise<ExecutionResult> {
     try {
-      // Get agent private key from wallet pool
       const { getPrivateKeyForAddress } = await import('./wallet-pool');
-      
-      // For Ostium, we need the agent wallet address (similar to Hyperliquid)
-      // Check if we have ostium_agent_address, otherwise use hyperliquid_agent_address as fallback
-      const agentAddress = ctx.deployment.hyperliquid_agent_address; // TODO: Add ostium_agent_address column
+
+      const agentAddress =
+        ctx.deployment.ostium_agent_address || ctx.deployment.hyperliquid_agent_address;
+
+      if (!agentAddress) {
+        return {
+          success: false,
+          error: 'No Ostium agent wallet found for this deployment. Please reconnect.',
+        };
+      }
+
       const agentPrivateKey = await getPrivateKeyForAddress(agentAddress);
       
       if (!agentPrivateKey) {
         return {
           success: false,
-          error: 'Ostium agent wallet not found in pool. Please reconnect.',
+          error: 'Ostium agent wallet not found. Please reconnect.',
           reason: 'Agent wallet required for Ostium trading',
         };
       }
@@ -1128,11 +1141,11 @@ export class TradeExecutor {
       
       // Get token address
       const chain = chainId === 42161 ? 'arbitrum' : 'base';
-      const tokenRegistry = await prisma.tokenRegistry.findUnique({
+      const tokenRegistry = await prisma.token_registry.findUnique({
         where: {
-          chain_tokenSymbol: {
+          chain_token_symbol: {
             chain,
-            tokenSymbol: position.token_symbol,
+            token_symbol: position.token_symbol,
           },
         },
       });
@@ -1153,7 +1166,9 @@ export class TradeExecutor {
       const usdcAddress = USDC_ADDRESSES[chainId];
 
       // Check actual token balance in Safe (not DB qty, as it might be outdated)
-      const tokenDecimals = tokenRegistry.decimals || 18;
+      const tokenDecimals = tokenRegistry && typeof (tokenRegistry as any).decimals === 'number'
+        ? Number((tokenRegistry as any).decimals)
+        : 18;
       const provider = new ethers.providers.JsonRpcProvider(
         chainId === 42161 ? 'https://arb1.arbitrum.io/rpc' : 'https://mainnet.base.org'
       );
@@ -1256,15 +1271,23 @@ export class TradeExecutor {
 
       // Get current price for exit price recording
       const { getTokenPriceUSD } = await import('../lib/price-oracle');
-      const exitPrice = await getTokenPriceUSD(position.token_symbol, chainId);
+      const marketPrice = await getTokenPriceUSD(position.token_symbol);
       
       // Calculate PnL
       const entryPrice = parseFloat(position.entry_price.toString());
-      let pnl: number;
-      if (position.side === 'LONG') {
-        pnl = (exitPrice - entryPrice) * actualQty;
+      const qtyNumber = Number(actualQty);
+      let pnl = 0;
+      let resolvedExitPrice = entryPrice;
+
+      if (typeof marketPrice === 'number') {
+        resolvedExitPrice = marketPrice;
+        if (position.side === 'LONG') {
+          pnl = (marketPrice - entryPrice) * qtyNumber;
+        } else {
+          pnl = (entryPrice - marketPrice) * qtyNumber;
+        }
       } else {
-        pnl = (entryPrice - exitPrice) * actualQty;
+        console.warn('[TradeExecutor] Exit price unavailable, defaulting to entry price for PnL calculations');
       }
 
       // Execute close position through module (with profit sharing)
@@ -1290,7 +1313,7 @@ export class TradeExecutor {
         where: { id: position.id },
         data: {
           closed_at: new Date(),
-          exit_price: exitPrice,
+          exit_price: resolvedExitPrice,
           exit_tx_hash: result.txHash,
           qty: actualQty, // Update to actual closed qty
           pnl: pnl,
@@ -1447,7 +1470,7 @@ export class TradeExecutor {
         kind: 'PROFIT_SHARE',
         amount: params.amount.toString(),
         asset: 'USDC',
-        status: 'COMPLETED',
+        status: 'CHARGED',
         occurred_at: new Date(),
         metadata: {
           platform: 'HYPERLIQUID',
@@ -1597,13 +1620,19 @@ export class TradeExecutor {
         venue: position.venue,
       });
 
-      // Get agent private key from wallet pool
       const { getPrivateKeyForAddress } = await import('./wallet-pool');
-      const agentAddress = position.agent_deployments.hyperliquid_agent_address; // TODO: Add ostium_agent_address
+      const agentAddress =
+        position.agent_deployments.ostium_agent_address ||
+        position.agent_deployments.hyperliquid_agent_address;
+
+      if (!agentAddress) {
+        throw new Error('Ostium agent wallet not found for deployment');
+      }
+
       const agentPrivateKey = await getPrivateKeyForAddress(agentAddress);
-      
+
       if (!agentPrivateKey) {
-        throw new Error('Ostium agent wallet not found in pool');
+        throw new Error('Ostium agent wallet not found');
       }
 
       // Get user's Arbitrum address from deployment
@@ -1789,15 +1818,18 @@ export class TradeExecutor {
     // Get agent private key from wallet pool
     const deployment = await prisma.agent_deployments.findUnique({
       where: { id: params.deploymentId },
-      select: { hyperliquid_agent_address: true } // TODO: ostium_agent_address
+      select: { ostium_agent_address: true, hyperliquid_agent_address: true },
     });
-    
-    if (!deployment?.hyperliquid_agent_address) {
+
+    const agentAddress =
+      deployment?.ostium_agent_address || deployment?.hyperliquid_agent_address;
+
+    if (!agentAddress) {
       throw new Error('Agent wallet not found for deployment');
     }
     
     const { getPrivateKeyForAddress } = await import('./wallet-pool');
-    const agentPrivateKey = await getPrivateKeyForAddress(deployment.hyperliquid_agent_address);
+    const agentPrivateKey = await getPrivateKeyForAddress(agentAddress);
     
     if (!agentPrivateKey) {
       throw new Error('Agent private key not found');
@@ -1822,7 +1854,7 @@ export class TradeExecutor {
         kind: 'PROFIT_SHARE',
         amount: params.amount.toString(),
         asset: 'USDC',
-        status: 'COMPLETED',
+        status: 'CHARGED',
         occurred_at: new Date(),
         metadata: {
           platform: 'OSTIUM',
@@ -1945,12 +1977,12 @@ export class TradeExecutor {
           ]);
 
           // Execute via module (same as fee collection)
-          const profitResult = await moduleService.executeFromModule(
-            position.agent_deployments.safe_wallet,
-            usdcAddress, // To: USDC contract
-            0, // Value: 0 ETH
-            transferData // Data: transfer(agentOwner, profitShare)
-          );
+          const profitResult = await moduleService.executeFromModule({
+            safeAddress: position.agent_deployments.safe_wallet,
+            to: usdcAddress, // To: USDC contract
+            value: '0',
+            data: transferData, // Data: transfer(agentOwner, profitShare)
+          });
 
           if (profitResult.success) {
             profitShareTxHash = profitResult.txHash;

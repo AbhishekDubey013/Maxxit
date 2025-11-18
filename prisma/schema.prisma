@@ -452,6 +452,21 @@ model user_hyperliquid_wallets {
   @@index([user_wallet])
 }
 
+model user_ostium_wallets {
+  id                          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_wallet                 String    @unique
+  agent_address               String    @unique
+  agent_private_key_encrypted String
+  agent_key_iv                String
+  agent_key_tag               String
+  created_at                  DateTime  @default(now()) @db.Timestamptz(6)
+  last_used_at                DateTime? @db.Timestamptz(6)
+  is_delegated                Boolean   @default(false)
+
+  @@index([agent_address])
+  @@index([user_wallet])
+}
+
 model venue_markets {
   id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   venue         venue_t

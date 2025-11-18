@@ -4,6 +4,7 @@
  */
 
 import Safe from '@safe-global/protocol-kit';
+import { MetaTransactionData } from '@safe-global/safe-core-sdk-types/dist/src/types';
 import { ethers } from 'ethers';
 
 export interface SafeWalletConfig {
@@ -265,7 +266,7 @@ export const CHAIN_IDS = {
 /**
  * Get chain ID for venue
  */
-export function getChainIdForVenue(venue: 'SPOT' | 'GMX' | 'HYPERLIQUID'): number {
+export function getChainIdForVenue(venue: 'SPOT' | 'GMX' | 'HYPERLIQUID' | 'OSTIUM' | 'MULTI'): number {
   // Default to Arbitrum (production)
   // Set USE_SEPOLIA=true env var to use Sepolia testnet
   const useTestnet = process.env.USE_SEPOLIA === 'true';
@@ -276,6 +277,8 @@ export function getChainIdForVenue(venue: 'SPOT' | 'GMX' | 'HYPERLIQUID'): numbe
     case 'GMX':
       return CHAIN_IDS.ARBITRUM; // GMX on Arbitrum only
     case 'HYPERLIQUID':
+    case 'OSTIUM':
+    case 'MULTI':
       return CHAIN_IDS.ARBITRUM; // Bridge from Arbitrum
     default:
       return useTestnet ? CHAIN_IDS.SEPOLIA : CHAIN_IDS.ARBITRUM;

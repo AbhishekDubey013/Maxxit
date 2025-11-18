@@ -695,10 +695,7 @@ export default function CreateAgent() {
                 </div>
               </div>
 
-              {/* Hidden input for default venue */}
-              <input type="hidden" {...register('venue')} value="HYPERLIQUID" />
-
-              {/* Advanced: Single Venue Option (Collapsed by default) */}
+              {/* Venue Selection */}
               <details className="group">
                 <summary className="cursor-pointer list-none p-4 bg-secondary/50 rounded-lg hover:bg-secondary transition-colors">
                   <div className="flex items-center justify-between">

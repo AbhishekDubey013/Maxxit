@@ -99,6 +99,15 @@ function decryptPrivateKey(cipherText: string, iv: string, tag: string): string 
   }
 }
 
+export const agentWalletCrypto = {
+  encrypt(privateKey: string) {
+    return encryptPrivateKey(privateKey);
+  },
+  decrypt(cipherText: string, iv: string, tag: string) {
+    return decryptPrivateKey(cipherText, iv, tag);
+  },
+};
+
 function normalizeAddress(address: string): string {
   return address.toLowerCase();
 }
