@@ -62,9 +62,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     let deployment;
 
     if (existingDeployment) {
-      // Use existing deployment (prevents duplicate constraint error)
-      deployment = existingDeployment;
-      console.log(`[Ostium Deploy] Found existing deployment: ${deployment.id}`);
+      // Update existing deployment with ostium_agent_address if missing
+      // @ts-ignore - Prisma client regenerated, TypeScript server needs refresh
+      if (!existingDeployment.ostium_agent_address) {
+        deployment = await prisma.agent_deployments.update({
+          where: { id: existingDeployment.id },
+          data: {
+            // @ts-ignore - Prisma client regenerated, TypeScript server needs refresh
+            ostium_agent_address: agentAddress,
+            status: 'ACTIVE',
+            module_enabled: true,
+          },
+        });
+        console.log(`[Ostium Deploy] Updated existing deployment with ostium_agent_address: ${deployment.id}`);
+      } else {
+        deployment = existingDeployment;
+        console.log(`[Ostium Deploy] Found existing deployment: ${deployment.id}`);
+      }
     } else {
       // Create new deployment only if it doesn't exist
       deployment = await prisma.agent_deployments.create({
@@ -72,7 +86,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           agent_id: agentId,
           user_wallet: userWallet,
           safe_wallet: userWallet,
-          hyperliquid_agent_address: agentAddress,
+          // @ts-ignore - Prisma client regenerated, TypeScript server needs refresh
+          ostium_agent_address: agentAddress, // FIXED: Use ostium_agent_address instead of hyperliquid_agent_address
+          hyperliquid_agent_address: agentAddress, // Also set this for backward compatibility
+          enabled_venues: ['OSTIUM'], // Set enabled venues
           status: 'ACTIVE',
           module_enabled: true,
         },
