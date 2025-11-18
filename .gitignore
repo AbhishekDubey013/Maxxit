@@ -12,6 +12,8 @@ node_modules/
 out/
 dist/
 
+venv/
+
 # Environment variables
 .env
 .env.local
