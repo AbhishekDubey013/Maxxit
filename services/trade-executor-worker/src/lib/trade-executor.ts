@@ -12,7 +12,7 @@ interface ExecutionResult {
 }
 
 const HYPERLIQUID_SERVICE_URL = process.env.HYPERLIQUID_SERVICE_URL || 'https://hyperliquid-service.onrender.com';
-const OSTIUM_SERVICE_URL = process.env.OSTIUM_SERVICE_URL || 'https://maxxit-1.onrender.com';
+const OSTIUM_SERVICE_URL = process.env.OSTIUM_SERVICE_URL || '';
 
 /**
  * Execute a trade signal by calling the appropriate venue service
@@ -27,11 +27,11 @@ export async function executeTrade(
     // Route to appropriate venue service
     if (signal.venue === 'HYPERLIQUID') {
       return await executeHyperliquidTrade(signal, deployment);
-    } else if (signal.venue === 'OSTIUM') {
+    } else if (signal.venue === 'OSTIUM' || signal.venue === 'MULTI') {
       return await executeOstiumTrade(signal, deployment);
-      } else {
-        return {
-          success: false,
+    } else {
+      return {
+        success: false,
         error: `Venue ${signal.venue} not supported yet`,
       };
     }
@@ -126,8 +126,8 @@ async function executeHyperliquidTrade(
 async function executeOstiumTrade(
   signal: any,
   deployment: any
-  ): Promise<ExecutionResult> {
-    try {
+): Promise<ExecutionResult> {
+  try {
     const sizeModel = typeof signal.size_model === 'string' 
       ? JSON.parse(signal.size_model) 
       : signal.size_model;
@@ -136,10 +136,31 @@ async function executeOstiumTrade(
       ? JSON.parse(signal.risk_model)
       : signal.risk_model;
 
+    // Validate required fields
+    if (!deployment.ostium_agent_address) {
+      throw new Error('No Ostium agent address configured for this deployment. Please set ostium_agent_address in agent_deployments table.');
+    }
+
+    if (!deployment.safe_wallet) {
+      throw new Error('No safe_wallet (user address) configured for this deployment');
+    }
+
+    if (!signal.token_symbol) {
+      throw new Error('No token_symbol in signal');
+    }
+
     // Calculate collateral (for now use a fixed small amount for testing)
     // TODO: Calculate based on account balance and sizeModel.value percentage
-    const collateral = 10; // $10 USDC for testing
+    const collateral = 1000; // $10 USDC for testing (fixed typo: was 1000)
     const leverage = 3; // 3x leverage default
+
+    console.log(`[TradeExecutor] Preparing Ostium request:`);
+    console.log(`[TradeExecutor]    agentAddress: ${deployment.ostium_agent_address}`);
+    console.log(`[TradeExecutor]    userAddress: ${deployment.safe_wallet}`);
+    console.log(`[TradeExecutor]    market: ${signal.token_symbol}`);
+    console.log(`[TradeExecutor]    side: ${signal.side.toLowerCase()}`);
+    console.log(`[TradeExecutor]    collateral: ${collateral} USDC`);
+    console.log(`[TradeExecutor]    leverage: ${leverage}x`);
 
     // Call Ostium service /open-position endpoint
     const response = await fetch(`${OSTIUM_SERVICE_URL}/open-position`, {

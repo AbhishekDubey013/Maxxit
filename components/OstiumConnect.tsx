@@ -36,7 +36,10 @@ export function OstiumConnect({
   const [error, setError] = useState('');
   const [agentAddress, setAgentAddress] = useState<string>('');
   const [txHash, setTxHash] = useState<string | null>(null);
-  const [approved, setApproved] = useState(false);
+  const [delegateApproved, setDelegateApproved] = useState(false);
+  const [usdcApproved, setUsdcApproved] = useState(false);
+  const [deploymentId, setDeploymentId] = useState<string>('');
+  const [step, setStep] = useState<'connect' | 'agent' | 'delegate' | 'usdc' | 'complete'>('connect');
 
   // Auto-assign agent when wallet is connected
   useEffect(() => {
@@ -68,7 +71,10 @@ export function OstiumConnect({
 
       const data = await response.json();
       setAgentAddress(data.agentAddress);
+      setDeploymentId(data.deploymentId);
       console.log('[Ostium] Agent assigned:', data.agentAddress);
+      console.log('[Ostium] Deployment created:', data.deploymentId);
+      setStep('delegate');
     } catch (err: any) {
       console.error('[Ostium] Failed to assign agent:', err);
       setError(err.message || 'Failed to assign agent wallet');
@@ -180,64 +186,102 @@ export function OstiumConnect({
             </div>
           )}
 
-          {!approved ? (
+          {/* Step Indicator */}
+          {step !== 'connect' && (
+            <div className="flex items-center justify-between text-xs font-semibold text-muted-foreground mb-4">
+              <div className={`flex items-center gap-1 ${delegateApproved ? 'text-green-600' : ''}`}>
+                <span className={`w-6 h-6 rounded-full flex items-center justify-center ${delegateApproved ? 'bg-green-600 text-white' : 'bg-muted'}`}>
+                  {delegateApproved ? '✓' : '1'}
+                </span>
+                Delegate
+              </div>
+              <div className={`flex-1 h-0.5 mx-2 ${delegateApproved ? 'bg-green-600' : 'bg-muted'}`}></div>
+              <div className={`flex items-center gap-1 ${usdcApproved ? 'text-green-600' : ''}`}>
+                <span className={`w-6 h-6 rounded-full flex items-center justify-center ${usdcApproved ? 'bg-green-600 text-white' : 'bg-muted'}`}>
+                  {usdcApproved ? '✓' : '2'}
+                </span>
+                USDC
+              </div>
+            </div>
+          )}
+
+          {step === 'connect' ? (
+            /* Step 1: Not Connected */
+            <div className="text-center space-y-4">
+              <Wallet className="w-16 h-16 mx-auto text-muted-foreground" />
+              <div>
+                <h3 className="text-lg font-semibold mb-2">Connect Your Wallet</h3>
+                <p className="text-sm text-muted-foreground">
+                  Connect your Arbitrum wallet to whitelist the agent
+                </p>
+              </div>
+              <button
+                onClick={handleConnect}
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-primary text-primary-foreground rounded-md font-semibold hover:bg-primary/90"
+              >
+                <Wallet className="w-5 h-5" />
+                Connect Wallet
+              </button>
+            </div>
+          ) : step === 'agent' ? (
+            /* Step 2: Loading Agent */
+            <div className="text-center space-y-4 py-8">
+              <Loader2 className="w-16 h-16 mx-auto text-primary animate-spin" />
+              <div>
+                <h3 className="text-lg font-semibold mb-2">Assigning Agent...</h3>
+                <p className="text-sm text-muted-foreground">
+                  Getting your agent wallet from the pool
+                </p>
+              </div>
+            </div>
+          ) : step === 'delegate' ? (
+            /* Step 3: Approve Delegate */
             <>
-              {/* Not Connected */}
-              {!authenticated ? (
-                <div className="text-center space-y-4">
-                  <Wallet className="w-16 h-16 mx-auto text-muted-foreground" />
+              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 space-y-2">
+                <div>
+                  <p className="text-sm text-blue-900 dark:text-blue-100 font-medium mb-1">
+                    🤖 Agent Assigned
+                  </p>
+                  <p className="text-xs text-blue-700 dark:text-blue-300 font-mono break-all">
+                    {agentAddress}
+                  </p>
+                </div>
+                {deploymentId && (
                   <div>
-                    <h3 className="text-lg font-semibold mb-2">Connect Your Wallet</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Connect your Arbitrum wallet to whitelist the agent
+                    <p className="text-xs text-blue-700 dark:text-blue-300 font-medium">
+                      Deployment ID:
+                    </p>
+                    <p className="text-xs text-blue-600 dark:text-blue-400 font-mono break-all">
+                      {deploymentId.substring(0, 8)}...{deploymentId.substring(deploymentId.length - 6)}
                     </p>
                   </div>
+                )}
+                <div className="pt-2 border-t border-blue-200 dark:border-blue-700">
                   <button
-                    onClick={handleConnect}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-primary text-primary-foreground rounded-md font-semibold hover:bg-primary/90"
+                    onClick={assignAgent}
+                    disabled={loading}
+                    className="text-xs text-blue-600 dark:text-blue-400 hover:underline disabled:opacity-50"
                   >
-                    <Wallet className="w-5 h-5" />
-                    Connect Wallet
+                    {loading ? 'Refreshing...' : '🔄 Refresh Deployment'}
                   </button>
                 </div>
-              ) : !agentAddress ? (
-                /* Loading Agent */
-                <div className="text-center space-y-4 py-8">
-                  <Loader2 className="w-16 h-16 mx-auto text-primary animate-spin" />
-                  <div>
-                    <h3 className="text-lg font-semibold mb-2">Assigning Agent...</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Getting your agent wallet from the pool
-                    </p>
-                  </div>
-                </div>
-              ) : (
-                /* Ready to Approve */
-                <>
-                  <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-                    <p className="text-sm text-blue-900 dark:text-blue-100 font-medium mb-2">
-                      🤖 Agent Assigned
-                    </p>
-                    <p className="text-xs text-blue-700 dark:text-blue-300 font-mono break-all">
-                      {agentAddress}
-                    </p>
-                  </div>
+              </div>
 
-                  <div className="bg-muted rounded-lg p-4 space-y-2 text-sm">
-                    <p className="font-semibold mb-2">What happens next:</p>
-                    <div className="flex items-start gap-2">
-                      <span className="text-green-600">1.</span>
-                      <span>Click "Approve Agent" below</span>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <span className="text-green-600">2.</span>
-                      <span>Sign the transaction in your wallet</span>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <span className="text-green-600">3.</span>
-                      <span>Agent can trade on your behalf!</span>
-                    </div>
-                  </div>
+              <div className="bg-muted rounded-lg p-4 space-y-2 text-sm">
+                <p className="font-semibold mb-2">Step 1: Approve Agent Access</p>
+                <div className="flex items-start gap-2">
+                  <span className="text-blue-600 font-bold">→</span>
+                  <span>Sign transaction to whitelist agent</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <span className="text-gray-400">→</span>
+                  <span className="text-muted-foreground">Then approve USDC spending</span>
+                </div>
+              </div>
+
+              <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-3 text-xs text-green-800 dark:text-green-200">
+                <strong>✅ Deployment Created:</strong> Your agent is registered in the system and ready to be approved on-chain.
+              </div>
 
                   <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3 text-xs text-yellow-800 dark:text-yellow-200">
                     <strong>⚠️ You remain in control:</strong> Agent can only trade - cannot withdraw funds. You can revoke access anytime.

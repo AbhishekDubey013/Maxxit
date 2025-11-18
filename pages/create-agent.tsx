@@ -63,6 +63,7 @@ export default function CreateAgent() {
   const [selectedCtAccounts, setSelectedCtAccounts] = useState<Set<string>>(new Set());
   const [loadingCtAccounts, setLoadingCtAccounts] = useState(false);
   const [ctAccountSearch, setCtAccountSearch] = useState('');
+  const [ctAccountSearchExecuted, setCtAccountSearchExecuted] = useState(false);
   const [showAddCtAccount, setShowAddCtAccount] = useState(false);
   const [newCtUsername, setNewCtUsername] = useState('');
   const [newCtDisplayName, setNewCtDisplayName] = useState('');
@@ -120,19 +121,36 @@ export default function CreateAgent() {
     }
   }, [step]);
 
-  const loadCtAccounts = async () => {
+  const loadCtAccounts = async (searchTerm?: string) => {
+    const trimmedSearch = searchTerm?.trim();
     setLoadingCtAccounts(true);
     try {
-      const accounts = await db.get('ct_accounts', {
-        limit: '100',
-      });
+      let accounts;
+
+      if (trimmedSearch) {
+        const response = await fetch(`/api/ct-accounts/search?q=${encodeURIComponent(trimmedSearch)}`);
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.error || 'Failed to search CT accounts');
+        }
+        accounts = await response.json();
+      } else {
+        accounts = await db.get('ct_accounts');
+      }
+
       setCtAccounts(accounts || []);
+      setCtAccountSearchExecuted(!!trimmedSearch);
     } catch (err: any) {
       console.error('Failed to load CT accounts:', err);
-      setError('Failed to load CT accounts');
+      setError(trimmedSearch ? 'Failed to search CT accounts' : 'Failed to load CT accounts');
     } finally {
       setLoadingCtAccounts(false);
     }
+  };
+
+  const handleSearchCtAccounts = async () => {
+    const trimmedSearch = ctAccountSearch.trim();
+    await loadCtAccounts(trimmedSearch || undefined);
   };
 
   const handleAddCtAccount = async () => {
@@ -561,9 +579,10 @@ export default function CreateAgent() {
               <div
                 className="absolute top-6 left-6 h-1.5 bg-gradient-to-r from-primary via-primary/90 to-primary rounded-full transition-all duration-700 ease-out shadow-md shadow-primary/30"
                 style={{
-                  width: step === 1
+                  width: (step === 1)
                     ? '0px'
-                    : `calc(${((step - 1) / (steps.length - 1)) * 100}% + 24px)`,
+                    : step === 8 ? `calc(${((step - 1) / (steps.length - 1)) * 100}% - 24px)` : `calc(${((step - 1) / (steps.length - 1)) * 100}% + 24px)`,
+
                   zIndex: 1
                 }}
               />
@@ -674,54 +693,38 @@ export default function CreateAgent() {
                   Trading Venue
                 </h2>
 
-                {/* Vprime: Agent Where Banner */}
+                {/* Default Venue Info */}
                 <div className="p-6 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border-2 border-primary/30 rounded-lg">
                   <div className="flex items-start gap-3 mb-3">
                     <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
-                      <span className="text-2xl">🌐</span>
+                      <span className="text-2xl">⚡</span>
                     </div>
                     <div>
-                      <h3 className="text-lg font-bold text-foreground">Multi-Venue Routing (Agent Where)</h3>
+                      <h3 className="text-lg font-bold text-foreground">Hyperliquid Perpetuals</h3>
                       <p className="text-sm text-muted-foreground mt-1">
-                        Your agent will automatically select the best venue for each trade
+                        Trade perpetual futures with up to 50x leverage
                       </p>
                     </div>
                   </div>
 
                   <div className="mt-4 space-y-2 text-sm">
                     <div className="flex items-start gap-2">
-                      <span className="text-primary font-bold">1.</span>
-                      <div>
-                        <span className="font-semibold text-foreground">Agent What:</span>
-                        <span className="text-muted-foreground ml-1">Generates venue-agnostic signals</span>
-                      </div>
+                      <span className="text-primary">✓</span>
+                      <span className="text-muted-foreground">220+ trading pairs</span>
                     </div>
                     <div className="flex items-start gap-2">
-                      <span className="text-primary font-bold">2.</span>
-                      <div>
-                        <span className="font-semibold text-foreground">Agent How:</span>
-                        <span className="text-muted-foreground ml-1">Applies your policies (future)</span>
-                      </div>
+                      <span className="text-primary">✓</span>
+                      <span className="text-muted-foreground">High leverage trading</span>
                     </div>
                     <div className="flex items-start gap-2">
-                      <span className="text-primary font-bold">3.</span>
-                      <div>
-                        <span className="font-semibold text-foreground">Agent Where:</span>
-                        <span className="text-muted-foreground ml-1">Routes to best venue (Hyperliquid → Ostium)</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="mt-4 pt-4 border-t border-primary/20">
-                    <div className="flex items-center gap-2 text-sm">
-                      <span className="font-semibold text-foreground">Market Coverage:</span>
-                      <span className="text-muted-foreground">220 pairs (Hyperliquid) + 41 pairs (Ostium) = 261 total</span>
+                      <span className="text-primary">✓</span>
+                      <span className="text-muted-foreground">Agent delegation support</span>
                     </div>
                   </div>
                 </div>
 
-                {/* Hidden input for MULTI venue */}
-                <input type="hidden" {...register('venue')} value="MULTI" />
+                {/* Hidden input for default venue */}
+                <input type="hidden" {...register('venue')} value="HYPERLIQUID" />
 
                 {/* Advanced: Single Venue Option (Collapsed by default) */}
                 <details className="group">
@@ -915,6 +918,48 @@ export default function CreateAgent() {
                   </div>
                 )}
 
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-2">
+                    Search Accounts
+                  </label>
+                  <div className="flex gap-3">
+                    <div className="relative flex-1">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <input
+                        type="text"
+                        value={ctAccountSearch}
+                        onChange={(e) => {
+                          const nextValue = e.target.value;
+                          setCtAccountSearch(nextValue);
+                          if (nextValue.trim() === '') {
+                            loadCtAccounts();
+                          }
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleSearchCtAccounts();
+                          }
+                        }}
+                        className="w-full pl-10 pr-3 py-2 bg-background border border-border rounded-md text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                        placeholder="Search by username or display name"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleSearchCtAccounts}
+                      disabled={loadingCtAccounts || ctAccountSearch.trim() === ''}
+                      className="px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                    >
+                      <Search className="h-4 w-4" />
+                      {loadingCtAccounts ? 'Searching...' : 'Search'}
+                    </button>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Clear the input to reload all accounts.
+                  </p>
+                </div>
+
                 {/* CT Accounts List */}
                 {loadingCtAccounts ? (
                   <div className="space-y-3">
@@ -925,65 +970,75 @@ export default function CreateAgent() {
                 ) : ctAccounts.length === 0 ? (
                   <div className="text-center py-12 bg-background border border-border rounded-lg">
                     <Twitter className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
-                    <p className="text-muted-foreground">No CT accounts yet. Add your first account above!</p>
+                    <p className="text-muted-foreground">
+                      {ctAccountSearchExecuted
+                        ? `No CT accounts found for "${ctAccountSearch.trim() || 'your search'}".`
+                        : 'No CT accounts yet. Add your first account above!'}
+                    </p>
+                    {ctAccountSearchExecuted && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCtAccountSearch('');
+                          loadCtAccounts();
+                        }}
+                        className="mt-4 inline-flex items-center gap-2 px-4 py-2 border border-border rounded-md text-sm text-foreground hover:bg-muted"
+                      >
+                        Clear Search
+                      </button>
+                    )}
                   </div>
                 ) : (
                   <div className="relative h-[500px]">
                     <div className="absolute inset-0 overflow-y-auto pr-2 space-y-3">
-                      {ctAccounts
-                        .filter(account =>
-                          ctAccountSearch === '' ||
-                          account.xUsername.toLowerCase().includes(ctAccountSearch.toLowerCase()) ||
-                          account.displayName?.toLowerCase().includes(ctAccountSearch.toLowerCase())
-                        )
-                        .map((account) => (
-                          <label
-                            key={account.id}
-                            className={`block p-4 border-2 rounded-lg cursor-pointer transition-colors ${selectedCtAccounts.has(account.id)
-                              ? 'border-primary bg-primary/10'
-                              : 'border-border hover:border-primary/50'
-                              }`}
-                          >
-                            <input
-                              type="checkbox"
-                              checked={selectedCtAccounts.has(account.id)}
-                              onChange={() => toggleCtAccount(account.id)}
-                              className="sr-only"
-                            />
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
-                                  <Twitter className="h-5 w-5 text-primary" />
-                                </div>
-                                <div>
-                                  <h3 className="font-semibold text-foreground">
-                                    @{account.xUsername}
-                                  </h3>
-                                  {account.displayName && (
-                                    <p className="text-sm text-muted-foreground">
-                                      {account.displayName}
-                                    </p>
-                                  )}
-                                  <div className="flex gap-3 mt-1">
-                                    {account.followersCount && (
-                                      <span className="text-xs text-muted-foreground">
-                                        {account.followersCount.toLocaleString()} followers
-                                      </span>
-                                    )}
-                                    <span className="text-xs text-primary font-medium">
-                                      Impact: {(account.impactFactor || 0).toFixed(2)}
+                      {ctAccounts.map((account) => (
+                        <label
+                          key={account.id}
+                          className={`block p-4 border-2 rounded-lg cursor-pointer transition-colors ${selectedCtAccounts.has(account.id)
+                            ? 'border-primary bg-primary/10'
+                            : 'border-border hover:border-primary/50'
+                            }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selectedCtAccounts.has(account.id)}
+                            onChange={() => toggleCtAccount(account.id)}
+                            className="sr-only"
+                          />
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
+                                <Twitter className="h-5 w-5 text-primary" />
+                              </div>
+                              <div>
+                                <h3 className="font-semibold text-foreground">
+                                  @{account.xUsername}
+                                </h3>
+                                {account.displayName && (
+                                  <p className="text-sm text-muted-foreground">
+                                    {account.displayName}
+                                  </p>
+                                )}
+                                <div className="flex gap-3 mt-1">
+                                  {account.followersCount && (
+                                    <span className="text-xs text-muted-foreground">
+                                      {account.followersCount.toLocaleString()} followers
                                     </span>
-                                  </div>
+                                  )}
+                                  <span className="text-xs text-primary font-medium">
+                                    Impact: {(account.impactFactor || 0).toFixed(2)}
+                                  </span>
                                 </div>
                               </div>
-                              {selectedCtAccounts.has(account.id) && (
-                                <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
-                                  <Check className="h-4 w-4 text-primary-foreground" />
-                                </div>
-                              )}
                             </div>
-                          </label>
-                        ))}
+                            {selectedCtAccounts.has(account.id) && (
+                              <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
+                                <Check className="h-4 w-4 text-primary-foreground" />
+                              </div>
+                            )}
+                          </div>
+                        </label>
+                      ))}
                     </div>
                   </div>
                 )}
