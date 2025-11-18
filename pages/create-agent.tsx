@@ -723,25 +723,23 @@ export default function CreateAgent() {
                   </div>
                 </div>
 
-                {/* Hidden input for default venue */}
-                <input type="hidden" {...register('venue')} value="HYPERLIQUID" />
-
-                {/* Advanced: Single Venue Option (Collapsed by default) */}
-                <details className="group">
-                  <summary className="cursor-pointer list-none p-4 bg-secondary/50 rounded-lg hover:bg-secondary transition-colors">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-semibold text-foreground">Advanced: Single Venue Only</span>
-                      <span className="text-muted-foreground text-xs group-open:rotate-90 transition-transform">▶</span>
-                    </div>
-                  </summary>
-                  <div className="mt-4 space-y-3 p-4 bg-secondary/20 rounded-lg">
-                    <p className="text-sm text-muted-foreground mb-3">
-                      Choose a specific venue if you want to limit trading to one platform:
-                    </p>
-                    {['HYPERLIQUID', 'OSTIUM', 'GMX', 'SPOT'].map((venue) => (
-                      <label
-                        key={venue}
-                        className={`block p-3 border rounded-lg cursor-pointer transition-colors ${formData.venue === venue
+              {/* Venue Selection */}
+              <details className="group">
+                <summary className="cursor-pointer list-none p-4 bg-secondary/50 rounded-lg hover:bg-secondary transition-colors">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-semibold text-foreground">Advanced: Single Venue Only</span>
+                    <span className="text-muted-foreground text-xs group-open:rotate-90 transition-transform">▶</span>
+                  </div>
+                </summary>
+                <div className="mt-4 space-y-3 p-4 bg-secondary/20 rounded-lg">
+                  <p className="text-sm text-muted-foreground mb-3">
+                    Choose a specific venue if you want to limit trading to one platform:
+                  </p>
+                  {['HYPERLIQUID', 'OSTIUM', 'GMX', 'SPOT'].map((venue) => (
+                    <label
+                      key={venue}
+                      className={`block p-3 border rounded-lg cursor-pointer transition-colors ${
+                        formData.venue === venue
                           ? 'border-primary bg-primary/10'
                           : 'border-border hover:border-primary/50'
                           }`}

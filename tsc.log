@@ -1,0 +1,258 @@
+client/src/lib/automated-agent-signing-service.ts(2,78): error TS2307: Cannot find module './agent-automated-signing' or its corresponding type declarations.
+client/src/lib/automated-agent-signing-service.ts(25,33): error TS2551: Property 'signal' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'signals'?
+client/src/lib/automated-agent-signing-service.ts(57,20): error TS2551: Property 'signal' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'signals'?
+client/src/lib/automated-agent-signing-service.ts(70,20): error TS2551: Property 'auditLog' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'audit_logs'?
+client/src/lib/automated-agent-signing-service.ts(108,33): error TS2551: Property 'signal' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'signals'?
+client/src/lib/automated-agent-signing-service.ts(154,25): error TS2551: Property 'signal' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'signals'?
+client/src/lib/automated-agent-signing-service.ts(181,25): error TS2551: Property 'signal' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'signals'?
+client/src/pages/DashboardNew.tsx(88,36): error TS2339: Property 'filter' does not exist on type '{}'.
+client/src/pages/DashboardNew.tsx(89,42): error TS2339: Property 'filter' does not exist on type '{}'.
+client/src/pages/DashboardNew.tsx(90,33): error TS2339: Property 'filter' does not exist on type '{}'.
+client/src/pages/DashboardNew.tsx(90,64): error TS2339: Property 'some' does not exist on type '{}'.
+client/src/pages/DashboardNew.tsx(176,67): error TS2339: Property 'length' does not exist on type '{}'.
+client/src/pages/DashboardNew.tsx(217,45): error TS2339: Property 'length' does not exist on type '{}'.
+client/src/pages/DashboardNew.tsx(223,32): error TS2339: Property 'map' does not exist on type '{}'.
+client/src/pages/DashboardNew.tsx(399,47): error TS2339: Property 'length' does not exist on type '{}'.
+client/src/pages/DashboardNew.tsx(404,29): error TS2339: Property 'map' does not exist on type '{}'.
+client/src/pages/DeployAgent.tsx(42,67): error TS2339: Property 'venue' does not exist on type '{}'.
+client/src/pages/DeployAgent.tsx(42,93): error TS2339: Property 'venue' does not exist on type '{}'.
+client/src/pages/DeployAgent.tsx(111,76): error TS2339: Property 'name' does not exist on type '{}'.
+client/src/pages/DeployAgent.tsx(118,45): error TS2339: Property 'venue' does not exist on type '{}'.
+contracts/deploy/deploy-v3-module.ts(1,10): error TS2305: Module '"hardhat"' has no exported member 'ethers'.
+lib/adapters/gmx-adapter-subaccount.ts(343,9): error TS2554: Expected 1 arguments, but got 4.
+lib/adapters/gmx-adapter-subaccount.ts(359,9): error TS2554: Expected 1 arguments, but got 4.
+lib/adapters/gmx-adapter-subaccount.ts(455,9): error TS2554: Expected 1 arguments, but got 4.
+lib/adapters/gmx-adapter-subaccount.ts(509,9): error TS2554: Expected 1 arguments, but got 4.
+lib/llm-classifier.ts(366,80): error TS2341: Property 'fallbackClassification' is private and only accessible within class 'LLMTweetClassifier'.
+lib/lunarcrush-score-mock.ts(92,14): error TS2415: Class 'MockLunarCrushScorer' incorrectly extends base class 'LunarCrushScorer'.
+  Property 'fetchMetrics' is private in type 'LunarCrushScorer' but not in type 'MockLunarCrushScorer'.
+lib/proof-verification-service.ts(21,34): error TS2551: Property 'agent' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'agents'?
+lib/proof-verification-service.ts(89,20): error TS2551: Property 'signal' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'signals'?
+lib/safe-deployment.ts(6,16): error TS2614: Module '"@safe-global/protocol-kit"' has no exported member 'EthersAdapter'. Did you mean to use 'import EthersAdapter from "@safe-global/protocol-kit"' instead?
+lib/safe-deployment.ts(6,31): error TS2614: Module '"@safe-global/protocol-kit"' has no exported member 'SafeFactory'. Did you mean to use 'import SafeFactory from "@safe-global/protocol-kit"' instead?
+lib/safe-transaction-service.ts(105,72): error TS2339: Property 'wait' does not exist on type '{}'.
+lib/safe-transaction-service.ts(129,13): error TS2353: Object literal may only specify known properties, and 'ethAdapter' does not exist in type 'SafeApiKitConfig'.
+lib/safe-transaction-service.ts(129,30): error TS2339: Property 'ethAdapter' does not exist on type 'SafeTransactionService'.
+lib/safe-transaction-service.ts(172,17): error TS2339: Property 'ethAdapter' does not exist on type 'SafeTransactionService'.
+lib/safe-transaction-service.ts(179,34): error TS2339: Property 'create' does not exist on type 'typeof Safe'.
+lib/safe-transaction-service.ts(180,26): error TS2339: Property 'ethAdapter' does not exist on type 'SafeTransactionService'.
+lib/safe-transaction-service.ts(194,9): error TS2353: Object literal may only specify known properties, and 'ethAdapter' does not exist in type 'SafeApiKitConfig'.
+lib/safe-transaction-service.ts(194,26): error TS2339: Property 'ethAdapter' does not exist on type 'SafeTransactionService'.
+lib/safe-transaction-service.ts(251,17): error TS2339: Property 'ethAdapter' does not exist on type 'SafeTransactionService'.
+lib/safe-transaction-service.ts(262,9): error TS2353: Object literal may only specify known properties, and 'ethAdapter' does not exist in type 'SafeApiKitConfig'.
+lib/safe-transaction-service.ts(262,26): error TS2339: Property 'ethAdapter' does not exist on type 'SafeTransactionService'.
+lib/safe-transaction-service.ts(314,70): error TS2339: Property 'wait' does not exist on type '{}'.
+lib/telegram-bot.ts(157,40): error TS2551: Property 'telegramUser' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'telegram_users'?
+lib/telegram-bot.ts(178,41): error TS2551: Property 'telegramUser' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'telegram_users'?
+lib/telegram-bot.ts(200,22): error TS2551: Property 'telegramUser' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'telegram_users'?
+lib/telegram-bot.ts(206,20): error TS2551: Property 'telegramUser' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'telegram_users'?
+lib/telegram-bot.ts(211,20): error TS2551: Property 'telegramUser' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'telegram_users'?
+lib/telegram-bot.ts(237,41): error TS2551: Property 'telegramUser' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'telegram_users'?
+lib/trade-executor.ts(550,41): error TS2339: Property 'agents' does not exist on type '{ id: string; agent_id: string; token_symbol: string; venue: venue_t; side: string; size_model: JsonValue; risk_model: JsonValue; source_tweets: string[]; created_at: Date; ... 12 more ...; routing_history: JsonValue; }'.
+lib/trade-executor.ts(708,44): error TS2339: Property 'agents' does not exist on type '{ id: string; agent_id: string; token_symbol: string; venue: venue_t; side: string; size_model: JsonValue; risk_model: JsonValue; source_tweets: string[]; created_at: Date; ... 12 more ...; routing_history: JsonValue; }'.
+lib/vprime-venue-router.ts(163,9): error TS2353: Object literal may only specify known properties, and 'symbol' does not exist in type 'venue_marketsWhereInput'.
+lib/vprime-venue-router.ts(203,9): error TS2353: Object literal may only specify known properties, and 'symbol' does not exist in type 'venue_marketsWhereInput'.
+lib/vprime-venue-router.ts(241,9): error TS2353: Object literal may only specify known properties, and 'symbol' does not exist in type 'venue_marketsWhereInput'.
+lib/vprime-venue-router.ts(268,9): error TS2353: Object literal may only specify known properties, and 'symbol' does not exist in type 'venue_marketsWhereInput'.
+lib/x-api-multi.ts(55,50): error TS2554: Expected 0 arguments, but got 1.
+pages/admin/executor-agreements.tsx(195,11): error TS2741: Property 'agentId' is missing in type 'Signal' but required in type '{ id: string; agentId: string; tokenSymbol: string; side: string; sizeModel: any; agent: { name: string; creatorWallet: string; }; }'.
+pages/api/admin/add-ct-account.ts(24,42): error TS2551: Property 'ctAccount' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'ct_accounts'?
+pages/api/admin/add-ct-account.ts(38,37): error TS2551: Property 'ctAccount' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'ct_accounts'?
+pages/api/admin/add-token-registry.ts(26,35): error TS2551: Property 'tokenRegistry' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'token_registry'?
+pages/api/admin/add-token-registry.ts(45,43): error TS2551: Property 'tokenRegistry' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'token_registry'?
+pages/api/admin/add-venue-token.ts(26,35): error TS2551: Property 'venueStatus' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'venues_status'?
+pages/api/admin/add-venue-token.ts(45,41): error TS2551: Property 'venueStatus' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'venues_status'?
+pages/api/admin/add-weth-venue.ts(19,35): error TS2551: Property 'venueStatus' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'venues_status'?
+pages/api/admin/add-weth-venue.ts(39,18): error TS2551: Property 'venueStatus' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'venues_status'?
+pages/api/admin/check-all-deployments.ts(12,38): error TS2551: Property 'agentDeployment' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'agent_deployments'?
+pages/api/admin/check-all-deployments.ts(22,36): error TS2551: Property 'position' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'positions'?
+pages/api/admin/check-all-deployments.ts(33,36): error TS7006: Parameter 'd' implicitly has an 'any' type.
+pages/api/admin/check-all-deployments.ts(43,38): error TS7006: Parameter 'p' implicitly has an 'any' type.
+pages/api/admin/check-token-registry.ts(15,40): error TS2551: Property 'tokenRegistry' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'token_registry'?
+pages/api/admin/check-venue-status.ts(15,38): error TS2551: Property 'venueStatus' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'venues_status'?
+pages/api/admin/classify-tweet.ts(33,33): error TS2551: Property 'ctPost' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'ct_posts'?
+pages/api/admin/classify-tweet.ts(66,20): error TS2551: Property 'ctPost' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'ct_posts'?
+pages/api/admin/clear-all-data.ts(36,47): error TS2551: Property 'telegramTrade' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'telegram_trades'?
+pages/api/admin/clear-all-data.ts(40,46): error TS2551: Property 'telegramUser' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'telegram_users'?
+pages/api/admin/clear-all-data.ts(44,42): error TS2551: Property 'position' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'positions'?
+pages/api/admin/clear-all-data.ts(48,45): error TS2551: Property 'pnlSnapshot' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'pnl_snapshots'?
+pages/api/admin/clear-all-data.ts(52,46): error TS2551: Property 'billingEvent' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'billing_events'?
+pages/api/admin/clear-all-data.ts(56,49): error TS2551: Property 'agentDeployment' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'agent_deployments'?
+pages/api/admin/clear-all-data.ts(60,40): error TS2551: Property 'signal' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'signals'?
+pages/api/admin/clear-all-data.ts(64,39): error TS2551: Property 'agent' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'agents'?
+pages/api/admin/clear-all-data.ts(68,40): error TS2551: Property 'ctPost' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'ct_posts'?
+pages/api/admin/clear-all-data.ts(72,43): error TS2551: Property 'ctAccount' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'ct_accounts'?
+pages/api/admin/clear-all-data.ts(76,49): error TS2551: Property 'marketIndicators6h' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'market_indicators_6h'?
+pages/api/admin/clear-all-data.ts(80,44): error TS2551: Property 'venueStatus' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'venues_status'?
+pages/api/admin/clear-all-data.ts(84,46): error TS2551: Property 'tokenRegistry' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'token_registry'?
+pages/api/admin/clear-all-data.ts(88,42): error TS2551: Property 'auditLog' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'audit_logs'?
+pages/api/admin/close-trade-simulated.ts(35,35): error TS2551: Property 'position' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'positions'?
+pages/api/admin/close-trade-simulated.ts(55,42): error TS2551: Property 'position' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'positions'?
+pages/api/admin/close-trade-simulated.ts(68,35): error TS2551: Property 'billingEvent' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'billing_events'?
+pages/api/admin/close-trade-simulated.ts(82,40): error TS2551: Property 'billingEvent' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'billing_events'?
+pages/api/admin/close-trade-simulated.ts(99,38): error TS2551: Property 'pnlSnapshot' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'pnl_snapshots'?
+pages/api/admin/close-trade-simulated.ts(124,39): error TS2551: Property 'ctPost' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'ct_posts'?
+pages/api/admin/close-trade-simulated.ts(130,38): error TS2551: Property 'impactFactorHistory' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'impact_factor_history'?
+pages/api/admin/db-data.ts(25,29): error TS2551: Property 'agent' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'agents'?
+pages/api/admin/db-data.ts(32,29): error TS2551: Property 'ctAccount' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'ct_accounts'?
+pages/api/admin/db-data.ts(39,29): error TS2551: Property 'ctPost' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'ct_posts'?
+pages/api/admin/db-data.ts(53,29): error TS2551: Property 'signal' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'signals'?
+pages/api/admin/db-data.ts(67,29): error TS2551: Property 'position' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'positions'?
+pages/api/admin/db-data.ts(82,29): error TS2551: Property 'agentDeployment' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'agent_deployments'?
+pages/api/admin/db-data.ts(96,29): error TS2551: Property 'agentAccount' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'agent_accounts'?
+pages/api/admin/db-tables.ts(25,14): error TS2551: Property 'agent' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'agents'?
+pages/api/admin/db-tables.ts(26,14): error TS2551: Property 'ctAccount' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'ct_accounts'?
+pages/api/admin/db-tables.ts(27,14): error TS2551: Property 'ctPost' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'ct_posts'?
+pages/api/admin/db-tables.ts(28,14): error TS2551: Property 'signal' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'signals'?
+pages/api/admin/db-tables.ts(29,14): error TS2551: Property 'position' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'positions'?
+pages/api/admin/db-tables.ts(30,14): error TS2551: Property 'agentDeployment' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'agent_deployments'?
+pages/api/admin/db-tables.ts(31,14): error TS2551: Property 'agentAccount' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'agent_accounts'?
+pages/api/admin/delete-test-tweets.ts(26,33): error TS2551: Property 'ctPost' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'ct_posts'?
+pages/api/admin/enable-v3-module.ts(95,37): error TS2551: Property 'agentDeployment' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'agent_deployments'?
+pages/api/admin/enable-v3-module.ts(101,18): error TS2551: Property 'auditLog' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'audit_logs'?
+pages/api/admin/executor-agreement.ts(23,33): error TS2551: Property 'signal' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'signals'?
+pages/api/admin/executor-agreement.ts(46,18): error TS2551: Property 'signal' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'signals'?
+pages/api/admin/fix-safe-address.ts(19,34): error TS2551: Property 'agentDeployment' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'agent_deployments'?
+pages/api/admin/generate-signals-simple.ts(33,39): error TS2551: Property 'ctPost' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'ct_posts'?
+pages/api/admin/generate-signals-simple.ts(61,37): error TS2551: Property 'agentAccount' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'agent_accounts'?
+pages/api/admin/generate-signals-simple.ts(104,47): error TS2551: Property 'signal' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'signals'?
+pages/api/admin/generate-signals-simple.ts(121,45): error TS2551: Property 'marketIndicators6h' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'market_indicators_6h'?
+pages/api/admin/generate-signals-simple.ts(163,41): error TS2551: Property 'signal' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'signals'?
+pages/api/admin/generate-signals.ts(42,43): error TS2551: Property 'ctPost' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'ct_posts'?
+pages/api/admin/generate-signals.ts(85,43): error TS2551: Property 'agentAccount' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'agent_accounts'?
+pages/api/admin/generate-signals.ts(106,46): error TS2551: Property 'venueStatus' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'venues_status'?
+pages/api/admin/generate-signals.ts(122,47): error TS2551: Property 'signal' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'signals'?
+pages/api/admin/generate-signals.ts(139,51): error TS2551: Property 'marketIndicators6h' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'market_indicators_6h'?
+pages/api/admin/generate-signals.ts(182,41): error TS2551: Property 'signal' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'signals'?
+pages/api/admin/ingest-tweets.ts(26,36): error TS2551: Property 'ctAccount' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'ct_accounts'?
+pages/api/admin/ingest-tweets.ts(32,31): error TS2551: Property 'ctAccount' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'ct_accounts'?
+pages/api/admin/ingest-tweets.ts(55,42): error TS2551: Property 'ctPost' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'ct_posts'?
+pages/api/admin/ingest-tweets.ts(98,24): error TS2551: Property 'ctPost' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'ct_posts'?
+pages/api/admin/ingest-tweets.ts(120,20): error TS2551: Property 'ctAccount' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'ct_accounts'?
+pages/api/admin/migrate-tokens.ts(34,35): error TS2551: Property 'tokenRegistry' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'token_registry'?
+pages/api/admin/migrate-tokens.ts(54,34): error TS2551: Property 'venueStatus' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'venues_status'?
+pages/api/admin/run-signal-once.ts(266,17): error TS2322: Type '{ galaxy: number; sentiment: number; social: number; momentum: number; rank: number; } | null' is not assignable to type 'InputJsonValue | NullableJsonNullValueInput | undefined'.
+  Type 'null' is not assignable to type 'InputJsonValue | NullableJsonNullValueInput | undefined'.
+pages/api/admin/signals-needing-executor-agreement.ts(16,34): error TS2551: Property 'signal' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'signals'?
+pages/api/admin/sync-module-status.ts(57,37): error TS2551: Property 'agentDeployment' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'agent_deployments'?
+pages/api/admin/sync-module-status.ts(65,20): error TS2551: Property 'agentDeployment' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'agent_deployments'?
+pages/api/admin/sync-module-status.ts(77,18): error TS2551: Property 'auditLog' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'audit_logs'?
+pages/api/admin/update-metrics.ts(31,38): error TS2551: Property 'agentDeployment' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'agent_deployments'?
+pages/api/admin/update-metrics.ts(36,43): error TS7006: Parameter 'd' implicitly has an 'any' type.
+pages/api/admin/update-metrics.ts(38,36): error TS2551: Property 'position' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'positions'?
+pages/api/admin/update-metrics.ts(58,43): error TS7006: Parameter 'p' implicitly has an 'any' type.
+pages/api/admin/update-metrics.ts(59,43): error TS7006: Parameter 'p' implicitly has an 'any' type.
+pages/api/admin/update-metrics.ts(62,46): error TS7006: Parameter 'sum' implicitly has an 'any' type.
+pages/api/admin/update-metrics.ts(62,51): error TS7006: Parameter 'p' implicitly has an 'any' type.
+pages/api/admin/update-metrics.ts(63,46): error TS7006: Parameter 'sum' implicitly has an 'any' type.
+pages/api/admin/update-metrics.ts(63,51): error TS7006: Parameter 'p' implicitly has an 'any' type.
+pages/api/admin/update-metrics.ts(64,42): error TS7006: Parameter 'sum' implicitly has an 'any' type.
+pages/api/admin/update-metrics.ts(64,47): error TS7006: Parameter 'p' implicitly has an 'any' type.
+pages/api/admin/update-metrics.ts(80,43): error TS7006: Parameter 'sum' implicitly has an 'any' type.
+pages/api/admin/update-metrics.ts(80,48): error TS7006: Parameter 'p' implicitly has an 'any' type.
+pages/api/admin/update-metrics.ts(88,32): error TS2551: Property 'agent' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'agents'?
+pages/api/agents/[id]/accounts/[accountId].ts(31,33): error TS2551: Property 'agentAccount' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'agent_accounts'?
+pages/api/agents/[id]/accounts/[accountId].ts(45,16): error TS2551: Property 'agentAccount' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'agent_accounts'?
+pages/api/agents/[id]/positions.ts(22,36): error TS2551: Property 'position' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'positions'?
+pages/api/agents/[id]/positions.ts(40,49): error TS7006: Parameter 'position' implicitly has an 'any' type.
+pages/api/agents/index.ts(100,7): error TS2322: Type '{ name: string; venue: "SPOT" | "GMX" | "HYPERLIQUID" | "OSTIUM" | "MULTI"; weights: number[]; status: "DRAFT" | "PUBLIC" | "PRIVATE"; creatorWallet: string; profitReceiverAddress: string; proofOfIntentMessage?: string | undefined; proofOfIntentSignature?: string | undefined; proofOfIntentTimestamp?: string | undefi...' is not assignable to type '(Without<agentsCreateInput, agentsUncheckedCreateInput> & agentsUncheckedCreateInput) | (Without<...> & agentsCreateInput)'.
+  Type '{ name: string; venue: "SPOT" | "GMX" | "HYPERLIQUID" | "OSTIUM" | "MULTI"; weights: number[]; status: "DRAFT" | "PUBLIC" | "PRIVATE"; creatorWallet: string; profitReceiverAddress: string; proofOfIntentMessage?: string | undefined; proofOfIntentSignature?: string | undefined; proofOfIntentTimestamp?: string | undefi...' is not assignable to type 'Without<agentsUncheckedCreateInput, agentsCreateInput> & agentsCreateInput'.
+    Type '{ name: string; venue: "SPOT" | "GMX" | "HYPERLIQUID" | "OSTIUM" | "MULTI"; weights: number[]; status: "DRAFT" | "PUBLIC" | "PRIVATE"; creatorWallet: string; profitReceiverAddress: string; proofOfIntentMessage?: string | undefined; proofOfIntentSignature?: string | undefined; proofOfIntentTimestamp?: string | undefi...' is missing the following properties from type 'agentsCreateInput': creator_wallet, profit_receiver_address
+pages/api/agents/verify-proof-of-intent.ts(39,18): error TS2551: Property 'agent' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'agents'?
+pages/api/ct-accounts/index.ts(43,35): error TS2551: Property 'ctAccount' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'ct_accounts'?
+pages/api/ct-accounts/index.ts(74,35): error TS2551: Property 'ctAccount' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'ct_accounts'?
+pages/api/ct-accounts/index.ts(86,36): error TS2551: Property 'ctAccount' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'ct_accounts'?
+pages/api/deployments/[id].ts(39,35): error TS2551: Property 'agentDeployment' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'agent_deployments'?
+pages/api/deployments/[id].ts(57,35): error TS2551: Property 'agentDeployment' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'agent_deployments'?
+pages/api/deployments/[id].ts(65,37): error TS2551: Property 'agentDeployment' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'agent_deployments'?
+pages/api/deployments/create.ts(50,32): error TS2551: Property 'agent' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'agents'?
+pages/api/deployments/create.ts(78,35): error TS2551: Property 'agentDeployment' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'agent_deployments'?
+pages/api/deployments/create.ts(178,37): error TS2551: Property 'agentDeployment' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'agent_deployments'?
+pages/api/ready.ts(19,18): error TS2551: Property 'agent' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'agents'?
+pages/api/safe/create-with-module.ts(7,16): error TS2614: Module '"@safe-global/protocol-kit"' has no exported member 'EthersAdapter'. Did you mean to use 'import EthersAdapter from "@safe-global/protocol-kit"' instead?
+pages/api/safe/create-with-module.ts(7,31): error TS2614: Module '"@safe-global/protocol-kit"' has no exported member 'SafeFactory'. Did you mean to use 'import SafeFactory from "@safe-global/protocol-kit"' instead?
+pages/api/safe/propose-module-with-sdk.ts(7,16): error TS2614: Module '"@safe-global/protocol-kit"' has no exported member 'EthersAdapter'. Did you mean to use 'import EthersAdapter from "@safe-global/protocol-kit"' instead?
+pages/api/safe/propose-module-with-sdk.ts(39,36): error TS2339: Property 'create' does not exist on type 'typeof Safe'.
+pages/api/safe/propose-module-with-sdk.ts(78,39): error TS2345: Argument of type '{ safeAddress: any; safeTransactionData: any; safeTxHash: any; senderAddress: any; origin: string; }' is not assignable to parameter of type 'ProposeTransactionProps'.
+  Property 'senderSignature' is missing in type '{ safeAddress: any; safeTransactionData: any; safeTxHash: any; senderAddress: any; origin: string; }' but required in type 'ProposeTransactionProps'.
+pages/api/safe/sync-module-status.ts(102,37): error TS2551: Property 'agentDeployment' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'agent_deployments'?
+pages/api/safe/sync-module-status.ts(129,20): error TS2551: Property 'agentDeployment' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'agent_deployments'?
+pages/api/safe/sync-module-status.ts(138,20): error TS2551: Property 'auditLog' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'audit_logs'?
+pages/api/signals/index.ts(29,34): error TS2551: Property 'signal' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'signals'?
+pages/api/signals/index.ts(38,43): error TS7006: Parameter 'signal' implicitly has an 'any' type.
+pages/api/telegram/generate-link.ts(31,37): error TS2551: Property 'agentDeployment' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'agent_deployments'?
+pages/api/telegram/generate-link.ts(65,18): error TS2551: Property 'telegramUser' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'telegram_users'?
+pages/gmx-setup.tsx(13,16): error TS2614: Module '"@safe-global/protocol-kit"' has no exported member 'EthersAdapter'. Did you mean to use 'import EthersAdapter from "@safe-global/protocol-kit"' instead?
+pages/gmx-setup.tsx(82,34): error TS2339: Property 'create' does not exist on type 'typeof Safe'.
+scripts/approve-ostium-usdc.ts(5,9): error TS2451: Cannot redeclare block-scoped variable 'ethers'.
+scripts/approve-ostium-usdc.ts(7,7): error TS2451: Cannot redeclare block-scoped variable 'USER_PRIVATE_KEY'.
+scripts/approve-ostium-usdc.ts(8,7): error TS2451: Cannot redeclare block-scoped variable 'RPC_URL'.
+scripts/check-db-schema.ts(12,9): error TS2561: Object literal may only specify known properties, but 'hyperliquidAgentAddress' does not exist in type 'agent_deploymentsWhereInput'. Did you mean to write 'hyperliquid_agent_address'?
+scripts/close-all-ostium-positions.ts(7,7): error TS2451: Cannot redeclare block-scoped variable 'OSTIUM_SERVICE_URL'.
+scripts/close-all-ostium-positions.ts(8,7): error TS2451: Cannot redeclare block-scoped variable 'AGENT_ADDRESS'.
+scripts/close-all-ostium-positions.ts(9,7): error TS2451: Cannot redeclare block-scoped variable 'USER_ADDRESS'.
+scripts/close-all-ostium-positions.ts(20,16): error TS2393: Duplicate function implementation.
+scripts/close-all-ostium-positions.ts(31,16): error TS2393: Duplicate function implementation.
+scripts/close-all-ostium-positions.ts(76,16): error TS2393: Duplicate function implementation.
+scripts/close-all-ostium-positions.ts(117,54): error TS2339: Property 'orderId' does not exist on type '{ success: boolean; txHash: any; pnl: any; error?: undefined; } | { success: boolean; error: any; txHash?: undefined; pnl?: undefined; }'.
+  Property 'orderId' does not exist on type '{ success: boolean; txHash: any; pnl: any; error?: undefined; }'.
+scripts/close-ostium-positions-proper.ts(7,7): error TS2451: Cannot redeclare block-scoped variable 'OSTIUM_SERVICE_URL'.
+scripts/close-ostium-positions-proper.ts(8,7): error TS2451: Cannot redeclare block-scoped variable 'AGENT_ADDRESS'.
+scripts/close-ostium-positions-proper.ts(9,7): error TS2451: Cannot redeclare block-scoped variable 'USER_ADDRESS'.
+scripts/close-ostium-positions-proper.ts(20,16): error TS2393: Duplicate function implementation.
+scripts/close-ostium-positions-proper.ts(31,16): error TS2393: Duplicate function implementation.
+scripts/close-ostium-positions-proper.ts(72,16): error TS2393: Duplicate function implementation.
+scripts/collect-missed-profit-shares.ts(137,11): error TS2322: Type '"COMPLETED"' is not assignable to type 'bill_status_t'.
+scripts/fund-agent-wallet.ts(5,9): error TS2451: Cannot redeclare block-scoped variable 'ethers'.
+scripts/fund-agent-wallet.ts(7,7): error TS2451: Cannot redeclare block-scoped variable 'USER_PRIVATE_KEY'.
+scripts/fund-agent-wallet.ts(8,7): error TS2451: Cannot redeclare block-scoped variable 'AGENT_WALLET'.
+scripts/fund-agent-wallet.ts(9,7): error TS2451: Cannot redeclare block-scoped variable 'RPC_URL'.
+scripts/test-all-ostium-markets.ts(7,7): error TS2451: Cannot redeclare block-scoped variable 'OSTIUM_SERVICE_URL'.
+scripts/test-all-ostium-markets.ts(8,7): error TS2451: Cannot redeclare block-scoped variable 'AGENT_ADDRESS'.
+scripts/test-all-ostium-markets.ts(9,7): error TS2451: Cannot redeclare block-scoped variable 'USER_ADDRESS'.
+scripts/test-ostium-after-deploy.ts(7,7): error TS2451: Cannot redeclare block-scoped variable 'OSTIUM_SERVICE_URL'.
+scripts/test-ostium-after-deploy.ts(10,7): error TS2451: Cannot redeclare block-scoped variable 'AGENT_WALLET'.
+scripts/test-ostium-e2e-flow.ts(43,11): error TS2322: Type '"ACTIVE"' is not assignable to type 'agent_status_t | Enumagent_status_tNullableFilter<"agents"> | null | undefined'.
+scripts/test-ostium-e2e-flow.ts(55,46): error TS2339: Property 'agents' does not exist on type '{ id: string; agent_id: string; status: deployment_status_t; user_wallet: string; safe_wallet: string; sub_active: boolean; sub_started_at: Date; trial_ends_at: Date | null; ... 11 more ...; ostium_agent_key_tag: string | null; }'.
+scripts/test-ostium-e2e-flow.ts(56,44): error TS2339: Property 'agents' does not exist on type '{ id: string; agent_id: string; status: deployment_status_t; user_wallet: string; safe_wallet: string; sub_active: boolean; sub_started_at: Date; trial_ends_at: Date | null; ... 11 more ...; ostium_agent_key_tag: string | null; }'.
+scripts/test-ostium-e2e-flow.ts(60,42): error TS2339: Property 'agents' does not exist on type '{ id: string; agent_id: string; status: deployment_status_t; user_wallet: string; safe_wallet: string; sub_active: boolean; sub_started_at: Date; trial_ends_at: Date | null; ... 11 more ...; ostium_agent_key_tag: string | null; }'.
+scripts/test-ostium-e2e-flow.ts(100,30): error TS2339: Property 'agents' does not exist on type '{ id: string; agent_id: string; status: deployment_status_t; user_wallet: string; safe_wallet: string; sub_active: boolean; sub_started_at: Date; trial_ends_at: Date | null; ... 11 more ...; ostium_agent_key_tag: string | null; }'.
+scripts/test-ostium-e2e-flow.ts(121,34): error TS2339: Property 'agents' does not exist on type '{ id: string; agent_id: string; status: deployment_status_t; user_wallet: string; safe_wallet: string; sub_active: boolean; sub_started_at: Date; trial_ends_at: Date | null; ... 11 more ...; ostium_agent_key_tag: string | null; }'.
+scripts/test-ostium-e2e-flow.ts(143,36): error TS2339: Property 'agents' does not exist on type '{ id: string; agent_id: string; status: deployment_status_t; user_wallet: string; safe_wallet: string; sub_active: boolean; sub_started_at: Date; trial_ends_at: Date | null; ... 11 more ...; ostium_agent_key_tag: string | null; }'.
+services/tweet-ingestion-worker/test_classifier.ts(37,46): error TS2339: Property 'isSignal' does not exist on type 'ClassificationResult'.
+services/tweet-ingestion-worker/test_classifier.ts(38,43): error TS2339: Property 'tokens' does not exist on type 'ClassificationResult'.
+shared/schema.ts(68,18): error TS2430: Interface 'Agent' incorrectly extends interface '{ name: string; venue: "SPOT" | "GMX" | "HYPERLIQUID" | "OSTIUM" | "MULTI"; weights: number[]; status: "DRAFT" | "PUBLIC" | "PRIVATE"; creatorWallet: string; profitReceiverAddress: string; proofOfIntentMessage?: string | undefined; proofOfIntentSignature?: string | undefined; proofOfIntentTimestamp?: string | undefi...'.
+  Types of property 'proofOfIntentMessage' are incompatible.
+    Type 'string | null' is not assignable to type 'string | undefined'.
+      Type 'null' is not assignable to type 'string | undefined'.
+workers/position-monitor-combined.ts(23,5): error TS2322: Type '{ success: boolean; found: number; monitored: number; closed: number; error?: undefined; } | { success: boolean; error: any; found?: undefined; monitored?: undefined; closed?: undefined; }' is not assignable to type '{ success: boolean; positionsMonitored: number; error: any; }'.
+  Property 'positionsMonitored' is missing in type '{ success: boolean; found: number; monitored: number; closed: number; error?: undefined; }' but required in type '{ success: boolean; positionsMonitored: number; error: any; }'.
+workers/position-monitor-combined.ts(37,5): error TS2322: Type '{ success: boolean; positionsMonitored: number; positionsClosed?: undefined; error?: undefined; } | { success: boolean; positionsMonitored: number; positionsClosed: number; error?: undefined; } | { ...; }' is not assignable to type '{ success: boolean; positionsMonitored: number; error: any; }'.
+  Type '{ success: boolean; positionsMonitored: number; positionsClosed?: undefined; error?: undefined; }' is not assignable to type '{ success: boolean; positionsMonitored: number; error: any; }'.
+    Property 'error' is optional in type '{ success: boolean; positionsMonitored: number; positionsClosed?: undefined; error?: undefined; }' but required in type '{ success: boolean; positionsMonitored: number; error: any; }'.
+workers/position-monitor-hyperliquid.ts(371,62): error TS2551: Property 'hyperliquid_user_address' does not exist on type '{ agents: { name: string; id: string; venue: venue_t; }; } & { id: string; agent_id: string; user_wallet: string; safe_wallet: string; status: deployment_status_t; ... 14 more ...; ostium_agent_key_tag: string | null; }'. Did you mean 'hyperliquid_agent_address'?
+workers/position-monitor-ostium.ts(295,35): error TS2362: The left-hand side of an arithmetic operation must be of type 'any', 'number', 'bigint' or an enum type.
+workers/position-monitor-ostium.ts(296,32): error TS2362: The left-hand side of an arithmetic operation must be of type 'any', 'number', 'bigint' or an enum type.
+workers/position-monitor-ostium.ts(296,47): error TS2363: The right-hand side of an arithmetic operation must be of type 'any', 'number', 'bigint' or an enum type.
+workers/position-monitor-ostium.ts(312,37): error TS2362: The left-hand side of an arithmetic operation must be of type 'any', 'number', 'bigint' or an enum type.
+workers/position-monitor-ostium.ts(319,37): error TS2362: The left-hand side of an arithmetic operation must be of type 'any', 'number', 'bigint' or an enum type.
+workers/position-monitor-ostium.ts(333,45): error TS2362: The left-hand side of an arithmetic operation must be of type 'any', 'number', 'bigint' or an enum type.
+workers/position-monitor-ostium.ts(366,45): error TS2362: The left-hand side of an arithmetic operation must be of type 'any', 'number', 'bigint' or an enum type.
+workers/research-signal-generator.ts(74,28): error TS2367: This comparison appears to be unintentional because the types 'agent_status_t | null' and '"ACTIVE"' have no overlap.
+workers/research-signal-generator.ts(100,17): error TS2322: Type 'string | null' is not assignable to type 'string | StringFilter<"signals"> | undefined'.
+  Type 'null' is not assignable to type 'string | StringFilter<"signals"> | undefined'.
+workers/signal-generator.ts(26,9): error TS2322: Type '"ACTIVE"' is not assignable to type 'agent_status_t | Enumagent_status_tNullableFilter<"agents"> | null | undefined'.
+workers/signal-generator.ts(50,36): error TS2339: Property 'agent_accounts' does not exist on type '{ id: string; name: string; venue: venue_t; creator_wallet: string; weights: number[]; apr_30d: number | null; apr_90d: number | null; apr_si: number | null; sharpe_30d: number | null; ... 4 more ...; status: agent_status_t | null; }'.
+workers/signal-generator.ts(50,55): error TS7006: Parameter 'aa' implicitly has an 'any' type.
+workers/telegram-feed-ingestion.ts(170,42): error TS18047: 'classifier' is possibly 'null'.
+workers/trade-executor-worker.ts(27,11): error TS2322: Type '"ACTIVE"' is not assignable to type 'agent_status_t | Enumagent_status_tNullableFilter<"agents"> | null | undefined'.
+workers/trade-executor-worker.ts(66,72): error TS2339: Property 'agents' does not exist on type '{ id: string; agent_id: string; token_symbol: string; venue: venue_t; side: string; size_model: JsonValue; risk_model: JsonValue; source_tweets: string[]; created_at: Date; ... 12 more ...; routing_history: JsonValue; }'.
+workers/trade-executor-worker.ts(67,57): error TS2339: Property 'agents' does not exist on type '{ id: string; agent_id: string; token_symbol: string; venue: venue_t; side: string; size_model: JsonValue; risk_model: JsonValue; source_tweets: string[]; created_at: Date; ... 12 more ...; routing_history: JsonValue; }'.
+workers/trade-executor-worker.ts(68,15): error TS2339: Property 'agents' does not exist on type '{ id: string; agent_id: string; token_symbol: string; venue: venue_t; side: string; size_model: JsonValue; risk_model: JsonValue; source_tweets: string[]; created_at: Date; ... 12 more ...; routing_history: JsonValue; }'.
+workers/trade-executor-worker.ts(68,46): error TS2339: Property 'agents' does not exist on type '{ id: string; agent_id: string; token_symbol: string; venue: venue_t; side: string; size_model: JsonValue; risk_model: JsonValue; source_tweets: string[]; created_at: Date; ... 12 more ...; routing_history: JsonValue; }'.
+workers/trade-executor-worker.ts(69,13): error TS2339: Property 'agents' does not exist on type '{ id: string; agent_id: string; token_symbol: string; venue: venue_t; side: string; size_model: JsonValue; risk_model: JsonValue; source_tweets: string[]; created_at: Date; ... 12 more ...; routing_history: JsonValue; }'.
+workers/trade-executor-worker.ts(69,46): error TS7006: Parameter 'd' implicitly has an 'any' type.
+workers/trade-executor-worker.ts(111,54): error TS2339: Property 'agents' does not exist on type '{ id: string; agent_id: string; token_symbol: string; venue: venue_t; side: string; size_model: JsonValue; risk_model: JsonValue; source_tweets: string[]; created_at: Date; ... 12 more ...; routing_history: JsonValue; }'.
+workers/trade-executor-worker.ts(112,64): error TS2339: Property 'agents' does not exist on type '{ id: string; agent_id: string; token_symbol: string; venue: venue_t; side: string; size_model: JsonValue; risk_model: JsonValue; source_tweets: string[]; created_at: Date; ... 12 more ...; routing_history: JsonValue; }'.
+workers/trade-executor-worker.ts(162,66): error TS2339: Property 'agents' does not exist on type '{ id: string; agent_id: string; token_symbol: string; venue: venue_t; side: string; size_model: JsonValue; risk_model: JsonValue; source_tweets: string[]; created_at: Date; ... 12 more ...; routing_history: JsonValue; }'.
+workers/tweet-ingestion-worker.ts(78,33): error TS2551: Property 'tweetId' does not exist on type '{ id: string; ct_account_id: string; tweet_id: string; tweet_text: string; tweet_created_at: Date; is_signal_candidate: boolean | null; extracted_tokens: string[]; confidence_score: number | null; processed_for_signals: boolean; signal_type: string | null; }'. Did you mean 'tweet_id'?

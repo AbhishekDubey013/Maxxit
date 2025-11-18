@@ -1,8 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { ethers } from 'ethers';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { ensureOstiumDeployment } from '../../../lib/ostium-agent-wallet';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
@@ -10,26 +7,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    const { userId, agentId } = req.body;
+    const { agentId, userWallet } = req.body;
 
-    if (!userId || !agentId) {
-      return res.status(400).json({ error: 'userId and agentId are required' });
+    if (!agentId || !userWallet) {
+      return res.status(400).json({ error: 'agentId and userWallet are required' });
     }
 
-    // Generate new agent wallet
-    const agentWallet = ethers.Wallet.createRandom();
-    const agentAddress = agentWallet.address;
-    const agentPrivateKey = agentWallet.privateKey;
-
-    // Register in wallet pool (encrypted)
-    const { registerPrivateKey } = await import('../../../lib/wallet-pool');
-    await registerPrivateKey(agentAddress, agentPrivateKey, userId);
-
-    console.log('[Ostium Generate Agent] Created agent wallet:', agentAddress);
+    const deployment = await ensureOstiumDeployment(agentId, userWallet);
 
     return res.status(200).json({
       success: true,
-      agentAddress,
+      agentAddress: deployment.ostium_agent_address,
+      deploymentId: deployment.id,
     });
   } catch (error: any) {
     console.error('[Ostium Generate Agent API] Error:', error);

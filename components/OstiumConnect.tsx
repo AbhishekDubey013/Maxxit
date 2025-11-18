@@ -1,7 +1,7 @@
 /**
  * Ostium Connection Flow - SIMPLIFIED (Like Monolith)
  * 1. Connect wallet
- * 2. Assign agent from pool
+ * 2. Generate dedicated agent wallet
  * 3. User signs setDelegate transaction
  * 4. Done!
  */

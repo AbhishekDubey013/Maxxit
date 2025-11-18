@@ -1,8 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { PrismaClient } from '@prisma/client';
-import { assignWalletToUser } from '../../../lib/wallet-pool';
-
-const prisma = new PrismaClient();
+import { ensureOstiumDeployment } from '../../../lib/ostium-agent-wallet';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
@@ -18,91 +15,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     console.log(`[Ostium Deploy] Starting deployment for agent: ${agentId}, user: ${userWallet}`);
 
-    // 1. Check if user already has an agent wallet assigned in the wallet_pool
-    const existingWallet = await prisma.wallet_pool.findFirst({
-      where: {
-        assigned_to_user_wallet: {
-          equals: userWallet,
-          mode: 'insensitive',
-        },
-      },
-    });
+    const deployment = await ensureOstiumDeployment(agentId, userWallet);
+    const agentAddress = deployment.ostium_agent_address;
 
-    let agentAddress: string;
-
-    if (existingWallet) {
-      // Reuse existing agent wallet from pool
-      agentAddress = existingWallet.address;
-      console.log(`[Ostium Deploy] Reusing existing agent wallet from pool: ${agentAddress}`);
-    } else {
-      // Try to assign new wallet from pool
-      const agentWallet = await assignWalletToUser(userWallet);
-      
-      if (!agentWallet) {
-        return res.status(500).json({ 
-          error: 'Wallet pool is empty. All agent wallets are currently assigned. Please contact support to add more wallets to the pool.' 
-        });
-      }
-
-      agentAddress = agentWallet.address;
-      console.log(`[Ostium Deploy] Assigned new agent wallet from pool: ${agentAddress}`);
+    if (!agentAddress) {
+      throw new Error('Failed to generate Ostium agent address');
     }
 
-    // 2. Check if deployment already exists for this user + agent combo
-    const existingDeployment = await prisma.agent_deployments.findFirst({
-      where: {
-        user_wallet: {
-          equals: userWallet,
-          mode: 'insensitive',
-        },
-        agent_id: agentId,
-      },
-    });
-
-    let deployment;
-
-    if (existingDeployment) {
-      // Update existing deployment with ostium_agent_address if missing
-      // @ts-ignore - Prisma client regenerated, TypeScript server needs refresh
-      if (!existingDeployment.ostium_agent_address) {
-        deployment = await prisma.agent_deployments.update({
-          where: { id: existingDeployment.id },
-          data: {
-            // @ts-ignore - Prisma client regenerated, TypeScript server needs refresh
-            ostium_agent_address: agentAddress,
-            status: 'ACTIVE',
-            module_enabled: true,
-          },
-        });
-        console.log(`[Ostium Deploy] Updated existing deployment with ostium_agent_address: ${deployment.id}`);
-      } else {
-        deployment = existingDeployment;
-        console.log(`[Ostium Deploy] Found existing deployment: ${deployment.id}`);
-      }
-    } else {
-      // Create new deployment only if it doesn't exist
-      deployment = await prisma.agent_deployments.create({
-        data: {
-          agent_id: agentId,
-          user_wallet: userWallet,
-          safe_wallet: userWallet,
-          // @ts-ignore - Prisma client regenerated, TypeScript server needs refresh
-          ostium_agent_address: agentAddress, // FIXED: Use ostium_agent_address instead of hyperliquid_agent_address
-          hyperliquid_agent_address: agentAddress, // Also set this for backward compatibility
-          enabled_venues: ['OSTIUM'], // Set enabled venues
-          status: 'ACTIVE',
-          module_enabled: true,
-        },
-      });
-      console.log(`[Ostium Deploy] Created new deployment: ${deployment.id}`);
-    }
-
-           // 3. Approve agent on Ostium smart contracts
-           // User needs to sign this transaction via MetaMask/Privy
-           console.log(`[Ostium Deploy] Agent ${agentAddress} assigned to user ${userWallet}`);
-           console.log(`[Ostium Deploy] User must approve agent via UI (sign transaction with wallet)`);
-           
-           // Return deployment with pending approval status
+    console.log(`[Ostium Deploy] Agent ${agentAddress} assigned to user ${userWallet}`);
+    console.log('[Ostium Deploy] User must approve agent via UI (sign transaction with wallet)');
 
     return res.status(200).json({
       success: true,
