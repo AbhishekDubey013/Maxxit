@@ -1,48 +1,13 @@
 /**
- * Generate Unique Agent Wallet for Hyperliquid Trading
- * Creates a dedicated EOA wallet for each deployment
- * Private keys are encrypted and stored securely
+ * Generate Agent Wallet for Hyperliquid Trading
+ * Uses new user_venue_agents table - one agent address per (user, venue) pair
  */
 
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { PrismaClient } from '@prisma/client';
-import { ethers } from 'ethers';
-import crypto from 'crypto';
+import { getUserVenueAgentAddress } from '../../../lib/user-venue-agent';
 
 const prisma = new PrismaClient();
-
-// Encryption settings
-const ENCRYPTION_KEY = process.env.AGENT_WALLET_ENCRYPTION_KEY;
-const ENCRYPTION_ALGORITHM = 'aes-256-gcm';
-
-if (!ENCRYPTION_KEY) {
-  console.error('[HyperliquidAgent] CRITICAL: AGENT_WALLET_ENCRYPTION_KEY not set in environment!');
-}
-
-/**
- * Encrypt private key using AES-256-GCM
- */
-function encryptPrivateKey(privateKey: string): { encrypted: string; iv: string; tag: string } {
-  if (!ENCRYPTION_KEY) {
-    throw new Error('Encryption key not configured');
-  }
-
-  // Hash the encryption key to get consistent 256-bit key
-  const key = crypto.createHash('sha256').update(ENCRYPTION_KEY).digest();
-  const iv = crypto.randomBytes(16);
-  
-  const cipher = crypto.createCipheriv(ENCRYPTION_ALGORITHM, key, iv);
-  let encrypted = cipher.update(privateKey, 'utf8', 'hex');
-  encrypted += cipher.final('hex');
-  
-  const tag = cipher.getAuthTag();
-  
-  return {
-    encrypted,
-    iv: iv.toString('hex'),
-    tag: tag.toString('hex')
-  };
-}
 
 export default async function handler(
   req: NextApiRequest,
@@ -59,13 +24,6 @@ export default async function handler(
       return res.status(400).json({ error: 'deploymentId required' });
     }
 
-    // Check encryption key
-    if (!ENCRYPTION_KEY) {
-      return res.status(500).json({ 
-        error: 'Server configuration error: Encryption key not set' 
-      });
-    }
-
     // Find deployment
     const deployment = await prisma.agent_deployments.findUnique({
       where: { id: deploymentId },
@@ -76,43 +34,16 @@ export default async function handler(
       return res.status(404).json({ error: 'Deployment not found' });
     }
 
-    // Check if agent wallet already exists
-    if (deployment.hyperliquid_agent_address) {
-      return res.status(200).json({
-        success: true,
-        alreadyExists: true,
-        agentAddress: deployment.hyperliquid_agent_address,
-        message: 'Agent wallet already registered for this deployment',
-      });
-    }
+    // Get or create agent address for this user on Hyperliquid
+    // Uses new user_venue_agents table - one address per (user, venue)
+    const agentAddress = await getUserVenueAgentAddress(deployment.user_wallet, 'HYPERLIQUID');
 
-    // Generate new unique agent wallet
-    const agentWallet = ethers.Wallet.createRandom();
-    const agentAddress = agentWallet.address;
-    const agentPrivateKey = agentWallet.privateKey;
-
-    console.log('[HyperliquidAgent] Generated unique agent wallet:', agentAddress, 'for deployment:', deploymentId);
-
-    // Encrypt private key
-    const { encrypted, iv, tag } = encryptPrivateKey(agentPrivateKey);
-
-    // Store encrypted private key in deployment record
-    await prisma.agent_deployments.update({
-      where: { id: deploymentId },
-      data: {
-        hyperliquid_agent_address: agentAddress,
-        hyperliquid_agent_key_encrypted: encrypted,
-        hyperliquid_agent_key_iv: iv,
-        hyperliquid_agent_key_tag: tag,
-      }
-    });
-
-    console.log('[HyperliquidAgent] ✅ Unique agent wallet registered and encrypted');
+    console.log('[HyperliquidAgent] Agent address for user:', agentAddress);
 
     return res.status(200).json({
       success: true,
       agentAddress,
-      message: 'Unique agent wallet generated successfully',
+      message: 'Agent wallet ready',
       instructions: [
         '1. Go to Hyperliquid (testnet or mainnet)',
         '2. Navigate to Settings → API/Agent',

@@ -5,6 +5,7 @@
 
 import { NextApiRequest, NextApiResponse } from 'next';
 import { PrismaClient } from '@prisma/client';
+import { getUserVenueAgentAddress } from '../../../lib/user-venue-agent';
 
 const prisma = new PrismaClient();
 
@@ -14,18 +15,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    const { agentId, userWallet, agentAddress } = req.body;
+    const { agentId, userWallet } = req.body;
 
-    if (!agentId || !userWallet || !agentAddress) {
+    if (!agentId || !userWallet) {
       return res.status(400).json({ 
-        error: 'Missing required fields: agentId, userWallet, agentAddress' 
+        error: 'Missing required fields: agentId, userWallet' 
       });
     }
 
     console.log('[CreateDeployment] Creating deployment:', {
       agentId,
       userWallet,
-      agentAddress,
     });
 
     // Check if agent exists
@@ -37,35 +37,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(404).json({ error: 'Agent not found' });
     }
 
-    // Get encrypted key from user_hyperliquid_wallets
-    const userWalletRecord = await prisma.user_hyperliquid_wallets.findFirst({
-      where: {
-        user_wallet: userWallet.toLowerCase(),
-        agent_address: agentAddress,
-      },
-    });
+    // Get or create agent address for this user on Hyperliquid
+    const agentAddress = await getUserVenueAgentAddress(userWallet, 'HYPERLIQUID');
 
-    if (!userWalletRecord) {
-      console.error('[CreateDeployment] User wallet record not found');
-      return res.status(404).json({ 
-        error: 'User wallet record not found. Please reconnect Hyperliquid.' 
-      });
-    }
+    console.log('[CreateDeployment] Agent address for Hyperliquid:', agentAddress);
 
-    // Prepare deployment data with encrypted key
-    // Vprime: For MULTI venue agents, enable both Hyperliquid and Ostium
-    // For single-venue agents, only enable that venue
-    const enabledVenues = agent.venue === 'MULTI' 
-      ? ['HYPERLIQUID', 'OSTIUM'] 
-      : ['HYPERLIQUID'];
+    // All agents are multi-venue now
+    const enabledVenues = ['HYPERLIQUID'];
 
     const deploymentData = {
       safe_wallet: userWallet.toLowerCase(),
-      hyperliquid_agent_address: agentAddress,
-      hyperliquid_agent_key_encrypted: userWalletRecord.agent_private_key_encrypted,
-      hyperliquid_agent_key_iv: userWalletRecord.agent_key_iv,
-      hyperliquid_agent_key_tag: userWalletRecord.agent_key_tag,
-      enabled_venues: enabledVenues, // Vprime: Agent Where routing
+      enabled_venues: enabledVenues,
       status: 'ACTIVE' as const,
       sub_active: true,
     };
@@ -107,7 +89,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         id: deployment.id,
         agentId: deployment.agent_id,
         userWallet: deployment.user_wallet,
-        agentAddress: deployment.hyperliquid_agent_address,
+        agentAddress: agentAddress,
         status: deployment.status,
       },
       message: existingDeployment ? 'Deployment updated' : 'Deployment created',

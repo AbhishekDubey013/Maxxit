@@ -1,12 +1,11 @@
 /**
  * Wallet Pool Management
- * Generates new wallets on-demand for each user (no pool!)
- * Each user gets a unique agent wallet generated when needed
+ * Delegates to user-venue-agent service for encrypted key retrieval
  */
 
 import { PrismaClient } from '@prisma/client';
 import { ethers } from 'ethers';
-import { getAgentPrivateKeyByAddress } from './hyperliquid-user-wallet';
+import { getPrivateKeyByAgentAddress } from './user-venue-agent';
 
 const prisma = new PrismaClient();
 
@@ -101,22 +100,23 @@ export async function getAssignedWallet(userWallet: string): Promise<{ address: 
 
 /**
  * Get private key for a specific agent address
+ * Uses new user_venue_agents table
  */
 export async function getPrivateKeyForAddress(agentAddress: string): Promise<string | null> {
   const normalizedAddress = agentAddress.toLowerCase();
 
-  // First, check Hyperliquid encrypted wallets
+  // Use new user_venue_agents table
   try {
-    const hyperKey = await getAgentPrivateKeyByAddress(normalizedAddress);
-    if (hyperKey) {
-      return hyperKey;
+    const privateKey = await getPrivateKeyByAgentAddress(normalizedAddress);
+    if (privateKey) {
+      return privateKey;
     }
   } catch (error) {
-    console.error('[WalletPool] Error decrypting Hyperliquid agent key:', error);
+    console.error('[WalletPool] Error decrypting agent key:', error);
     throw error;
   }
 
-  // Fallback to legacy wallet_pool table (used by Ostium)
+  // Fallback to legacy wallet_pool table (for backward compatibility)
   try {
     const wallet = await prisma.wallet_pool.findFirst({
       where: {
