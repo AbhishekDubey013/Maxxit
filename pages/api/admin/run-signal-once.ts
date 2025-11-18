@@ -32,7 +32,7 @@ export default async function handler(
       console.warn('[SIGNAL] LunarCrush API key not configured - using default 5% position size');
     }
 
-    // 1. Get candidate posts from BOTH Twitter and Telegram
+    // 1. Get candidate posts from Twitter, Telegram Channels, and Telegram Alpha Users
     const ctPosts = await prisma.ct_posts.findMany({
       where: {
         is_signal_candidate: true,
@@ -45,9 +45,11 @@ export default async function handler(
       take: 10,
     });
 
-    const telegramPosts = await prisma.telegram_posts.findMany({
+    // Telegram posts from channels (via research_institutes)
+    const telegramChannelPosts = await prisma.telegram_posts.findMany({
       where: {
         is_signal_candidate: true,
+        source_id: { not: null }, // Has source (channel/group)
         telegram_sources: {
           is_active: true
         }
@@ -57,9 +59,23 @@ export default async function handler(
       take: 10,
     });
 
-    console.log(`[SIGNAL] Found ${ctPosts.length} Twitter posts + ${telegramPosts.length} Telegram posts`);
+    // Telegram posts from individual alpha users (via agent_telegram_users)
+    const telegramAlphaPosts = await prisma.telegram_posts.findMany({
+      where: {
+        is_signal_candidate: true,
+        alpha_user_id: { not: null }, // Has alpha user (individual DMs)
+        telegram_alpha_users: {
+          is_active: true
+        }
+      },
+      include: { telegram_alpha_users: true },
+      orderBy: { message_created_at: 'desc' },
+      take: 10,
+    });
 
-    if (ctPosts.length === 0 && telegramPosts.length === 0) {
+    console.log(`[SIGNAL] Found ${ctPosts.length} Twitter + ${telegramChannelPosts.length} Telegram channels + ${telegramAlphaPosts.length} Telegram alpha users`);
+
+    if (ctPosts.length === 0 && telegramChannelPosts.length === 0 && telegramAlphaPosts.length === 0) {
       return res.status(200).json({ 
         message: 'No signal candidates found',
         signalsCreated: 0,
@@ -68,13 +84,13 @@ export default async function handler(
 
     // Normalize posts to a common format for processing
     interface NormalizedPost {
-      source: 'twitter' | 'telegram';
+      source: 'twitter' | 'telegram_channel' | 'telegram_alpha';
       id: string;
       text: string;
       extracted_tokens: string[];
       signal_type: string | null;
       created_at: Date;
-      source_id: string;  // ct_account_id or telegram_source_id
+      source_id: string;  // ct_account_id, telegram_source_id, or telegram_alpha_user_id
       source_name: string;
       impact_factor?: number;
     }
@@ -88,19 +104,32 @@ export default async function handler(
         signal_type: p.signal_type,
         created_at: p.tweet_created_at,
         source_id: p.ct_account_id,
-        source_name: p.ct_accounts.x_username,
+        source_name: `@${p.ct_accounts.x_username}`,
         impact_factor: p.ct_accounts.impact_factor,
       })),
-      ...telegramPosts.map(p => ({
-        source: 'telegram' as const,
+      ...telegramChannelPosts.map(p => ({
+        source: 'telegram_channel' as const,
         id: p.message_id,
         text: p.message_text,
         extracted_tokens: p.extracted_tokens,
         signal_type: p.signal_type,
         created_at: p.message_created_at,
-        source_id: p.source_id,
-        source_name: p.telegram_sources.source_name,
-        impact_factor: 0.5, // Default impact factor for Telegram sources
+        source_id: p.source_id!,
+        source_name: p.telegram_sources!.source_name,
+        impact_factor: 0.5, // Default impact factor for Telegram channels
+      })),
+      ...telegramAlphaPosts.map(p => ({
+        source: 'telegram_alpha' as const,
+        id: p.message_id,
+        text: p.message_text,
+        extracted_tokens: p.extracted_tokens,
+        signal_type: p.signal_type,
+        created_at: p.message_created_at,
+        source_id: p.alpha_user_id!,
+        source_name: p.telegram_alpha_users!.telegram_username 
+          ? `@${p.telegram_alpha_users!.telegram_username}` 
+          : p.telegram_alpha_users!.first_name || 'Telegram User',
+        impact_factor: p.telegram_alpha_users!.impact_factor,
       })),
     ].sort((a, b) => b.created_at.getTime() - a.created_at.getTime());
 
@@ -133,8 +162,8 @@ export default async function handler(
             include: { agents: true },
           });
           agents = agentLinks.map(link => link.agents);
-        } else {
-          // For Telegram: find agents linked via research_institutes
+        } else if (post.source === 'telegram_channel') {
+          // For Telegram Channels: find agents linked via research_institutes
           const telegramSource = await prisma.telegram_sources.findUnique({
             where: { id: post.source_id },
             include: {
@@ -153,6 +182,13 @@ export default async function handler(
               ari => ari.agents
             );
           }
+        } else if (post.source === 'telegram_alpha') {
+          // For Telegram Alpha Users: find agents linked via agent_telegram_users
+          const agentLinks = await prisma.agent_telegram_users.findMany({
+            where: { telegram_alpha_user_id: post.source_id },
+            include: { agents: true },
+          });
+          agents = agentLinks.map(link => link.agents);
         }
 
         console.log(`[SIGNAL] Found ${agents.length} agents monitoring ${post.source_name}`);
