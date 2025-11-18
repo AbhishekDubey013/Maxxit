@@ -3,12 +3,9 @@ import { PrismaClient } from '@prisma/client';
 import { createTelegramBot, type TelegramUpdate } from '../../../lib/telegram-bot';
 import { createCommandParser } from '../../../lib/telegram-command-parser';
 import { TradeExecutor } from '../../../lib/trade-executor';
-import { createLLMClassifier } from '../../../lib/llm-classifier';
-
 const prisma = new PrismaClient();
 const bot = createTelegramBot();
 const parser = createCommandParser();
-const classifier = createLLMClassifier();
 
 export default async function handler(
   req: NextApiRequest,
@@ -205,6 +202,7 @@ async function handleTextMessage(update: TelegramUpdate) {
 
 /**
  * Handle alpha messages from users (signal sources)
+ * Stores raw messages - classification happens in telegram-alpha-worker service
  */
 async function handleAlphaMessage(message: any, telegramUserId: string, chatId: number) {
   try {
@@ -248,20 +246,34 @@ async function handleAlphaMessage(message: any, telegramUserId: string, chatId: 
       });
     }
 
-    // Quick pre-filter: Skip obvious non-signals
+    // Quick pre-filter: Skip obvious non-signals (store but mark as not signal)
     const hasToken = /\$[A-Z]{2,10}\b|BTC|ETH|SOL|AVAX|ARB|OP|MATIC|LINK|UNI|AAVE/i.test(text);
     const isShortNonSignal = text.length < 20 && !hasToken;
+    const isCommonChatter = /^(gm|gn|good morning|good night|hello|hi|hey|wagmi|lfg|lets go|thank you|thanks|👍|❤️|🔥)$/i.test(text.trim());
 
-    if (isShortNonSignal) {
-      console.log('[Alpha] Message too short, skipping classification');
+    if (isShortNonSignal || isCommonChatter) {
+      // Store but mark as not signal (skip worker processing)
+      const messageKey = `alpha_${telegramUserId}_${message.message_id}`;
+      await prisma.telegram_posts.create({
+        data: {
+          alpha_user_id: alphaUser.id,
+          source_id: null,
+          message_id: messageKey,
+          message_text: text,
+          message_created_at: new Date(message.date * 1000),
+          sender_id: telegramUserId,
+          sender_username: message.from.username || null,
+          is_signal_candidate: false, // Mark as not signal immediately
+          extracted_tokens: [],
+          processed_for_signals: false,
+        },
+      });
+      console.log('[Alpha] Stored non-signal message (too short/common)');
       return;
     }
 
-    // Classify message using LLM
-    console.log('[Alpha] Classifying message with LLM...');
-    const classification = await classifier.classifyTweet(text);
-
-    // Store message with classification
+    // Store message WITHOUT classification (worker will classify it)
+    // This allows the worker service to handle LLM classification
     const messageKey = `alpha_${telegramUserId}_${message.message_id}`;
     
     await prisma.telegram_posts.create({
@@ -273,30 +285,23 @@ async function handleAlphaMessage(message: any, telegramUserId: string, chatId: 
         message_created_at: new Date(message.date * 1000),
         sender_id: telegramUserId,
         sender_username: message.from.username || null,
-        is_signal_candidate: classification.isSignalCandidate,
-        extracted_tokens: classification.extractedTokens,
-        confidence_score: classification.confidence,
-        signal_type: classification.sentiment === 'bullish' ? 'LONG' : 
-                     classification.sentiment === 'bearish' ? 'SHORT' : null,
+        is_signal_candidate: null, // NULL = not yet classified (worker will process)
+        extracted_tokens: [],
+        confidence_score: null,
+        signal_type: null,
         processed_for_signals: false,
       },
     });
 
-    console.log('[Alpha] Stored message:', {
-      isSignal: classification.isSignalCandidate,
-      tokens: classification.extractedTokens,
-      sentiment: classification.sentiment
-    });
+    console.log('[Alpha] Stored message (awaiting classification by worker)');
 
-    // Give feedback if it's a good signal
-    if (classification.isSignalCandidate && classification.extractedTokens.length > 0) {
-      await bot.sendMessage(
-        chatId,
-        `✅ Signal received: ${classification.extractedTokens.join(', ')} - ${classification.sentiment}\n\n` +
-        `Agents following you will see this!`,
-        { parse_mode: 'Markdown' }
-      );
-    }
+    // Give user feedback that message was received
+    await bot.sendMessage(
+      chatId,
+      '✅ *Message received!*\n\n' +
+      'Your alpha is being processed and will be available to agents following you shortly.',
+      { parse_mode: 'Markdown' }
+    );
 
   } catch (error: any) {
     console.error('[Alpha] Error handling alpha message:', error);
