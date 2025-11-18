@@ -2,7 +2,7 @@ import { z } from "zod";
 
 // Enums
 export const VenueEnum = z.enum(["SPOT", "GMX", "HYPERLIQUID", "OSTIUM", "MULTI"]);
-export const AgentStatusEnum = z.enum(["DRAFT", "PUBLIC", "PRIVATE"]); // Changed from ACTIVE/PAUSED to PUBLIC/PRIVATE
+export const AgentStatusEnum = z.enum(["DRAFT", "PUBLIC", "PRIVATE"]);
 export const DeploymentStatusEnum = z.enum(["ACTIVE", "PAUSED", "CANCELLED"]);
 export const BillingKindEnum = z.enum(["SUBSCRIPTION", "INFRA_FEE", "PROFIT_SHARE"]);
 export const BillingStatusEnum = z.enum(["CHARGED", "FAILED"]);

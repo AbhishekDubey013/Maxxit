@@ -329,6 +329,8 @@ def open_position():
     """
     try:
         data = request.json
+        logger.info(f"[OPEN-POSITION] Received request with keys: {list(data.keys()) if data else 'None'}")
+        logger.info(f"[OPEN-POSITION] Request data: {data}")
         
         # Support both agentAddress and privateKey formats
         agent_address = data.get('agentAddress')
