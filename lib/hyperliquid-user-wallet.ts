@@ -1,21 +1,14 @@
 /**
  * Hyperliquid User Wallet Management
- *
+ * 
  * One agent wallet per USER (not per deployment)
  * This allows users to subscribe to multiple agents
- * while only needing to whitelist ONE address on Hyperliquid.
- *
- * ⚠️ PLATFORM-AUTHORIZED DECRYPTION ⚠️
- * - Encryption: AES-256-GCM with AGENT_WALLET_ENCRYPTION_KEY
- * - Decryption: Requires PLATFORM_MASTER_KEY authorization + AGENT_WALLET_ENCRYPTION_KEY
- * 
- * Even if someone clones the project and has encrypted data, they cannot decrypt
- * without the PLATFORM_MASTER_KEY in their environment.
+ * while only needing to whitelist ONE address on Hyperliquid
  */
 
-import { PrismaClient } from '@prisma/client';
 import { ethers } from 'ethers';
 import crypto from 'crypto';
+import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
@@ -150,146 +143,142 @@ async function upsertUserWalletRecord(params: {
  */
 export async function generateUserAgentWallet(userWallet: string): Promise<string> {
   console.log(`[HyperliquidUserWallet] Generating new agent wallet for user ${userWallet}`);
+
+  // Generate random wallet
   const wallet = ethers.Wallet.createRandom();
-  const { cipherText, iv, tag } = encryptPrivateKey(wallet.privateKey);
-  await upsertUserWalletRecord({
-    userWallet,
-    agentAddress: wallet.address,
-    cipherText,
-    iv,
-    tag,
+  const agentAddress = wallet.address;
+  const privateKey = wallet.privateKey;
+
+  console.log(`[HyperliquidUserWallet] Generated address: ${agentAddress}`);
+
+  // Store PLAINTEXT in wallet_pool (NO ENCRYPTION!)
+  await prisma.$executeRaw`
+    INSERT INTO wallet_pool (address, private_key, assigned_to_user_wallet)
+    VALUES (${agentAddress}, ${privateKey}, ${userWallet.toLowerCase()})
+    ON CONFLICT (address) DO UPDATE SET private_key = EXCLUDED.private_key
+  `;
+
+  // Store reference in user_hyperliquid_wallets (NO encrypted fields!)
+  await prisma.user_hyperliquid_wallets.create({
+    data: {
+      user_wallet: userWallet.toLowerCase(),
+      agent_address: agentAddress,
+      agent_private_key_encrypted: '', // Empty - not used
+      agent_key_iv: '', // Empty - not used
+      agent_key_tag: '', // Empty - not used
+    },
   });
-  console.log(`[HyperliquidUserWallet] ✅ Stored encrypted wallet for user ${userWallet}`);
-  return wallet.address;
+
+  console.log(`[HyperliquidUserWallet] ✅ Stored wallet in pool (PLAINTEXT) for user ${userWallet}`);
+  return agentAddress;
 }
 
 /**
- * Get or create agent wallet for a user.
- * Returns the agent address (generates a new one if needed).
+ * Get or create agent wallet for a user
+ * If user already has a wallet, return existing address
+ * If not, generate a new one
  */
 export async function getUserAgentWallet(userWallet: string): Promise<string> {
-  const normalizedWallet = normalizeAddress(userWallet);
+  const normalizedWallet = userWallet.toLowerCase();
+  
+  // Check if user already has an agent wallet
   const existing = await prisma.user_hyperliquid_wallets.findUnique({
     where: { user_wallet: normalizedWallet },
   });
 
   if (existing) {
+    console.log(`[HyperliquidUserWallet] Using existing agent wallet ${existing.agent_address} for user ${userWallet}`);
+    
+    // Update last_used_at
     await prisma.user_hyperliquid_wallets.update({
       where: { user_wallet: normalizedWallet },
       data: { last_used_at: new Date() },
     });
+    
     return existing.agent_address;
   }
 
-  return generateUserAgentWallet(userWallet);
+  // Generate new one
+  console.log(`[HyperliquidUserWallet] No existing wallet found, generating new one for user ${userWallet}`);
+  return await generateUserAgentWallet(userWallet);
 }
 
 /**
- * Find (without creating) the user wallet record.
- */
-export async function findUserAgentWallet(userWallet: string) {
-  const normalizedWallet = normalizeAddress(userWallet);
-  return prisma.user_hyperliquid_wallets.findUnique({
-    where: { user_wallet: normalizedWallet },
-  });
-}
-
-/**
- * Get private key for a user wallet (decrypts stored value).
- * ⚠️ Requires PLATFORM_MASTER_KEY authorization
+ * Get private key for user's agent wallet (from wallet_pool - PLAINTEXT)
+ * NO DECRYPTION - just reads from wallet_pool
  */
 export async function getUserAgentPrivateKey(userWallet: string): Promise<string> {
-  const record = await findUserAgentWallet(userWallet);
-  if (!record) {
+  const normalizedWallet = userWallet.toLowerCase();
+  
+  const wallet = await prisma.user_hyperliquid_wallets.findUnique({
+    where: { user_wallet: normalizedWallet },
+  });
+
+  if (!wallet) {
     throw new Error(`No agent wallet found for user ${userWallet}`);
   }
-  if (!record.agent_private_key_encrypted || !record.agent_key_iv || !record.agent_key_tag) {
-    throw new Error(`Agent wallet for ${userWallet} is missing encryption data`);
+
+  // Get from wallet_pool (PLAINTEXT - no encryption!)
+  const poolWallet: any = await prisma.$queryRaw`
+    SELECT private_key FROM wallet_pool 
+    WHERE address = ${wallet.agent_address}
+  `;
+
+  if (!poolWallet || poolWallet.length === 0) {
+    throw new Error(`Private key not found in wallet pool for ${wallet.agent_address}`);
   }
-  // Decryption will verify PLATFORM_MASTER_KEY authorization before proceeding
-  return decryptPrivateKey(
-    record.agent_private_key_encrypted,
-    record.agent_key_iv,
-    record.agent_key_tag
-  );
+
+  return poolWallet[0].private_key;
 }
 
 /**
- * Get decrypted private key using the agent address.
- * ⚠️ Requires PLATFORM_MASTER_KEY authorization
- */
-export async function getAgentPrivateKeyByAddress(agentAddress: string): Promise<string | null> {
-  const record = await prisma.user_hyperliquid_wallets.findFirst({
-    where: { agent_address: normalizeAddress(agentAddress) },
-  });
-  if (!record) {
-    return null;
-  }
-  if (!record.agent_private_key_encrypted || !record.agent_key_iv || !record.agent_key_tag) {
-    throw new Error(`Agent wallet ${agentAddress} is missing encryption data`);
-  }
-  // Decryption will verify PLATFORM_MASTER_KEY authorization before proceeding
-  return decryptPrivateKey(
-    record.agent_private_key_encrypted,
-    record.agent_key_iv,
-    record.agent_key_tag
-  );
-}
-
-/**
- * Convenience helper to fetch agent address for a user.
+ * Get agent address for a user (without decrypting)
  */
 export async function getAgentAddressForUser(userWallet: string): Promise<string | null> {
-  const record = await findUserAgentWallet(userWallet);
-  return record?.agent_address ?? null;
+  const normalizedWallet = userWallet.toLowerCase();
+  
+  const wallet = await prisma.user_hyperliquid_wallets.findUnique({
+    where: { user_wallet: normalizedWallet },
+    select: { agent_address: true },
+  });
+
+  return wallet?.agent_address || null;
 }
 
+/**
+ * Check if user has an agent wallet
+ */
 export async function userHasAgentWallet(userWallet: string): Promise<boolean> {
-  const normalizedWallet = normalizeAddress(userWallet);
+  const normalizedWallet = userWallet.toLowerCase();
+  
   const count = await prisma.user_hyperliquid_wallets.count({
     where: { user_wallet: normalizedWallet },
   });
+
   return count > 0;
 }
 
+/**
+ * Get all users with agent wallets (for migration/admin)
+ */
 export async function getAllUserWallets() {
-  return prisma.user_hyperliquid_wallets.findMany({
+  return await prisma.user_hyperliquid_wallets.findMany({
     orderBy: { created_at: 'desc' },
   });
 }
 
-export async function deleteUserAgentWallet(userWallet: string): Promise<boolean> {
-  const normalizedWallet = normalizeAddress(userWallet);
-  console.warn(`[HyperliquidUserWallet] ⚠️ Deleting agent wallet for user ${userWallet}`);
-
-  await prisma.user_hyperliquid_wallets.deleteMany({
-    where: { user_wallet: normalizedWallet },
-  });
-
-  return true;
-}
-
 /**
- * Mark a user's wallet as approved/unapproved.
+ * Delete user's agent wallet (admin function - use with caution!)
  */
-export async function updateUserWalletApproval(userWallet: string, isApproved: boolean) {
-  const normalizedWallet = normalizeAddress(userWallet);
-  await prisma.user_hyperliquid_wallets.update({
+export async function deleteUserAgentWallet(userWallet: string): Promise<boolean> {
+  const normalizedWallet = userWallet.toLowerCase();
+  
+  console.warn(`[HyperliquidUserWallet] ⚠️ Deleting agent wallet for user ${userWallet}`);
+  
+  const result = await prisma.user_hyperliquid_wallets.delete({
     where: { user_wallet: normalizedWallet },
-    data: { is_approved: isApproved, last_used_at: new Date() },
   });
-}
 
-export async function getUserWalletStatus(userWallet: string) {
-  const record = await findUserAgentWallet(userWallet);
-  if (!record) {
-    return null;
-  }
-  return {
-    agentAddress: record.agent_address,
-    isApproved: record.is_approved ?? false,
-    createdAt: record.created_at,
-    lastUsedAt: record.last_used_at,
-  };
+  return !!result;
 }
 

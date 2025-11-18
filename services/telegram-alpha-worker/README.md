@@ -1,51 +1,29 @@
-# Telegram Worker
+# Telegram Alpha Worker
 
-Unified microservice that handles BOTH:
-1. **Channels/Groups**: Fetches messages from Telegram channels/groups
-2. **Individual DMs**: Processes and classifies DM messages from alpha users
-
-Both are classified using LLM and stored in the same `telegram_posts` table.
+Microservice that processes Telegram DM messages from alpha users and classifies them using LLM.
 
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────┐
-│  Telegram Channels/Groups                       │
-│  (via telegram_sources)                          │
-└──────────────┬──────────────────────────────────┘
-               │ Bot API (getUpdates)
-               ▼
-┌─────────────────────────────────────────────────┐
-│  Telegram Worker (this service)                  │
-│  • Fetches channel messages                      │
-│  • Processes unclassified DM messages             │
-│  • Classifies with LLM                           │
-└──────────────┬──────────────────────────────────┘
-               │
-               ▼
-┌─────────────────────────────────────────────────┐
-│  telegram_posts (classified)                    │
-└──────────────┬──────────────────────────────────┘
-               │
-               ▼
-┌─────────────────────────────────────────────────┐
-│  Signal Generator Worker                         │
-│  • Picks up is_signal_candidate = true          │
-│  • Generates signals for agents                 │
-└─────────────────────────────────────────────────┘
+Telegram Webhook (pages/api/telegram/webhook.ts)
+  ↓
+Stores raw messages in telegram_posts (is_signal_candidate = null)
+  ↓
+Telegram Alpha Worker (this service)
+  ↓
+Classifies messages with LLM
+  ↓
+Updates telegram_posts (is_signal_candidate = true/false)
+  ↓
+Signal Generator Worker picks up classified messages
+  ↓
+Generates signals for agents
 ```
 
 ## Flow
 
-### Part 1: Channel/Group Messages
-1. **Worker fetches** → Calls Telegram API to get new messages from channels/groups
-2. **Worker stores** → Saves messages to `telegram_posts` with `source_id`
-3. **Worker classifies** → Uses LLM immediately
-4. **Worker updates** → Sets classification results
-
-### Part 2: Individual DM Messages
-1. **Webhook receives DM** → Stores in `telegram_posts` with `alpha_user_id` and `is_signal_candidate = null`
-2. **Worker polls database** → Finds unprocessed DM messages (`is_signal_candidate IS NULL`)
+1. **Webhook receives DM** → Stores in `telegram_posts` with `is_signal_candidate = null`
+2. **Worker polls database** → Finds unprocessed messages (`is_signal_candidate IS NULL`)
 3. **Worker classifies** → Uses LLM to determine if message is a signal
 4. **Worker updates** → Sets `is_signal_candidate`, `extracted_tokens`, `confidence_score`, `signal_type`
 5. **Signal Generator** → Picks up messages where `is_signal_candidate = true`
@@ -55,20 +33,20 @@ Both are classified using LLM and stored in the same `telegram_posts` table.
 ### Environment Variables
 
 ```env
-# Required
 DATABASE_URL=postgresql://...
-PERPLEXITY_API_KEY=...  # Or OPENAI_API_KEY or ANTHROPIC_API_KEY
-
-# Optional
-TELEGRAM_BOT_TOKEN=...  # Required for channel ingestion (optional for DM processing)
 PORT=5006
 WORKER_INTERVAL=120000  # 2 minutes (default)
+
+# LLM API Key (one of):
+PERPLEXITY_API_KEY=...
+OPENAI_API_KEY=...
+ANTHROPIC_API_KEY=...
 ```
 
 ### Installation
 
 ```bash
-cd services/telegram-worker
+cd services/telegram-alpha-worker
 npm install
 npx prisma generate
 npm run build
@@ -97,7 +75,7 @@ Response:
 ```json
 {
   "status": "ok",
-  "service": "telegram-worker",
+  "service": "telegram-alpha-worker",
   "interval": 120000,
   "database": "connected",
   "isRunning": true,
@@ -107,13 +85,6 @@ Response:
 
 ## Processing Logic
 
-### Channels/Groups:
-1. **Fetches messages** from active `telegram_sources`
-2. **Stores** new messages with `source_id`
-3. **Classifies** immediately with LLM
-4. **Updates** `last_fetched_at` on source
-
-### Individual DMs:
 1. **Finds unprocessed messages**:
    - `alpha_user_id IS NOT NULL` (from individual DMs)
    - `is_signal_candidate IS NULL` (not yet classified)
@@ -169,12 +140,12 @@ Add to `railway.json` or deploy as separate service:
 ```json
 {
   "services": {
-    "telegram-worker": {
+    "telegram-alpha-worker": {
       "build": {
         "builder": "NIXPACKS"
       },
       "deploy": {
-        "startCommand": "cd services/telegram-worker && npm start"
+        "startCommand": "cd services/telegram-alpha-worker && npm start"
       }
     }
   }
@@ -186,9 +157,9 @@ Add to `railway.json` or deploy as separate service:
 ```dockerfile
 FROM node:20
 WORKDIR /app
-COPY services/telegram-worker/package*.json ./
+COPY services/telegram-alpha-worker/package*.json ./
 RUN npm install
-COPY services/telegram-worker/ ./
+COPY services/telegram-alpha-worker/ ./
 RUN npm run build
 CMD ["npm", "start"]
 ```

@@ -202,7 +202,7 @@ async function handleTextMessage(update: TelegramUpdate) {
 
 /**
  * Handle alpha messages from users (signal sources)
- * Stores raw messages - classification happens in telegram-worker service
+ * Stores raw messages - classification happens in telegram-alpha-worker service
  */
 async function handleAlphaMessage(message: any, telegramUserId: string, chatId: number) {
   try {

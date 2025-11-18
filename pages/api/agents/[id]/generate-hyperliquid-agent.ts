@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { PrismaClient } from '@prisma/client';
-import { getUserAgentWallet } from '../../../../lib/hyperliquid-user-wallet';
+import { assignWalletToUser, getAssignedWallet } from '../../../../lib/wallet-pool';
 
 const prisma = new PrismaClient();
 
@@ -41,24 +41,37 @@ export default async function handler(
       });
     }
 
-    const agentAddress = await getUserAgentWallet(deployment.user_wallet);
+    // Check if user already has an assigned wallet
+    let wallet = await getAssignedWallet(deployment.user_wallet);
+    
+    if (!wallet) {
+      // Assign a new wallet from the pool
+      wallet = await assignWalletToUser(deployment.user_wallet);
+      
+      if (!wallet) {
+        return res.status(500).json({ 
+          error: 'No available wallets in pool. Contact admin to add more wallets.' 
+        });
+      }
+    }
 
+    // Save agent address to deployment (NO encryption needed!)
     await prisma.agent_deployments.update({
       where: { id: deploymentId },
       data: {
-        hyperliquid_agent_address: agentAddress,
+        hyperliquid_agent_address: wallet.address,
         // No encrypted key fields needed!
       }
     });
 
-    console.log(`[HyperliquidAgent] Generated wallet ${agentAddress} for deployment ${deploymentId}`);
+    console.log(`[WalletPool] Assigned wallet ${wallet.address} to deployment ${deploymentId}`);
 
     return res.status(200).json({
-      agentAddress,
+      agentAddress: wallet.address,
       alreadyExists: false
     });
   } catch (error: any) {
-    console.error(`[HyperliquidAgent] Error generating wallet:`, error);
+    console.error(`[HyperliquidAgent] Error assigning wallet:`, error);
     return res.status(500).json({ error: error.message || 'Internal server error' });
   } finally {
     await prisma.$disconnect();

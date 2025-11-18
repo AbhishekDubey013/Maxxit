@@ -372,7 +372,7 @@ export default function Creator() {
                             {activatingAgentId === agent.id ? 'Activating...' : 'Activate'}
                           </button>
                         )}
-                        {agent.status === 'PUBLIC' && (
+                        {(agent.status === 'PUBLIC') && (
                           <button
                             onClick={() => deactivateAgent(agent.id)}
                             disabled={deactivatingAgentId === agent.id}

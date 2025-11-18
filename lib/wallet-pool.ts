@@ -37,11 +37,13 @@ export async function getPrivateKeyForAddress(agentAddress: string): Promise<str
     const wallet = await prisma.wallet_pool.findFirst({
       where: {
         address: {
-          equals: normalizedAddress,
+          equals: agentAddress.toLowerCase(),
           mode: 'insensitive',
         },
       },
-      select: { private_key: true },
+      select: {
+        private_key: true,
+      },
     });
 
     if (!wallet) {

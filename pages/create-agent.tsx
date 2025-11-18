@@ -87,7 +87,7 @@ export default function CreateAgent() {
     defaultValues: {
       name: '',
       description: '',
-      venue: 'HYPERLIQUID', // Default to HYPERLIQUID (MULTI not yet in DB enum)
+      venue: 'MULTI', // Vprime: Multi-venue routing (Agent Where)
       weights: [50, 50, 50, 50, 50, 50, 50, 50], // Legacy - not used anymore
       status: 'DRAFT',
       creatorWallet: '',
