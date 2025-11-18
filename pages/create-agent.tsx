@@ -693,16 +693,16 @@ export default function CreateAgent() {
                   Trading Venue
                 </h2>
 
-                {/* Default Venue Info */}
+                {/* Default Venue Info - MULTI venue (Agent Where) */}
                 <div className="p-6 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border-2 border-primary/30 rounded-lg">
                   <div className="flex items-start gap-3 mb-3">
                     <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
-                      <span className="text-2xl">⚡</span>
+                      <span className="text-2xl">🌐</span>
                     </div>
                     <div>
-                      <h3 className="text-lg font-bold text-foreground">Hyperliquid Perpetuals</h3>
+                      <h3 className="text-lg font-bold text-foreground">Multi-Venue Trading (Recommended)</h3>
                       <p className="text-sm text-muted-foreground mt-1">
-                        Trade perpetual futures with up to 50x leverage
+                        Agent automatically routes to the best venue using Agent Where™
                       </p>
                     </div>
                   </div>
@@ -710,21 +710,25 @@ export default function CreateAgent() {
                   <div className="mt-4 space-y-2 text-sm">
                     <div className="flex items-start gap-2">
                       <span className="text-primary">✓</span>
-                      <span className="text-muted-foreground">220+ trading pairs</span>
+                      <span className="text-muted-foreground">Hyperliquid Perpetuals (220+ pairs)</span>
                     </div>
                     <div className="flex items-start gap-2">
                       <span className="text-primary">✓</span>
-                      <span className="text-muted-foreground">High leverage trading</span>
+                      <span className="text-muted-foreground">Ostium Synthetics (41 pairs)</span>
                     </div>
                     <div className="flex items-start gap-2">
                       <span className="text-primary">✓</span>
-                      <span className="text-muted-foreground">Agent delegation support</span>
+                      <span className="text-muted-foreground">Intelligent routing for best liquidity & fees</span>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <span className="text-primary">✓</span>
+                      <span className="text-muted-foreground">Total 261 trading pairs</span>
                     </div>
                   </div>
                 </div>
 
-                {/* Hidden input for default venue */}
-                <input type="hidden" {...register('venue')} value="HYPERLIQUID" />
+                {/* Hidden input for default venue - MULTI for Agent Where */}
+                <input type="hidden" {...register('venue')} value="MULTI" />
 
                 {/* Advanced: Single Venue Option (Collapsed by default) */}
                 <details className="group">
