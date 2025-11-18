@@ -25,6 +25,16 @@ const OSTIUM_TRADING_ABI = [
   'function delegations(address delegator) view returns (address)',
 ];
 
+// USDC on Arbitrum Sepolia (testnet)
+const USDC_TOKEN = '0xe73B11Fb1e3eeEe8AF2a23079A4410Fe1B370548';
+const USDC_ABI = [
+  'function approve(address spender, uint256 amount) public returns (bool)',
+  'function allowance(address owner, address spender) view returns (uint256)',
+];
+
+// Ostium Trading Storage (where USDC is held)
+const OSTIUM_STORAGE = '0x0b9F5243B29938668c9Cfbd7557A389EC7Ef88b8';
+
 export function OstiumConnect({
   agentId,
   agentName,
@@ -36,11 +46,14 @@ export function OstiumConnect({
   const [error, setError] = useState('');
   const [agentAddress, setAgentAddress] = useState<string>('');
   const [txHash, setTxHash] = useState<string | null>(null);
-  const [approved, setApproved] = useState(false);
+  const [delegateApproved, setDelegateApproved] = useState(false);
+  const [usdcApproved, setUsdcApproved] = useState(false);
+  const [step, setStep] = useState<'connect' | 'agent' | 'delegate' | 'usdc' | 'complete'>('connect');
 
   // Auto-assign agent when wallet is connected
   useEffect(() => {
     if (authenticated && user?.wallet?.address && !agentAddress && !loading) {
+      setStep('agent');
       assignAgent();
     }
   }, [authenticated, user?.wallet?.address]);
@@ -69,6 +82,7 @@ export function OstiumConnect({
       const data = await response.json();
       setAgentAddress(data.agentAddress);
       console.log('[Ostium] Agent assigned:', data.agentAddress);
+      setStep('delegate');
     } catch (err: any) {
       console.error('[Ostium] Failed to assign agent:', err);
       setError(err.message || 'Failed to assign agent wallet');
@@ -110,6 +124,19 @@ export function OstiumConnect({
         signer
       );
 
+      console.log('[Ostium] Checking current delegation...');
+
+      // Check if agent is already delegated
+      const currentDelegate = await contract.delegations(user.wallet.address);
+
+      if (currentDelegate.toLowerCase() === agentAddress.toLowerCase()) {
+        console.log('[Ostium] Agent already delegated, skipping transaction');
+        setDelegateApproved(true);
+        setStep('usdc');
+        return;
+      }
+
+      console.log('[Ostium] Current delegate:', currentDelegate);
       console.log('[Ostium] Calling setDelegate...');
 
       // Call setDelegate (user signs this transaction)
@@ -122,13 +149,9 @@ export function OstiumConnect({
       const receipt = await tx.wait();
       console.log('[Ostium] Confirmed! Block:', receipt.blockNumber);
 
-      setApproved(true);
-      
-      // Call success callback after a short delay
-      setTimeout(() => {
-        onSuccess?.();
-        onClose();
-      }, 2000);
+      setDelegateApproved(true);
+      setStep('usdc');
+      console.log('[Ostium] Delegate approved! Now need USDC approval...');
 
     } catch (err: any) {
       console.error('[Ostium] Approval error:', err);
@@ -139,6 +162,94 @@ export function OstiumConnect({
         setError('Transaction failed. Please try again.');
       } else {
         setError(err.message || 'Failed to approve agent');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const approveUsdc = async () => {
+    setLoading(true);
+    setError('');
+
+    try {
+      if (!authenticated || !user?.wallet?.address) {
+        throw new Error('Please connect your wallet');
+      }
+
+      console.log('[Ostium] Starting USDC approval...');
+      console.log('   User:', user.wallet.address);
+      console.log('   USDC Token:', USDC_TOKEN);
+      console.log('   Storage:', OSTIUM_STORAGE);
+
+      // Get provider
+      const provider = (window as any).ethereum;
+      if (!provider) {
+        throw new Error('No wallet provider found. Please install MetaMask.');
+      }
+
+      const ethersProvider = new ethers.providers.Web3Provider(provider);
+      const signer = ethersProvider.getSigner();
+
+      // Create USDC contract instance
+      const usdcContract = new ethers.Contract(
+        USDC_TOKEN,
+        USDC_ABI,
+        signer
+      );
+
+      console.log('[Ostium] Checking current USDC allowance...');
+      
+      // Check current allowance
+      const currentAllowance = await usdcContract.allowance(
+        user.wallet.address,
+        OSTIUM_STORAGE
+      );
+      
+      const allowanceAmount = ethers.utils.parseUnits('1000000', 6); // $1M
+      
+      if (currentAllowance.gte(allowanceAmount)) {
+        console.log('[Ostium] Sufficient allowance already granted');
+        setUsdcApproved(true);
+        setStep('complete');
+        setTimeout(() => {
+          onSuccess?.();
+          onClose();
+        }, 1000);
+        return;
+      }
+
+      console.log('[Ostium] Current allowance:', ethers.utils.formatUnits(currentAllowance, 6));
+      console.log('[Ostium] Approving USDC...');
+
+      // Approve USDC
+      const tx = await usdcContract.approve(OSTIUM_STORAGE, allowanceAmount);
+      console.log('[Ostium] Approval sent:', tx.hash);
+      setTxHash(tx.hash);
+
+      // Wait for confirmation
+      console.log('[Ostium] Waiting for confirmation...');
+      const receipt = await tx.wait();
+      console.log('[Ostium] Confirmed! Block:', receipt.blockNumber);
+
+      setUsdcApproved(true);
+      setStep('complete');
+      
+      // Call success callback after a short delay
+      setTimeout(() => {
+        onSuccess?.();
+        onClose();
+      }, 1000);
+
+    } catch (err: any) {
+      console.error('[Ostium] USDC approval error:', err);
+      
+      if (err.code === 4001) {
+        setError('Transaction rejected by user');
+      } else if (err.code === -32603) {
+        setError('Transaction failed. Please try again.');
+      } else {
+        setError(err.message || 'Failed to approve USDC');
       }
     } finally {
       setLoading(false);
@@ -180,113 +291,188 @@ export function OstiumConnect({
             </div>
           )}
 
-          {!approved ? (
+          {/* Step Indicator */}
+          {step !== 'connect' && (
+            <div className="flex items-center justify-between text-xs font-semibold text-muted-foreground mb-4">
+              <div className={`flex items-center gap-1 ${delegateApproved ? 'text-green-600' : ''}`}>
+                <span className={`w-6 h-6 rounded-full flex items-center justify-center ${delegateApproved ? 'bg-green-600 text-white' : 'bg-muted'}`}>
+                  {delegateApproved ? '✓' : '1'}
+                </span>
+                Delegate
+              </div>
+              <div className={`flex-1 h-0.5 mx-2 ${delegateApproved ? 'bg-green-600' : 'bg-muted'}`}></div>
+              <div className={`flex items-center gap-1 ${usdcApproved ? 'text-green-600' : ''}`}>
+                <span className={`w-6 h-6 rounded-full flex items-center justify-center ${usdcApproved ? 'bg-green-600 text-white' : 'bg-muted'}`}>
+                  {usdcApproved ? '✓' : '2'}
+                </span>
+                USDC
+              </div>
+            </div>
+          )}
+
+          {step === 'connect' ? (
+            /* Step 1: Not Connected */
+            <div className="text-center space-y-4">
+              <Wallet className="w-16 h-16 mx-auto text-muted-foreground" />
+              <div>
+                <h3 className="text-lg font-semibold mb-2">Connect Your Wallet</h3>
+                <p className="text-sm text-muted-foreground">
+                  Connect your Arbitrum wallet to whitelist the agent
+                </p>
+              </div>
+              <button
+                onClick={handleConnect}
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-primary text-primary-foreground rounded-md font-semibold hover:bg-primary/90"
+              >
+                <Wallet className="w-5 h-5" />
+                Connect Wallet
+              </button>
+            </div>
+          ) : step === 'agent' ? (
+            /* Step 2: Loading Agent */
+            <div className="text-center space-y-4 py-8">
+              <Loader2 className="w-16 h-16 mx-auto text-primary animate-spin" />
+              <div>
+                <h3 className="text-lg font-semibold mb-2">Assigning Agent...</h3>
+                <p className="text-sm text-muted-foreground">
+                  Getting your agent wallet from the pool
+                </p>
+              </div>
+            </div>
+          ) : step === 'delegate' ? (
+            /* Step 3: Approve Delegate */
             <>
-              {/* Not Connected */}
-              {!authenticated ? (
-                <div className="text-center space-y-4">
-                  <Wallet className="w-16 h-16 mx-auto text-muted-foreground" />
-                  <div>
-                    <h3 className="text-lg font-semibold mb-2">Connect Your Wallet</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Connect your Arbitrum wallet to whitelist the agent
-                    </p>
-                  </div>
-                  <button
-                    onClick={handleConnect}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-primary text-primary-foreground rounded-md font-semibold hover:bg-primary/90"
-                  >
-                    <Wallet className="w-5 h-5" />
-                    Connect Wallet
-                  </button>
+              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                <p className="text-sm text-blue-900 dark:text-blue-100 font-medium mb-2">
+                  🤖 Agent Assigned
+                </p>
+                <p className="text-xs text-blue-700 dark:text-blue-300 font-mono break-all">
+                  {agentAddress}
+                </p>
+              </div>
+
+              <div className="bg-muted rounded-lg p-4 space-y-2 text-sm">
+                <p className="font-semibold mb-2">Step 1: Approve Agent Access</p>
+                <div className="flex items-start gap-2">
+                  <span className="text-blue-600 font-bold">→</span>
+                  <span>Sign transaction to whitelist agent</span>
                 </div>
-              ) : !agentAddress ? (
-                /* Loading Agent */
-                <div className="text-center space-y-4 py-8">
-                  <Loader2 className="w-16 h-16 mx-auto text-primary animate-spin" />
-                  <div>
-                    <h3 className="text-lg font-semibold mb-2">Assigning Agent...</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Getting your agent wallet from the pool
-                    </p>
-                  </div>
+                <div className="flex items-start gap-2">
+                  <span className="text-gray-400">→</span>
+                  <span className="text-muted-foreground">Then approve USDC spending</span>
                 </div>
-              ) : (
-                /* Ready to Approve */
-                <>
-                  <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-                    <p className="text-sm text-blue-900 dark:text-blue-100 font-medium mb-2">
-                      🤖 Agent Assigned
-                    </p>
-                    <p className="text-xs text-blue-700 dark:text-blue-300 font-mono break-all">
-                      {agentAddress}
-                    </p>
-                  </div>
+              </div>
 
-                  <div className="bg-muted rounded-lg p-4 space-y-2 text-sm">
-                    <p className="font-semibold mb-2">What happens next:</p>
-                    <div className="flex items-start gap-2">
-                      <span className="text-green-600">1.</span>
-                      <span>Click "Approve Agent" below</span>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <span className="text-green-600">2.</span>
-                      <span>Sign the transaction in your wallet</span>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <span className="text-green-600">3.</span>
-                      <span>Agent can trade on your behalf!</span>
-                    </div>
-                  </div>
+              <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3 text-xs text-yellow-800 dark:text-yellow-200">
+                <strong>⚠️ You remain in control:</strong> Agent can only trade - cannot withdraw funds. You can revoke access anytime.
+              </div>
 
-                  <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3 text-xs text-yellow-800 dark:text-yellow-200">
-                    <strong>⚠️ You remain in control:</strong> Agent can only trade - cannot withdraw funds. You can revoke access anytime.
-                  </div>
-
-                  {txHash && (
-                    <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-3">
-                      <p className="text-green-700 dark:text-green-300 text-sm mb-2">Transaction submitted!</p>
-                      <a
-                        href={`https://sepolia.arbiscan.io/tx/${txHash}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-600 hover:underline text-xs break-all"
-                      >
-                        View on Arbiscan →
-                      </a>
-                    </div>
-                  )}
-
-                  <button
-                    onClick={approveAgent}
-                    disabled={loading}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-md font-semibold hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              {txHash && (
+                <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-3">
+                  <p className="text-green-700 dark:text-green-300 text-sm mb-2">✓ Transaction confirmed!</p>
+                  <a
+                    href={`https://sepolia.arbiscan.io/tx/${txHash}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:underline text-xs break-all"
                   >
-                    {loading ? (
-                      <>
-                        <Loader2 className="w-5 h-5 animate-spin" />
-                        Approving...
-                      </>
-                    ) : (
-                      <>
-                        <CheckCircle className="w-5 h-5" />
-                        ✍️ Approve Agent (Sign Transaction)
-                      </>
-                    )}
-                  </button>
-                </>
+                    View on Arbiscan →
+                  </a>
+                </div>
               )}
+
+              <button
+                onClick={approveAgent}
+                disabled={loading}
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-md font-semibold hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    Signing...
+                  </>
+                ) : delegateApproved ? (
+                  <>
+                    <CheckCircle className="w-5 h-5" />
+                    ✓ Delegate Approved
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="w-5 h-5" />
+                    ✍️ Approve Agent Access
+                  </>
+                )}
+              </button>
+            </>
+          ) : step === 'usdc' ? (
+            /* Step 4: Approve USDC */
+            <>
+              <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
+                <p className="text-sm text-green-900 dark:text-green-100 font-medium mb-2">
+                  ✓ Delegate Approved
+                </p>
+                <p className="text-xs text-green-700 dark:text-green-300">
+                  Agent has been whitelisted to trade on your behalf
+                </p>
+              </div>
+
+              <div className="bg-muted rounded-lg p-4 space-y-2 text-sm">
+                <p className="font-semibold mb-2">Step 2: Approve USDC Spending</p>
+                <div className="flex items-start gap-2">
+                  <span className="text-blue-600 font-bold">→</span>
+                  <span>Sign transaction to approve USDC</span>
+                </div>
+                <p className="text-xs text-muted-foreground mt-3">
+                  This allows Ostium to use your USDC for trading. The agent cannot withdraw funds directly.
+                </p>
+              </div>
+
+              <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3 text-xs text-yellow-800 dark:text-yellow-200">
+                <strong>💡 Tip:</strong> We're approving $1M. This is a standard amount and prevents repeated approvals.
+              </div>
+
+              {txHash && (
+                <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-3">
+                  <p className="text-green-700 dark:text-green-300 text-sm mb-2">✓ Transaction confirmed!</p>
+                  <a
+                    href={`https://sepolia.arbiscan.io/tx/${txHash}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:underline text-xs break-all"
+                  >
+                    View on Arbiscan →
+                  </a>
+                </div>
+              )}
+
+              <button
+                onClick={approveUsdc}
+                disabled={loading}
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-md font-semibold hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    Signing...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="w-5 h-5" />
+                    ✍️ Approve USDC
+                  </>
+                )}
+              </button>
             </>
           ) : (
-            /* Approved */
+            /* Complete */
             <div className="text-center space-y-4 py-4">
               <div className="w-16 h-16 mx-auto bg-green-100 dark:bg-green-900/20 rounded-full flex items-center justify-center">
                 <CheckCircle className="w-10 h-10 text-green-600" />
               </div>
               <div>
-                <h3 className="text-lg font-semibold mb-2">Agent Approved! 🎉</h3>
+                <h3 className="text-lg font-semibold mb-2">All Set! 🎉</h3>
                 <p className="text-sm text-muted-foreground">
-                  Your agent can now trade on Ostium
+                  Your agent is ready to trade on Ostium
                 </p>
               </div>
 
@@ -297,7 +483,7 @@ export function OstiumConnect({
                   rel="noopener noreferrer"
                   className="text-blue-600 hover:underline text-sm"
                 >
-                  View transaction →
+                  View last transaction →
                 </a>
               )}
 
@@ -305,6 +491,10 @@ export function OstiumConnect({
                 <div className="flex items-center gap-2">
                   <CheckCircle className="w-4 h-4 text-green-600" />
                   <span>Agent whitelisted</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <CheckCircle className="w-4 h-4 text-green-600" />
+                  <span>USDC approved for trading</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <CheckCircle className="w-4 h-4 text-green-600" />

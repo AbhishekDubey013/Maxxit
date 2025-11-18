@@ -58,9 +58,9 @@ export const insertAgentSchema = z.object({
   status: AgentStatusEnum.default("PUBLIC"), // Default to PUBLIC - all agents are public by default
   weights: z.array(z.number().int().min(0).max(100)).length(8),
   // Proof of Intent fields (optional for backward compatibility)
-  proofOfIntentMessage: z.string().optional(),
-  proofOfIntentSignature: z.string().optional(),
-  proofOfIntentTimestamp: z.string().datetime().optional(),
+  proofOfIntentMessage: z.string().nullable().optional(),
+  proofOfIntentSignature: z.string().nullable().optional(),
+  proofOfIntentTimestamp: z.string().datetime().nullable().optional(),
 });
 
 export type InsertAgent = z.infer<typeof insertAgentSchema>;

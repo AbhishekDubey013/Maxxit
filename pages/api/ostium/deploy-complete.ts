@@ -48,19 +48,37 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       console.log(`[Ostium Deploy] Assigned new agent wallet from pool: ${agentAddress}`);
     }
 
-    // 2. Create deployment in database
-    const deployment = await prisma.agent_deployments.create({
-      data: {
+    // 2. Check if deployment already exists for this user + agent combo
+    const existingDeployment = await prisma.agent_deployments.findFirst({
+      where: {
+        user_wallet: {
+          equals: userWallet,
+          mode: 'insensitive',
+        },
         agent_id: agentId,
-        user_wallet: userWallet,
-        safe_wallet: userWallet,
-        hyperliquid_agent_address: agentAddress,
-        status: 'ACTIVE',
-        module_enabled: true,
       },
     });
 
-    console.log(`[Ostium Deploy] Created deployment: ${deployment.id}`);
+    let deployment;
+
+    if (existingDeployment) {
+      // Use existing deployment (prevents duplicate constraint error)
+      deployment = existingDeployment;
+      console.log(`[Ostium Deploy] Found existing deployment: ${deployment.id}`);
+    } else {
+      // Create new deployment only if it doesn't exist
+      deployment = await prisma.agent_deployments.create({
+        data: {
+          agent_id: agentId,
+          user_wallet: userWallet,
+          safe_wallet: userWallet,
+          hyperliquid_agent_address: agentAddress,
+          status: 'ACTIVE',
+          module_enabled: true,
+        },
+      });
+      console.log(`[Ostium Deploy] Created new deployment: ${deployment.id}`);
+    }
 
            // 3. Approve agent on Ostium smart contracts
            // User needs to sign this transaction via MetaMask/Privy

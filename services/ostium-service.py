@@ -912,6 +912,7 @@ def approve_agent():
         
         # Call setDelegate on the Ostium Trading contract
         trading_contract = sdk.ostium.ostium_trading_contract
+        print(f"Trading contract: {trading_contract}")
         web3 = sdk.ostium.web3
         
         # Get user account

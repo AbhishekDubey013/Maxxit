@@ -4,6 +4,7 @@
  * Schedule: Every 6 hours (after tweet classification)
  */
 
+import 'dotenv/config';
 import { PrismaClient } from '@prisma/client';
 import { syncAllDeployments } from '../lib/sync-deployments';
 
@@ -23,7 +24,7 @@ export async function generateSignals() {
     // Fetch all active agents with their subscribed CT accounts
     const agents = await prisma.agents.findMany({
       where: {
-        status: 'ACTIVE',
+        status: 'PUBLIC',
         agent_deployments: {
           some: {
             status: 'ACTIVE',
