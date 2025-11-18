@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { insertAgentSchema, VenueEnum } from '@shared/schema';
 import { db } from '../client/src/lib/db';
 import { useRouter } from 'next/router';
-import { Check, User, Building2, Sliders, Wallet, Eye, Rocket, Twitter, Search, Plus as PlusIcon, X, Shield } from 'lucide-react';
+import { Check, User, Building2, Sliders, Wallet, Eye, Rocket, Twitter, Search, Plus as PlusIcon, X, Shield, Send } from 'lucide-react';
 import { Header } from '@components/Header';
 import { usePrivy } from '@privy-io/react-auth';
 import { createProofOfIntentWithMetaMask } from '@lib/proof-of-intent';
