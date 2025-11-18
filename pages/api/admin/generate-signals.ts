@@ -103,19 +103,42 @@ export default async function handler(
             }
 
             // Check venue availability for this token
-            const venueStatus = await prisma.venueStatus.findUnique({
-              where: {
-                venue_tokenSymbol: {
-                  venue: agent.venue,
-                  tokenSymbol: token,
+            // For MULTI venue agents, check if token is available on ANY enabled venue
+            let venueStatus: any;
+            
+            if (agent.venue === 'MULTI') {
+              // Check if token is available on Hyperliquid OR Ostium
+              const multiVenueStatuses = await prisma.venues_status.findMany({
+                where: {
+                  token_symbol: token,
+                  venue: { in: ['HYPERLIQUID', 'OSTIUM'] },
                 },
-              },
-            });
+              });
+              
+              if (multiVenueStatuses.length === 0) {
+                console.log(`[GenerateSignals] ${token} not available on any venue (MULTI agent)`);
+                signalsSkipped++;
+                continue;
+              }
+              
+              venueStatus = multiVenueStatuses[0]; // Use first available venue
+              console.log(`[GenerateSignals] ${token} available on ${multiVenueStatuses.map(v => v.venue).join(', ')} (MULTI agent)`);
+            } else {
+              // Single venue agent
+              venueStatus = await prisma.venues_status.findUnique({
+                where: {
+                  venue_token_symbol: {
+                    venue: agent.venue,
+                    token_symbol: token,
+                  },
+                },
+              });
 
-            if (!venueStatus) {
-              console.log(`[GenerateSignals] ${token} not available on ${agent.venue}`);
-              signalsSkipped++;
-              continue;
+              if (!venueStatus) {
+                console.log(`[GenerateSignals] ${token} not available on ${agent.venue}`);
+                signalsSkipped++;
+                continue;
+              }
             }
 
             // Check for duplicate signal (same agent, token, recent time)
@@ -157,13 +180,16 @@ export default async function handler(
 
             console.log(`[GenerateSignals] Generating LLM signal for ${agent.name} (${agent.venue})`);
 
+            // For MULTI venue agents, default to HYPERLIQUID (Agent Where will route dynamically)
+            const signalVenue = agent.venue === 'MULTI' ? 'HYPERLIQUID' : agent.venue;
+
             // Generate signal using LLM
             const tradingSignal = await signalGenerator.generateSignal({
               tweetText: post.tweetText,
               tweetSentiment: sentiment,
               tweetConfidence: 0.7, // Default confidence
               tokenSymbol: token,
-              venue: agent.venue,
+              venue: signalVenue,
               marketIndicators: indicators ? {
                 rsi: indicators.rsi,
                 macd: indicators.macd,
@@ -183,7 +209,7 @@ export default async function handler(
               data: {
                 agentId: agent.id,
                 tokenSymbol: token,
-                venue: agent.venue,
+                venue: signalVenue, // MULTI agents → HYPERLIQUID (Agent Where will re-route if needed)
                 side: tradingSignal.side,
                 sizeModel: {
                   type: 'balance-percentage',

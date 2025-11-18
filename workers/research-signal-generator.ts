@@ -109,11 +109,14 @@ async function processResearchSignals() {
               continue;
             }
 
+            // For MULTI venue agents, default to HYPERLIQUID (Agent Where will route dynamically)
+            const signalVenue = agent.venue === 'MULTI' ? 'HYPERLIQUID' : agent.venue;
+
             // Create trading signal with FIXED 5% position size
             const tradingSignal = await prisma.signals.create({
               data: {
                 agent_id: agent.id,
-                venue: agent.venue,
+                venue: signalVenue, // MULTI agents → HYPERLIQUID (Agent Where will re-route if needed)
                 token_symbol: signal.extracted_token!,
                 side: signal.extracted_side!,
                 size_model: {

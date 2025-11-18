@@ -159,6 +159,7 @@ async function generateSignalForAgentAndToken(
     // Check if token is available on the target venue
     // For MULTI agents, check if token is available on ANY enabled venue
     let venueMarket: any;
+    let signalVenue: string; // The actual venue to use for the signal
     
     if (agent.venue === 'MULTI') {
       // For multi-venue agents, check if token is available on Hyperliquid OR Ostium
@@ -177,8 +178,9 @@ async function generateSignalForAgentAndToken(
       }
       
       venueMarket = multiVenueMarkets[0]; // Use first available venue for market info
+      signalVenue = multiVenueMarkets[0].venue; // Use first available venue for signal (Agent Where will re-route if needed)
       const venueNames = multiVenueMarkets.map(m => m.venue).join(', ');
-      console.log(`    ✅ ${token} available on ${venueNames} (multi-venue)`);
+      console.log(`    ✅ ${token} available on ${venueNames} (multi-venue, defaulting to ${signalVenue})`);
     } else {
       // For single-venue agents, check specific venue
       venueMarket = await prisma.venue_markets.findFirst({
@@ -195,6 +197,7 @@ async function generateSignalForAgentAndToken(
         return;
       }
 
+      signalVenue = agent.venue; // Use agent's specific venue
       console.log(`    ✅ ${token} available on ${agent.venue} (${venueMarket.market_name})`);
     }
 
@@ -244,7 +247,7 @@ async function generateSignalForAgentAndToken(
         data: {
           agent_id: agent.id,
           token_symbol: token,
-          venue: agent.venue,
+          venue: signalVenue, // MULTI agents → first available venue (Agent Where will re-route if needed)
           side: side,
           size_model: {
             type: 'balance-percentage',
@@ -259,7 +262,7 @@ async function generateSignalForAgentAndToken(
         },
       });
 
-      console.log(`    ✅ Signal created: ${side} ${token} on ${agent.venue} (${positionSizePercent.toFixed(2)}% position)`);
+      console.log(`    ✅ Signal created: ${side} ${token} on ${signalVenue} (${positionSizePercent.toFixed(2)}% position)`);
     } catch (createError: any) {
       // P2002: Unique constraint violation (signal already exists for this agent+token in 6h window)
       if (createError.code === 'P2002') {
