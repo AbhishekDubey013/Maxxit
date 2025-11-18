@@ -1,6 +1,10 @@
 /**
  * Create or update deployment for Hyperliquid agent
- * Called when user approves agent on Hyperliquid
+ * 
+ * New Flow:
+ * 1. User calls /api/agents/[id]/generate-deployment-address to get unique address
+ * 2. User whitelists the address on Hyperliquid
+ * 3. User calls this API with encrypted key data to create deployment
  */
 
 import { NextApiRequest, NextApiResponse } from 'next';
@@ -14,11 +18,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    const { agentId, userWallet, agentAddress } = req.body;
+    const { 
+      agentId, 
+      userWallet, 
+      agentAddress,
+      encryptedKey,
+      keyIv,
+      keyTag,
+    } = req.body;
 
-    if (!agentId || !userWallet || !agentAddress) {
+    if (!agentId || !userWallet || !agentAddress || !encryptedKey || !keyIv || !keyTag) {
       return res.status(400).json({ 
-        error: 'Missing required fields: agentId, userWallet, agentAddress' 
+        error: 'Missing required fields: agentId, userWallet, agentAddress, encryptedKey, keyIv, keyTag' 
       });
     }
 
@@ -37,18 +48,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(404).json({ error: 'Agent not found' });
     }
 
-    // Get encrypted key from user_hyperliquid_wallets
-    const userWalletRecord = await prisma.user_hyperliquid_wallets.findFirst({
+    // Check if this agent address is already used by another deployment
+    const existingAddressDeployment = await prisma.agent_deployments.findFirst({
       where: {
-        user_wallet: userWallet.toLowerCase(),
-        agent_address: agentAddress,
+        hyperliquid_agent_address: agentAddress,
       },
     });
 
-    if (!userWalletRecord) {
-      console.error('[CreateDeployment] User wallet record not found');
-      return res.status(404).json({ 
-        error: 'User wallet record not found. Please reconnect Hyperliquid.' 
+    if (existingAddressDeployment) {
+      console.error('[CreateDeployment] Agent address already in use by deployment:', existingAddressDeployment.id);
+      return res.status(400).json({ 
+        error: 'This agent address is already in use. Please generate a new address.' 
       });
     }
 
@@ -62,9 +72,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const deploymentData = {
       safe_wallet: userWallet.toLowerCase(),
       hyperliquid_agent_address: agentAddress,
-      hyperliquid_agent_key_encrypted: userWalletRecord.agent_private_key_encrypted,
-      hyperliquid_agent_key_iv: userWalletRecord.agent_key_iv,
-      hyperliquid_agent_key_tag: userWalletRecord.agent_key_tag,
+      hyperliquid_agent_key_encrypted: encryptedKey,
+      hyperliquid_agent_key_iv: keyIv,
+      hyperliquid_agent_key_tag: keyTag,
       enabled_venues: enabledVenues, // Vprime: Agent Where routing
       status: 'ACTIVE' as const,
       sub_active: true,

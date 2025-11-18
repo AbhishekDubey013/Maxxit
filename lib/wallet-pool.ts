@@ -100,9 +100,24 @@ export async function getAssignedWallet(userWallet: string): Promise<{ address: 
 
 /**
  * Get private key for a specific agent address
+ * 
+ * Priority:
+ * 1. Check deployment-specific addresses (new system with encryption)
+ * 2. Fallback to wallet pool (legacy system, will be deprecated)
  */
 export async function getPrivateKeyForAddress(agentAddress: string): Promise<string | null> {
   try {
+    // Try deployment-specific addresses first (new system)
+    const { getPrivateKeyByAddress } = await import('./deployment-agent-address');
+    const deploymentKey = await getPrivateKeyByAddress(agentAddress);
+    
+    if (deploymentKey) {
+      console.log(`[WalletPool] ✅ Found private key in deployment-specific storage`);
+      return deploymentKey;
+    }
+
+    // Fallback to legacy wallet pool
+    console.log(`[WalletPool] Checking legacy wallet pool for address ${agentAddress}`);
     const wallet = await prisma.wallet_pool.findFirst({
       where: {
         address: {
@@ -120,6 +135,7 @@ export async function getPrivateKeyForAddress(agentAddress: string): Promise<str
       return null;
     }
 
+    console.log(`[WalletPool] ⚠️  Using legacy wallet pool (consider migrating to deployment-specific addresses)`);
     return wallet.private_key;
   } catch (error) {
     console.error('[WalletPool] Error getting private key:', error);
