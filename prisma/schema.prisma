@@ -33,6 +33,39 @@ model agent_telegram_users {
   @@index([telegram_alpha_user_id])
 }
 
+model user_agent_addresses {
+  id                              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_wallet                     String    @unique
+  hyperliquid_agent_address       String?   @unique
+  hyperliquid_agent_key_encrypted String?
+  hyperliquid_agent_key_iv        String?
+  hyperliquid_agent_key_tag       String?
+  ostium_agent_address            String?   @unique
+  ostium_agent_key_encrypted      String?
+  ostium_agent_key_iv             String?
+  ostium_agent_key_tag            String?
+  created_at                      DateTime  @default(now()) @db.Timestamptz(6)
+  last_used_at                    DateTime? @db.Timestamptz(6)
+
+  @@index([user_wallet])
+  @@index([hyperliquid_agent_address])
+  @@index([ostium_agent_address])
+}
+
+model user_trading_preferences {
+  id                        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_wallet               String    @unique
+  risk_tolerance            Int       @default(50)
+  trade_frequency           Int       @default(50)
+  social_sentiment_weight   Int       @default(50)
+  price_momentum_focus      Int       @default(50)
+  market_rank_priority      Int       @default(50)
+  created_at                DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at                DateTime  @updatedAt @db.Timestamptz(6)
+
+  @@index([user_wallet])
+}
+
 model agent_deployments {
   id                              String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   agent_id                        String              @db.Uuid
@@ -45,15 +78,7 @@ model agent_deployments {
   next_billing_at                 DateTime?           @db.Timestamptz(6)
   module_enabled                  Boolean             @default(false)
   module_address                  String?
-  hyperliquid_agent_address       String?             @unique
-  hyperliquid_agent_key_encrypted String?
-  hyperliquid_agent_key_iv        String?
-  hyperliquid_agent_key_tag       String?
   enabled_venues                  String[]            @default(["HYPERLIQUID"])
-  ostium_agent_address            String?             @unique
-  ostium_agent_key_encrypted      String?
-  ostium_agent_key_iv             String?
-  ostium_agent_key_tag            String?
   agents                          agents              @relation(fields: [agent_id], references: [id], onDelete: Cascade)
   billing_events                  billing_events[]
   pnl_snapshots                   pnl_snapshots[]
@@ -64,8 +89,6 @@ model agent_deployments {
   @@index([agent_id])
   @@index([user_wallet])
   @@index([user_wallet, agent_id])
-  @@index([hyperliquid_agent_address])
-  @@index([ostium_agent_address])
 }
 
 model agent_research_institutes {

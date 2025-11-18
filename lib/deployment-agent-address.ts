@@ -1,8 +1,16 @@
 /**
- * Deployment-Specific Agent Address Management
+ * User Agent Address Management
  * 
- * Generates unique agent addresses per deployment (not per user)
- * Each deployment gets its own agent address and encrypted private key
+ * ONE agent address per USER (not per deployment)
+ * When user first deploys ANY agent, generate address and store it
+ * All subsequent agent deployments for that user use the SAME address
+ * 
+ * Flow:
+ * 1. User deploys first agent → Generate address → Store in user_agent_addresses
+ * 2. User deploys second agent → Use existing address from user_agent_addresses
+ * 3. User deploys third agent → Use existing address from user_agent_addresses
+ * 
+ * All agents for a user share the same agent address
  */
 
 import { ethers } from 'ethers';
@@ -96,20 +104,26 @@ export function generateAgentWallet(): {
 }
 
 /**
- * Get or create Hyperliquid agent address for a specific deployment
- * Each deployment gets its own unique agent address
+ * Get or create Hyperliquid agent address for a USER
+ * ONE address per user - shared across all agent deployments
  */
 export async function getOrCreateHyperliquidAgentAddress(params: {
-  deploymentId: string;
+  userWallet: string;
 }): Promise<{
   address: string;
   privateKey: string;
+  encrypted: {
+    encrypted: string;
+    iv: string;
+    tag: string;
+  };
 }> {
-  const { deploymentId } = params;
+  const { userWallet } = params;
+  const normalizedWallet = userWallet.toLowerCase();
 
-  // Check if deployment already has an agent address
-  const deployment = await prisma.agent_deployments.findUnique({
-    where: { id: deploymentId },
+  // Check if user already has an agent address
+  let userAddress = await prisma.user_agent_addresses.findUnique({
+    where: { user_wallet: normalizedWallet },
     select: {
       hyperliquid_agent_address: true,
       hyperliquid_agent_key_encrypted: true,
@@ -118,68 +132,92 @@ export async function getOrCreateHyperliquidAgentAddress(params: {
     },
   });
 
-  if (!deployment) {
-    throw new Error(`Deployment not found: ${deploymentId}`);
-  }
-
   // If address already exists, decrypt and return
   if (
-    deployment.hyperliquid_agent_address &&
-    deployment.hyperliquid_agent_key_encrypted &&
-    deployment.hyperliquid_agent_key_iv &&
-    deployment.hyperliquid_agent_key_tag
+    userAddress &&
+    userAddress.hyperliquid_agent_address &&
+    userAddress.hyperliquid_agent_key_encrypted &&
+    userAddress.hyperliquid_agent_key_iv &&
+    userAddress.hyperliquid_agent_key_tag
   ) {
-    console.log('[DeploymentAgentAddress] Using existing Hyperliquid address:', deployment.hyperliquid_agent_address);
+    console.log('[UserAgentAddress] Using existing Hyperliquid address:', userAddress.hyperliquid_agent_address);
     
     const privateKey = decryptPrivateKey(
-      deployment.hyperliquid_agent_key_encrypted,
-      deployment.hyperliquid_agent_key_iv,
-      deployment.hyperliquid_agent_key_tag
+      userAddress.hyperliquid_agent_key_encrypted,
+      userAddress.hyperliquid_agent_key_iv,
+      userAddress.hyperliquid_agent_key_tag
     );
 
     return {
-      address: deployment.hyperliquid_agent_address,
+      address: userAddress.hyperliquid_agent_address,
       privateKey,
+      encrypted: {
+        encrypted: userAddress.hyperliquid_agent_key_encrypted,
+        iv: userAddress.hyperliquid_agent_key_iv,
+        tag: userAddress.hyperliquid_agent_key_tag,
+      },
     };
   }
 
-  // Generate new agent wallet
+  // Generate new agent wallet (first time user deploys)
   const wallet = generateAgentWallet();
 
-  // Store in deployment
-  await prisma.agent_deployments.update({
-    where: { id: deploymentId },
-    data: {
-      hyperliquid_agent_address: wallet.address,
-      hyperliquid_agent_key_encrypted: wallet.encrypted.encrypted,
-      hyperliquid_agent_key_iv: wallet.encrypted.iv,
-      hyperliquid_agent_key_tag: wallet.encrypted.tag,
-    },
-  });
+  // Store in user_agent_addresses (create or update)
+  if (userAddress) {
+    // User exists but no Hyperliquid address yet
+    await prisma.user_agent_addresses.update({
+      where: { user_wallet: normalizedWallet },
+      data: {
+        hyperliquid_agent_address: wallet.address,
+        hyperliquid_agent_key_encrypted: wallet.encrypted.encrypted,
+        hyperliquid_agent_key_iv: wallet.encrypted.iv,
+        hyperliquid_agent_key_tag: wallet.encrypted.tag,
+        last_used_at: new Date(),
+      },
+    });
+  } else {
+    // First time user - create new record
+    await prisma.user_agent_addresses.create({
+      data: {
+        user_wallet: normalizedWallet,
+        hyperliquid_agent_address: wallet.address,
+        hyperliquid_agent_key_encrypted: wallet.encrypted.encrypted,
+        hyperliquid_agent_key_iv: wallet.encrypted.iv,
+        hyperliquid_agent_key_tag: wallet.encrypted.tag,
+      },
+    });
+  }
 
-  console.log('[DeploymentAgentAddress] ✅ Created new Hyperliquid agent address for deployment:', wallet.address);
+  console.log('[UserAgentAddress] ✅ Created new Hyperliquid agent address for user:', wallet.address);
 
   return {
     address: wallet.address,
     privateKey: wallet.privateKey,
+    encrypted: wallet.encrypted,
   };
 }
 
 /**
- * Get or create Ostium agent address for a specific deployment
- * Each deployment gets its own unique agent address
+ * Get or create Ostium agent address for a USER
+ * ONE address per user - shared across all agent deployments
  */
 export async function getOrCreateOstiumAgentAddress(params: {
-  deploymentId: string;
+  userWallet: string;
 }): Promise<{
   address: string;
   privateKey: string;
+  encrypted: {
+    encrypted: string;
+    iv: string;
+    tag: string;
+  };
 }> {
-  const { deploymentId } = params;
+  const { userWallet } = params;
+  const normalizedWallet = userWallet.toLowerCase();
 
-  // Check if deployment already has an agent address
-  const deployment = await prisma.agent_deployments.findUnique({
-    where: { id: deploymentId },
+  // Check if user already has an agent address
+  let userAddress = await prisma.user_agent_addresses.findUnique({
+    where: { user_wallet: normalizedWallet },
     select: {
       ostium_agent_address: true,
       ostium_agent_key_encrypted: true,
@@ -188,59 +226,91 @@ export async function getOrCreateOstiumAgentAddress(params: {
     },
   });
 
-  if (!deployment) {
-    throw new Error(`Deployment not found: ${deploymentId}`);
-  }
-
   // If address already exists, decrypt and return
   if (
-    deployment.ostium_agent_address &&
-    deployment.ostium_agent_key_encrypted &&
-    deployment.ostium_agent_key_iv &&
-    deployment.ostium_agent_key_tag
+    userAddress &&
+    userAddress.ostium_agent_address &&
+    userAddress.ostium_agent_key_encrypted &&
+    userAddress.ostium_agent_key_iv &&
+    userAddress.ostium_agent_key_tag
   ) {
-    console.log('[DeploymentAgentAddress] Using existing Ostium address:', deployment.ostium_agent_address);
+    console.log('[UserAgentAddress] Using existing Ostium address:', userAddress.ostium_agent_address);
     
     const privateKey = decryptPrivateKey(
-      deployment.ostium_agent_key_encrypted,
-      deployment.ostium_agent_key_iv,
-      deployment.ostium_agent_key_tag
+      userAddress.ostium_agent_key_encrypted,
+      userAddress.ostium_agent_key_iv,
+      userAddress.ostium_agent_key_tag
     );
 
     return {
-      address: deployment.ostium_agent_address,
+      address: userAddress.ostium_agent_address,
       privateKey,
+      encrypted: {
+        encrypted: userAddress.ostium_agent_key_encrypted,
+        iv: userAddress.ostium_agent_key_iv,
+        tag: userAddress.ostium_agent_key_tag,
+      },
     };
   }
 
-  // Generate new agent wallet
+  // Generate new agent wallet (first time user deploys)
   const wallet = generateAgentWallet();
 
-  // Store in deployment
-  await prisma.agent_deployments.update({
-    where: { id: deploymentId },
-    data: {
-      ostium_agent_address: wallet.address,
-      ostium_agent_key_encrypted: wallet.encrypted.encrypted,
-      ostium_agent_key_iv: wallet.encrypted.iv,
-      ostium_agent_key_tag: wallet.encrypted.tag,
-    },
-  });
+  // Store in user_agent_addresses (create or update)
+  if (userAddress) {
+    // User exists but no Ostium address yet
+    await prisma.user_agent_addresses.update({
+      where: { user_wallet: normalizedWallet },
+      data: {
+        ostium_agent_address: wallet.address,
+        ostium_agent_key_encrypted: wallet.encrypted.encrypted,
+        ostium_agent_key_iv: wallet.encrypted.iv,
+        ostium_agent_key_tag: wallet.encrypted.tag,
+        last_used_at: new Date(),
+      },
+    });
+  } else {
+    // First time user - create new record
+    await prisma.user_agent_addresses.create({
+      data: {
+        user_wallet: normalizedWallet,
+        ostium_agent_address: wallet.address,
+        ostium_agent_key_encrypted: wallet.encrypted.encrypted,
+        ostium_agent_key_iv: wallet.encrypted.iv,
+        ostium_agent_key_tag: wallet.encrypted.tag,
+      },
+    });
+  }
 
-  console.log('[DeploymentAgentAddress] ✅ Created new Ostium agent address for deployment:', wallet.address);
+  console.log('[UserAgentAddress] ✅ Created new Ostium agent address for user:', wallet.address);
 
   return {
     address: wallet.address,
     privateKey: wallet.privateKey,
+    encrypted: wallet.encrypted,
   };
 }
 
 /**
- * Get private key for a deployment's Hyperliquid agent address
+ * Get private key for a user's Hyperliquid agent address
+ * Looks up user_wallet from deployment, then gets address from user_agent_addresses
  */
 export async function getHyperliquidPrivateKey(deploymentId: string): Promise<string> {
+  // Get user_wallet from deployment
   const deployment = await prisma.agent_deployments.findUnique({
     where: { id: deploymentId },
+    select: {
+      user_wallet: true,
+    },
+  });
+
+  if (!deployment) {
+    throw new Error(`Deployment not found: ${deploymentId}`);
+  }
+
+  // Get address from user_agent_addresses
+  const userAddress = await prisma.user_agent_addresses.findUnique({
+    where: { user_wallet: deployment.user_wallet.toLowerCase() },
     select: {
       hyperliquid_agent_key_encrypted: true,
       hyperliquid_agent_key_iv: true,
@@ -249,27 +319,41 @@ export async function getHyperliquidPrivateKey(deploymentId: string): Promise<st
   });
 
   if (
-    !deployment ||
-    !deployment.hyperliquid_agent_key_encrypted ||
-    !deployment.hyperliquid_agent_key_iv ||
-    !deployment.hyperliquid_agent_key_tag
+    !userAddress ||
+    !userAddress.hyperliquid_agent_key_encrypted ||
+    !userAddress.hyperliquid_agent_key_iv ||
+    !userAddress.hyperliquid_agent_key_tag
   ) {
-    throw new Error(`No Hyperliquid agent key found for deployment: ${deploymentId}`);
+    throw new Error(`No Hyperliquid agent key found for user: ${deployment.user_wallet}`);
   }
 
   return decryptPrivateKey(
-    deployment.hyperliquid_agent_key_encrypted,
-    deployment.hyperliquid_agent_key_iv,
-    deployment.hyperliquid_agent_key_tag
+    userAddress.hyperliquid_agent_key_encrypted,
+    userAddress.hyperliquid_agent_key_iv,
+    userAddress.hyperliquid_agent_key_tag
   );
 }
 
 /**
- * Get private key for a deployment's Ostium agent address
+ * Get private key for a user's Ostium agent address
+ * Looks up user_wallet from deployment, then gets address from user_agent_addresses
  */
 export async function getOstiumPrivateKey(deploymentId: string): Promise<string> {
+  // Get user_wallet from deployment
   const deployment = await prisma.agent_deployments.findUnique({
     where: { id: deploymentId },
+    select: {
+      user_wallet: true,
+    },
+  });
+
+  if (!deployment) {
+    throw new Error(`Deployment not found: ${deploymentId}`);
+  }
+
+  // Get address from user_agent_addresses
+  const userAddress = await prisma.user_agent_addresses.findUnique({
+    where: { user_wallet: deployment.user_wallet.toLowerCase() },
     select: {
       ostium_agent_key_encrypted: true,
       ostium_agent_key_iv: true,
@@ -278,30 +362,30 @@ export async function getOstiumPrivateKey(deploymentId: string): Promise<string>
   });
 
   if (
-    !deployment ||
-    !deployment.ostium_agent_key_encrypted ||
-    !deployment.ostium_agent_key_iv ||
-    !deployment.ostium_agent_key_tag
+    !userAddress ||
+    !userAddress.ostium_agent_key_encrypted ||
+    !userAddress.ostium_agent_key_iv ||
+    !userAddress.ostium_agent_key_tag
   ) {
-    throw new Error(`No Ostium agent key found for deployment: ${deploymentId}`);
+    throw new Error(`No Ostium agent key found for user: ${deployment.user_wallet}`);
   }
 
   return decryptPrivateKey(
-    deployment.ostium_agent_key_encrypted,
-    deployment.ostium_agent_key_iv,
-    deployment.ostium_agent_key_tag
+    userAddress.ostium_agent_key_encrypted,
+    userAddress.ostium_agent_key_iv,
+    userAddress.ostium_agent_key_tag
   );
 }
 
 /**
- * Get private key by agent address (for backward compatibility)
- * Searches across all deployments
+ * Get private key by agent address
+ * Searches in user_agent_addresses table
  */
 export async function getPrivateKeyByAddress(agentAddress: string): Promise<string | null> {
   const normalizedAddress = agentAddress.toLowerCase();
 
-  // Try Hyperliquid deployments first
-  const hlDeployment = await prisma.agent_deployments.findFirst({
+  // Try Hyperliquid addresses
+  const hlUserAddress = await prisma.user_agent_addresses.findFirst({
     where: {
       hyperliquid_agent_address: {
         equals: normalizedAddress,
@@ -309,7 +393,6 @@ export async function getPrivateKeyByAddress(agentAddress: string): Promise<stri
       },
     },
     select: {
-      id: true,
       hyperliquid_agent_key_encrypted: true,
       hyperliquid_agent_key_iv: true,
       hyperliquid_agent_key_tag: true,
@@ -317,20 +400,20 @@ export async function getPrivateKeyByAddress(agentAddress: string): Promise<stri
   });
 
   if (
-    hlDeployment &&
-    hlDeployment.hyperliquid_agent_key_encrypted &&
-    hlDeployment.hyperliquid_agent_key_iv &&
-    hlDeployment.hyperliquid_agent_key_tag
+    hlUserAddress &&
+    hlUserAddress.hyperliquid_agent_key_encrypted &&
+    hlUserAddress.hyperliquid_agent_key_iv &&
+    hlUserAddress.hyperliquid_agent_key_tag
   ) {
     return decryptPrivateKey(
-      hlDeployment.hyperliquid_agent_key_encrypted,
-      hlDeployment.hyperliquid_agent_key_iv,
-      hlDeployment.hyperliquid_agent_key_tag
+      hlUserAddress.hyperliquid_agent_key_encrypted,
+      hlUserAddress.hyperliquid_agent_key_iv,
+      hlUserAddress.hyperliquid_agent_key_tag
     );
   }
 
-  // Try Ostium deployments
-  const ostiumDeployment = await prisma.agent_deployments.findFirst({
+  // Try Ostium addresses
+  const ostiumUserAddress = await prisma.user_agent_addresses.findFirst({
     where: {
       ostium_agent_address: {
         equals: normalizedAddress,
@@ -338,7 +421,6 @@ export async function getPrivateKeyByAddress(agentAddress: string): Promise<stri
       },
     },
     select: {
-      id: true,
       ostium_agent_key_encrypted: true,
       ostium_agent_key_iv: true,
       ostium_agent_key_tag: true,
@@ -346,15 +428,15 @@ export async function getPrivateKeyByAddress(agentAddress: string): Promise<stri
   });
 
   if (
-    ostiumDeployment &&
-    ostiumDeployment.ostium_agent_key_encrypted &&
-    ostiumDeployment.ostium_agent_key_iv &&
-    ostiumDeployment.ostium_agent_key_tag
+    ostiumUserAddress &&
+    ostiumUserAddress.ostium_agent_key_encrypted &&
+    ostiumUserAddress.ostium_agent_key_iv &&
+    ostiumUserAddress.ostium_agent_key_tag
   ) {
     return decryptPrivateKey(
-      ostiumDeployment.ostium_agent_key_encrypted,
-      ostiumDeployment.ostium_agent_key_iv,
-      ostiumDeployment.ostium_agent_key_tag
+      ostiumUserAddress.ostium_agent_key_encrypted,
+      ostiumUserAddress.ostium_agent_key_iv,
+      ostiumUserAddress.ostium_agent_key_tag
     );
   }
 

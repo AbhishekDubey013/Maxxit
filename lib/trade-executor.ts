@@ -789,16 +789,49 @@ export class TradeExecutor {
   /**
    * Execute Hyperliquid trade
    */
+  /**
+   * Get user's Hyperliquid agent address from user_agent_addresses table
+   */
+  private async getUserHyperliquidAddress(userWallet: string): Promise<string | null> {
+    const userAddress = await prisma.user_agent_addresses.findUnique({
+      where: { user_wallet: userWallet.toLowerCase() },
+      select: { hyperliquid_agent_address: true },
+    });
+    return userAddress?.hyperliquid_agent_address || null;
+  }
+
+  /**
+   * Get user's Ostium agent address from user_agent_addresses table
+   */
+  private async getUserOstiumAddress(userWallet: string): Promise<string | null> {
+    const userAddress = await prisma.user_agent_addresses.findUnique({
+      where: { user_wallet: userWallet.toLowerCase() },
+      select: { ostium_agent_address: true },
+    });
+    return userAddress?.ostium_agent_address || null;
+  }
+
   private async executeHyperliquidTrade(ctx: ExecutionContext): Promise<ExecutionResult> {
     try {
-      // Get agent private key from wallet pool (NO decryption needed!)
+      // Get user's agent address from user_agent_addresses
+      const agentAddress = await this.getUserHyperliquidAddress(ctx.deployment.user_wallet);
+      
+      if (!agentAddress) {
+        return {
+          success: false,
+          error: 'Hyperliquid agent address not found. Please generate address first.',
+          reason: 'Agent wallet required for Hyperliquid trading',
+        };
+      }
+
+      // Get agent private key from wallet pool
       const { getPrivateKeyForAddress } = await import('./wallet-pool');
-      const agentPrivateKey = await getPrivateKeyForAddress(ctx.deployment.hyperliquid_agent_address);
+      const agentPrivateKey = await getPrivateKeyForAddress(agentAddress);
       
       if (!agentPrivateKey) {
         return {
           success: false,
-          error: 'Hyperliquid agent wallet not found in pool. Please reconnect.',
+          error: 'Hyperliquid agent wallet not found. Please reconnect.',
           reason: 'Agent wallet required for Hyperliquid trading',
         };
       }
@@ -931,20 +964,19 @@ export class TradeExecutor {
    */
   private async executeOstiumTrade(ctx: ExecutionContext): Promise<ExecutionResult> {
     try {
-      // Get agent private key from deployment-specific address
-      const { getPrivateKeyForAddress } = await import('./wallet-pool');
-      
-      // Use deployment-specific Ostium agent address
-      const agentAddress = ctx.deployment.ostium_agent_address || ctx.deployment.hyperliquid_agent_address;
+      // Get user's agent address from user_agent_addresses
+      const agentAddress = await this.getUserOstiumAddress(ctx.deployment.user_wallet);
       
       if (!agentAddress) {
         return {
           success: false,
-          error: 'No Ostium agent address configured. Please set up Ostium trading.',
+          error: 'Ostium agent address not found. Please generate address first.',
           reason: 'Agent address required for Ostium trading',
         };
       }
-      
+
+      // Get agent private key from wallet pool
+      const { getPrivateKeyForAddress } = await import('./wallet-pool');
       const agentPrivateKey = await getPrivateKeyForAddress(agentAddress);
       
       if (!agentPrivateKey) {
@@ -1409,18 +1441,24 @@ export class TradeExecutor {
       throw new Error('HYPERLIQUID_PLATFORM_WALLET not configured');
     }
 
-    // Get agent private key from wallet pool
+    // Get user_wallet from deployment, then get address from user_agent_addresses
     const deployment = await prisma.agent_deployments.findUnique({
       where: { id: params.deploymentId },
-      select: { hyperliquid_agent_address: true }
+      select: { user_wallet: true }
     });
     
-    if (!deployment?.hyperliquid_agent_address) {
-      throw new Error('Agent wallet not found for deployment');
+    if (!deployment) {
+      throw new Error('Deployment not found');
+    }
+
+    const agentAddress = await this.getUserHyperliquidAddress(deployment.user_wallet);
+    
+    if (!agentAddress) {
+      throw new Error('Hyperliquid agent address not found for user');
     }
     
     const { getPrivateKeyForAddress } = await import('./wallet-pool');
-    const agentPrivateKey = await getPrivateKeyForAddress(deployment.hyperliquid_agent_address);
+    const agentPrivateKey = await getPrivateKeyForAddress(agentAddress);
     
     if (!agentPrivateKey) {
       throw new Error('Agent private key not found');
@@ -1605,14 +1643,16 @@ export class TradeExecutor {
         venue: position.venue,
       });
 
-      // Get agent private key from deployment-specific address
-      const { getPrivateKeyForAddress } = await import('./wallet-pool');
-      const agentAddress = position.agent_deployments.ostium_agent_address || position.agent_deployments.hyperliquid_agent_address;
+      // Get user's agent address from user_agent_addresses
+      const userWallet = position.agent_deployments.user_wallet;
+      const agentAddress = await this.getUserOstiumAddress(userWallet);
       
       if (!agentAddress) {
-        throw new Error('No Ostium agent address configured for this deployment');
+        throw new Error('Ostium agent address not found for user');
       }
       
+      // Get agent private key
+      const { getPrivateKeyForAddress } = await import('./wallet-pool');
       const agentPrivateKey = await getPrivateKeyForAddress(agentAddress);
       
       if (!agentPrivateKey) {
@@ -1799,19 +1839,20 @@ export class TradeExecutor {
       throw new Error('OSTIUM_PLATFORM_WALLET not configured');
     }
 
-    // Get agent private key from deployment-specific address
+    // Get user_wallet from deployment, then get address from user_agent_addresses
     const deployment = await prisma.agent_deployments.findUnique({
       where: { id: params.deploymentId },
-      select: { 
-        ostium_agent_address: true,
-        hyperliquid_agent_address: true // Fallback
-      }
+      select: { user_wallet: true }
     });
     
-    const agentAddress = deployment?.ostium_agent_address || deployment?.hyperliquid_agent_address;
+    if (!deployment) {
+      throw new Error('Deployment not found');
+    }
+
+    const agentAddress = await this.getUserOstiumAddress(deployment.user_wallet);
     
     if (!agentAddress) {
-      throw new Error('No Ostium agent address configured for deployment');
+      throw new Error('Ostium agent address not found for user');
     }
     
     const { getPrivateKeyForAddress } = await import('./wallet-pool');

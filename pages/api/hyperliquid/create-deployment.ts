@@ -1,10 +1,13 @@
 /**
  * Create or update deployment for Hyperliquid agent
  * 
- * New Flow:
- * 1. User calls /api/agents/[id]/generate-deployment-address to get unique address
+ * Flow:
+ * 1. User calls /api/agents/[id]/generate-deployment-address to get/create user's address
  * 2. User whitelists the address on Hyperliquid
- * 3. User calls this API with encrypted key data to create deployment
+ * 3. User calls this API to create deployment
+ * 
+ * Note: Address is stored in user_agent_addresses (one per user)
+ *       Deployment just links to user_wallet
  */
 
 import { NextApiRequest, NextApiResponse } from 'next';
@@ -18,25 +21,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    const { 
-      agentId, 
-      userWallet, 
-      agentAddress,
-      encryptedKey,
-      keyIv,
-      keyTag,
-    } = req.body;
+    const { agentId, userWallet } = req.body;
 
-    if (!agentId || !userWallet || !agentAddress || !encryptedKey || !keyIv || !keyTag) {
+    if (!agentId || !userWallet) {
       return res.status(400).json({ 
-        error: 'Missing required fields: agentId, userWallet, agentAddress, encryptedKey, keyIv, keyTag' 
+        error: 'Missing required fields: agentId, userWallet' 
       });
     }
 
     console.log('[CreateDeployment] Creating deployment:', {
       agentId,
       userWallet,
-      agentAddress,
     });
 
     // Check if agent exists
@@ -48,21 +43,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(404).json({ error: 'Agent not found' });
     }
 
-    // Check if this agent address is already used by another deployment
-    const existingAddressDeployment = await prisma.agent_deployments.findFirst({
-      where: {
-        hyperliquid_agent_address: agentAddress,
+    // Verify user has an agent address (should be created by generate-deployment-address)
+    const userAddress = await prisma.user_agent_addresses.findUnique({
+      where: { user_wallet: userWallet.toLowerCase() },
+      select: {
+        hyperliquid_agent_address: true,
       },
     });
 
-    if (existingAddressDeployment) {
-      console.error('[CreateDeployment] Agent address already in use by deployment:', existingAddressDeployment.id);
+    if (!userAddress || !userAddress.hyperliquid_agent_address) {
       return res.status(400).json({ 
-        error: 'This agent address is already in use. Please generate a new address.' 
+        error: 'User agent address not found. Please generate address first.' 
       });
     }
 
-    // Prepare deployment data with encrypted key
+    // Prepare deployment data
     // Vprime: For MULTI venue agents, enable both Hyperliquid and Ostium
     // For single-venue agents, only enable that venue
     const enabledVenues = agent.venue === 'MULTI' 
@@ -71,10 +66,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const deploymentData = {
       safe_wallet: userWallet.toLowerCase(),
-      hyperliquid_agent_address: agentAddress,
-      hyperliquid_agent_key_encrypted: encryptedKey,
-      hyperliquid_agent_key_iv: keyIv,
-      hyperliquid_agent_key_tag: keyTag,
       enabled_venues: enabledVenues, // Vprime: Agent Where routing
       status: 'ACTIVE' as const,
       sub_active: true,
@@ -110,6 +101,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     console.log('[CreateDeployment] ✅ Deployment created/updated:', deployment.id);
+    console.log('[CreateDeployment] Using user agent address:', userAddress.hyperliquid_agent_address);
 
     return res.status(200).json({
       success: true,
@@ -117,7 +109,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         id: deployment.id,
         agentId: deployment.agent_id,
         userWallet: deployment.user_wallet,
-        agentAddress: deployment.hyperliquid_agent_address,
+        agentAddress: userAddress.hyperliquid_agent_address, // From user_agent_addresses
         status: deployment.status,
       },
       message: existingDeployment ? 'Deployment updated' : 'Deployment created',
