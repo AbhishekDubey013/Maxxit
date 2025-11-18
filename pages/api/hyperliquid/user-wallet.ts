@@ -5,7 +5,13 @@
 
 import { NextApiRequest, NextApiResponse } from 'next';
 import { PrismaClient } from '@prisma/client';
-import { getUserAgentWallet } from '../../../lib/hyperliquid-user-wallet';
+import {
+  getUserAgentWallet,
+  findUserAgentWallet,
+  getUserWalletStatus,
+  updateUserWalletApproval,
+  deleteUserAgentWallet,
+} from '../../../lib/hyperliquid-user-wallet';
 
 const prisma = new PrismaClient();
 
@@ -26,17 +32,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(400).json({ error: 'userAddress query param required' });
       }
 
-      const userWallet = await prisma.user_hyperliquid_wallets.findUnique({
-        where: { user_wallet: userAddress.toLowerCase() },
-      });
-
+      const userWallet = await findUserAgentWallet(userAddress);
       if (!userWallet) {
         return res.status(404).json({ error: 'No agent wallet found for this user' });
       }
 
       return res.status(200).json({
         agentAddress: userWallet.agent_address,
-        isApproved: userWallet.is_approved || false,
+        isApproved: userWallet.is_approved ?? false,
         createdAt: userWallet.created_at,
         lastUsedAt: userWallet.last_used_at,
       });
@@ -50,20 +53,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(400).json({ error: 'userAddress required' });
       }
 
-      const agentAddress = await getUserAgentWallet(userAddress.toLowerCase());
-      
-      const userWallet = await prisma.user_hyperliquid_wallets.findUnique({
-        where: { user_wallet: userAddress.toLowerCase() },
-      });
+      await getUserAgentWallet(userAddress.toLowerCase());
+      const status = await getUserWalletStatus(userAddress);
 
-      if (!userWallet) {
+      if (!status) {
         return res.status(500).json({ error: 'Failed to create wallet' });
       }
 
       return res.status(200).json({
-        agentAddress: userWallet.agent_address,
-        isApproved: userWallet.is_approved || false,
-        createdAt: userWallet.created_at,
+        agentAddress: status.agentAddress,
+        isApproved: status.isApproved,
+        createdAt: status.createdAt,
+        lastUsedAt: status.lastUsedAt,
       });
     }
 
@@ -75,28 +76,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(400).json({ error: 'userAddress required' });
       }
 
-      // Check if wallet exists first
-      const existingWallet = await prisma.user_hyperliquid_wallets.findUnique({
-        where: { user_wallet: userAddress.toLowerCase() },
-      });
-
+      const existingWallet = await findUserAgentWallet(userAddress);
       if (!existingWallet) {
         return res.status(404).json({ 
           error: 'Wallet not found. Please create the wallet first.' 
         });
       }
 
-      const userWallet = await prisma.user_hyperliquid_wallets.update({
-        where: { user_wallet: userAddress.toLowerCase() },
-        data: { 
-          is_approved: isApproved,
-          last_used_at: new Date(),
-        },
-      });
+      await updateUserWalletApproval(userAddress, !!isApproved);
+      const status = await getUserWalletStatus(userAddress);
 
       return res.status(200).json({
-        agentAddress: userWallet.agent_address,
-        isApproved: userWallet.is_approved,
+        agentAddress: status?.agentAddress,
+        isApproved: status?.isApproved ?? false,
       });
     }
 
@@ -110,10 +102,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       const normalizedAddress = userAddress.toLowerCase();
 
-      // Delete from user_hyperliquid_wallets
-      await prisma.user_hyperliquid_wallets.deleteMany({
-        where: { user_wallet: normalizedAddress },
-      });
+      await deleteUserAgentWallet(userAddress);
 
       // Clear from wallet_pool
       await prisma.$executeRaw`
