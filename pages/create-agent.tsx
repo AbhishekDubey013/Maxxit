@@ -84,7 +84,7 @@ export default function CreateAgent() {
     defaultValues: {
       name: '',
       description: '',
-      venue: 'MULTI', // Vprime: Multi-venue routing (Agent Where)
+      venue: 'HYPERLIQUID', // Default to HYPERLIQUID (MULTI not yet in DB enum)
       weights: [50, 50, 50, 50, 50, 50, 50, 50], // Legacy - not used anymore
       status: 'DRAFT',
       creatorWallet: '',
@@ -624,54 +624,38 @@ export default function CreateAgent() {
                 Trading Venue
               </h2>
 
-              {/* Vprime: Agent Where Banner */}
+              {/* Default Venue Info */}
               <div className="p-6 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border-2 border-primary/30 rounded-lg">
                 <div className="flex items-start gap-3 mb-3">
                   <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
-                    <span className="text-2xl">🌐</span>
+                    <span className="text-2xl">⚡</span>
                   </div>
                   <div>
-                    <h3 className="text-lg font-bold text-foreground">Multi-Venue Routing (Agent Where)</h3>
+                    <h3 className="text-lg font-bold text-foreground">Hyperliquid Perpetuals</h3>
                     <p className="text-sm text-muted-foreground mt-1">
-                      Your agent will automatically select the best venue for each trade
+                      Trade perpetual futures with up to 50x leverage
                     </p>
                   </div>
                 </div>
                 
                 <div className="mt-4 space-y-2 text-sm">
                   <div className="flex items-start gap-2">
-                    <span className="text-primary font-bold">1.</span>
-                    <div>
-                      <span className="font-semibold text-foreground">Agent What:</span>
-                      <span className="text-muted-foreground ml-1">Generates venue-agnostic signals</span>
-                    </div>
+                    <span className="text-primary">✓</span>
+                    <span className="text-muted-foreground">220+ trading pairs</span>
                   </div>
                   <div className="flex items-start gap-2">
-                    <span className="text-primary font-bold">2.</span>
-                    <div>
-                      <span className="font-semibold text-foreground">Agent How:</span>
-                      <span className="text-muted-foreground ml-1">Applies your policies (future)</span>
-                    </div>
+                    <span className="text-primary">✓</span>
+                    <span className="text-muted-foreground">High leverage trading</span>
                   </div>
                   <div className="flex items-start gap-2">
-                    <span className="text-primary font-bold">3.</span>
-                    <div>
-                      <span className="font-semibold text-foreground">Agent Where:</span>
-                      <span className="text-muted-foreground ml-1">Routes to best venue (Hyperliquid → Ostium)</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mt-4 pt-4 border-t border-primary/20">
-                  <div className="flex items-center gap-2 text-sm">
-                    <span className="font-semibold text-foreground">Market Coverage:</span>
-                    <span className="text-muted-foreground">220 pairs (Hyperliquid) + 41 pairs (Ostium) = 261 total</span>
+                    <span className="text-primary">✓</span>
+                    <span className="text-muted-foreground">Agent delegation support</span>
                   </div>
                 </div>
               </div>
 
-              {/* Hidden input for MULTI venue */}
-              <input type="hidden" {...register('venue')} value="MULTI" />
+              {/* Hidden input for default venue */}
+              <input type="hidden" {...register('venue')} value="HYPERLIQUID" />
 
               {/* Advanced: Single Venue Option (Collapsed by default) */}
               <details className="group">

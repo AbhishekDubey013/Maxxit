@@ -1,12 +1,12 @@
 /**
  * Wallet Pool Management
- * Pre-generated wallets with plaintext private keys (no encryption!)
- * Simple and fast - assign wallet from pool to user
- * 
- * FIXED: Updated to use correct schema field names (assigned_to_user_wallet)
+ * Generates new wallets on-demand for each user (no pool!)
+ * Each user gets a unique agent wallet generated when needed
  */
 
 import { PrismaClient } from '@prisma/client';
+import { ethers } from 'ethers';
+import { getAgentPrivateKeyByAddress } from './hyperliquid-user-wallet';
 
 const prisma = new PrismaClient();
 
@@ -19,39 +19,21 @@ interface PoolWallet {
 }
 
 /**
- * Get an unassigned wallet from the pool and assign it to a user
+ * Assign an existing wallet from the pool to a user (Ostium flow).
  */
 export async function assignWalletToUser(userWallet: string): Promise<{ address: string; privateKey: string } | null> {
   try {
-    console.log(`[WalletPool] Looking for available wallet for user: ${userWallet}`);
-    
-    // Find first unassigned wallet using Prisma's typed query
     const wallet = await prisma.wallet_pool.findFirst({
-      where: {
-        assigned_to_user_wallet: null,
-      },
+      where: { assigned_to_user_wallet: null },
     });
 
     if (!wallet) {
       console.error('[WalletPool] No available wallets in pool!');
-      
-      // Log pool stats for debugging
-      const total = await prisma.wallet_pool.count();
-      const assigned = await prisma.wallet_pool.count({
-        where: { assigned_to_user_wallet: { not: null } },
-      });
-      console.error(`[WalletPool] Pool stats - Total: ${total}, Assigned: ${assigned}, Available: ${total - assigned}`);
-      
       return null;
     }
 
-    console.log(`[WalletPool] Found available wallet: ${wallet.address}`);
-
-    // Mark as assigned using Prisma's typed update
     await prisma.wallet_pool.update({
-      where: {
-        id: wallet.id,
-      },
+      where: { id: wallet.id },
       data: {
         assigned_to_user_wallet: userWallet.toLowerCase(),
         created_at: new Date(),
@@ -59,15 +41,34 @@ export async function assignWalletToUser(userWallet: string): Promise<{ address:
     });
 
     console.log(`[WalletPool] ✅ Assigned wallet ${wallet.address} to user ${userWallet}`);
-
-    return {
-      address: wallet.address,
-      privateKey: wallet.private_key,
-    };
+    return { address: wallet.address, privateKey: wallet.private_key };
   } catch (error) {
     console.error('[WalletPool] Error assigning wallet:', error);
     return null;
   }
+}
+
+/**
+ * Register a wallet in the pool (used by scripts/Ostium provisioning).
+ */
+export async function registerPrivateKey(
+  address: string,
+  privateKey: string,
+  assignedToUserWallet?: string | null
+) {
+  await prisma.wallet_pool.upsert({
+    where: { address: address.toLowerCase() },
+    update: {
+      private_key: privateKey,
+      assigned_to_user_wallet: assignedToUserWallet ?? null,
+    },
+    create: {
+      address: address.toLowerCase(),
+      private_key: privateKey,
+      assigned_to_user_wallet: assignedToUserWallet ?? null,
+    },
+  });
+  console.log(`[WalletPool] Registered wallet ${address} (assigned=${assignedToUserWallet ?? 'none'})`);
 }
 
 /**
@@ -102,17 +103,29 @@ export async function getAssignedWallet(userWallet: string): Promise<{ address: 
  * Get private key for a specific agent address
  */
 export async function getPrivateKeyForAddress(agentAddress: string): Promise<string | null> {
+  const normalizedAddress = agentAddress.toLowerCase();
+
+  // First, check Hyperliquid encrypted wallets
+  try {
+    const hyperKey = await getAgentPrivateKeyByAddress(normalizedAddress);
+    if (hyperKey) {
+      return hyperKey;
+    }
+  } catch (error) {
+    console.error('[WalletPool] Error decrypting Hyperliquid agent key:', error);
+    throw error;
+  }
+
+  // Fallback to legacy wallet_pool table (used by Ostium)
   try {
     const wallet = await prisma.wallet_pool.findFirst({
       where: {
         address: {
-          equals: agentAddress.toLowerCase(),
+          equals: normalizedAddress,
           mode: 'insensitive',
         },
       },
-      select: {
-        private_key: true,
-      },
+      select: { private_key: true },
     });
 
     if (!wallet) {
