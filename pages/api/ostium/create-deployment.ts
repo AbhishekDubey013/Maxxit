@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { PrismaClient } from '@prisma/client';
-import { getUserVenueAgentAddress } from '../../../lib/user-venue-agent';
+import { getDeploymentVenueAgentAddress } from '../../../lib/user-venue-agent';
 
 const prisma = new PrismaClient();
 
@@ -30,7 +30,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       console.log('[Ostium Create Deployment] Deployment already exists:', existingDeployment.id);
       
       // Get agent address for Ostium
-      const agentAddress = await getUserVenueAgentAddress(userWallet, 'OSTIUM');
+      const agentAddress = await getDeploymentVenueAgentAddress(existingDeployment.id, 'OSTIUM');
       
       return res.status(200).json({
         success: true,
@@ -49,11 +49,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(404).json({ error: 'Agent not found' });
     }
 
-    // Get or create agent address for this user on Ostium
-    const agentAddress = await getUserVenueAgentAddress(userWallet, 'OSTIUM');
-
-    console.log('[Ostium Create Deployment] Agent address for Ostium:', agentAddress);
-
     // All agents are multi-venue now
     const enabledVenues = ['OSTIUM'];
 
@@ -70,6 +65,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
 
     console.log('[Ostium Create Deployment] Created deployment:', deployment.id);
+
+    // Get or create agent address for this deployment on Ostium
+    const agentAddress = await getDeploymentVenueAgentAddress(deployment.id, 'OSTIUM');
+
+    console.log('[Ostium Create Deployment] Agent address for Ostium:', agentAddress);
 
     return res.status(200).json({
       success: true,

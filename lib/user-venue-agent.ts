@@ -1,9 +1,9 @@
 /**
- * User Venue Agent Management
+ * Deployment Venue Agent Management
  *
- * One agent address per (user, venue) pair.
- * This allows users to have different addresses for each venue
- * while sharing the same address across all their agents on that venue.
+ * One agent address per (deployment, venue) pair.
+ * Each agent deployment gets unique addresses for each venue.
+ * This ensures isolation between different agents.
  *
  * ⚠️ PLATFORM-AUTHORIZED DECRYPTION ⚠️
  * - Encryption: AES-256-GCM with AGENT_WALLET_ENCRYPTION_KEY
@@ -100,39 +100,38 @@ function normalizeAddress(address: string): string {
 }
 
 /**
- * Get or create agent address for a (user, venue) pair
+ * Get or create agent address for a (deployment, venue) pair
+ * Each agent deployment gets its own unique address per venue
  */
-export async function getUserVenueAgentAddress(
-  userWallet: string,
+export async function getDeploymentVenueAgentAddress(
+  deploymentId: string,
   venue: 'HYPERLIQUID' | 'OSTIUM' | 'GMX' | 'SPOT'
 ): Promise<string> {
-  const normalizedWallet = normalizeAddress(userWallet);
+  console.log(`[DeploymentVenueAgent] Getting agent address for deployment ${deploymentId} on ${venue}`);
   
-  console.log(`[UserVenueAgent] Getting agent address for ${userWallet} on ${venue}`);
-  
-  // Check if agent already exists for this (user, venue)
-  const existing = await prisma.user_venue_agents.findUnique({
+  // Check if agent already exists for this (deployment, venue)
+  const existing = await prisma.deployment_venue_agents.findUnique({
     where: {
-      user_wallet_venue: {
-        user_wallet: normalizedWallet,
+      deployment_id_venue: {
+        deployment_id: deploymentId,
         venue: venue,
       },
     },
   });
   
   if (existing) {
-    console.log(`[UserVenueAgent] ✅ Found existing agent: ${existing.agent_address}`);
+    console.log(`[DeploymentVenueAgent] ✅ Found existing agent: ${existing.agent_address}`);
     return existing.agent_address;
   }
   
   // Generate new agent wallet
-  console.log(`[UserVenueAgent] Generating new agent wallet for ${userWallet} on ${venue}`);
+  console.log(`[DeploymentVenueAgent] Generating new agent wallet for deployment ${deploymentId} on ${venue}`);
   const wallet = ethers.Wallet.createRandom();
   const { cipherText, iv, tag } = encryptPrivateKey(wallet.privateKey);
   
-  const newAgent = await prisma.user_venue_agents.create({
+  const newAgent = await prisma.deployment_venue_agents.create({
     data: {
-      user_wallet: normalizedWallet,
+      deployment_id: deploymentId,
       venue: venue,
       agent_address: wallet.address,
       encrypted_private_key: cipherText,
@@ -141,31 +140,56 @@ export async function getUserVenueAgentAddress(
     },
   });
   
-  console.log(`[UserVenueAgent] ✅ Created new agent: ${newAgent.agent_address}`);
+  console.log(`[DeploymentVenueAgent] ✅ Created new agent: ${newAgent.agent_address}`);
   return newAgent.agent_address;
 }
 
 /**
- * Get decrypted private key for a (user, venue) pair
- * ⚠️ REQUIRES PLATFORM_MASTER_KEY AUTHORIZATION ⚠️
+ * Legacy function for backward compatibility
+ * Maps (user_wallet, venue) to first deployment's address
+ * @deprecated Use getDeploymentVenueAgentAddress instead
  */
-export async function getUserVenueAgentPrivateKey(
+export async function getUserVenueAgentAddress(
   userWallet: string,
   venue: 'HYPERLIQUID' | 'OSTIUM' | 'GMX' | 'SPOT'
 ): Promise<string> {
-  const normalizedWallet = normalizeAddress(userWallet);
+  console.warn(`[DEPRECATED] getUserVenueAgentAddress called - use getDeploymentVenueAgentAddress instead`);
   
-  const agent = await prisma.user_venue_agents.findUnique({
+  // Find first active deployment for this user
+  const deployment = await prisma.agent_deployments.findFirst({
     where: {
-      user_wallet_venue: {
-        user_wallet: normalizedWallet,
+      user_wallet: normalizeAddress(userWallet),
+      status: 'ACTIVE',
+    },
+    orderBy: { sub_started_at: 'asc' }
+  });
+  
+  if (!deployment) {
+    throw new Error(`No active deployment found for user ${userWallet}`);
+  }
+  
+  return getDeploymentVenueAgentAddress(deployment.id, venue);
+}
+
+/**
+ * Get decrypted private key for a (deployment, venue) pair
+ * ⚠️ REQUIRES PLATFORM_MASTER_KEY AUTHORIZATION ⚠️
+ */
+export async function getDeploymentVenueAgentPrivateKey(
+  deploymentId: string,
+  venue: 'HYPERLIQUID' | 'OSTIUM' | 'GMX' | 'SPOT'
+): Promise<string> {
+  const agent = await prisma.deployment_venue_agents.findUnique({
+    where: {
+      deployment_id_venue: {
+        deployment_id: deploymentId,
         venue: venue,
       },
     },
   });
   
   if (!agent) {
-    throw new Error(`No agent wallet found for ${userWallet} on ${venue}`);
+    throw new Error(`No agent wallet found for deployment ${deploymentId} on ${venue}`);
   }
   
   return decryptPrivateKey(
@@ -176,10 +200,30 @@ export async function getUserVenueAgentPrivateKey(
 }
 
 /**
- * Get agent address by direct address lookup (for backward compatibility)
+ * @deprecated Use getDeploymentVenueAgentPrivateKey instead
+ */
+export async function getUserVenueAgentPrivateKey(
+  userWallet: string,
+  venue: 'HYPERLIQUID' | 'OSTIUM' | 'GMX' | 'SPOT'
+): Promise<string> {
+  console.warn(`[DEPRECATED] getUserVenueAgentPrivateKey called`);
+  const deployment = await prisma.agent_deployments.findFirst({
+    where: { user_wallet: normalizeAddress(userWallet), status: 'ACTIVE' },
+    orderBy: { sub_started_at: 'asc' }
+  });
+  
+  if (!deployment) {
+    throw new Error(`No active deployment found for user ${userWallet}`);
+  }
+  
+  return getDeploymentVenueAgentPrivateKey(deployment.id, venue);
+}
+
+/**
+ * Get agent address by direct address lookup
  */
 export async function getVenueAgentByAddress(agentAddress: string): Promise<any | null> {
-  return prisma.user_venue_agents.findFirst({
+  return prisma.deployment_venue_agents.findFirst({
     where: { agent_address: normalizeAddress(agentAddress) },
   });
 }
@@ -202,16 +246,15 @@ export async function getPrivateKeyByAgentAddress(agentAddress: string): Promise
 }
 
 /**
- * Check if user has agent for a venue
+ * Check if deployment has agent for a venue
  */
-export async function userHasVenueAgent(
-  userWallet: string,
+export async function deploymentHasVenueAgent(
+  deploymentId: string,
   venue: 'HYPERLIQUID' | 'OSTIUM' | 'GMX' | 'SPOT'
 ): Promise<boolean> {
-  const normalizedWallet = normalizeAddress(userWallet);
-  const count = await prisma.user_venue_agents.count({
+  const count = await prisma.deployment_venue_agents.count({
     where: {
-      user_wallet: normalizedWallet,
+      deployment_id: deploymentId,
       venue: venue,
     },
   });
@@ -219,29 +262,27 @@ export async function userHasVenueAgent(
 }
 
 /**
- * Get all venue agents for a user
+ * Get all venue agents for a deployment
  */
-export async function getAllUserVenueAgents(userWallet: string) {
-  const normalizedWallet = normalizeAddress(userWallet);
-  return prisma.user_venue_agents.findMany({
-    where: { user_wallet: normalizedWallet },
+export async function getAllDeploymentVenueAgents(deploymentId: string) {
+  return prisma.deployment_venue_agents.findMany({
+    where: { deployment_id: deploymentId },
     orderBy: { created_at: 'desc' },
   });
 }
 
 /**
- * Delete venue agent for a user
+ * Delete venue agent for a deployment
  */
-export async function deleteUserVenueAgent(
-  userWallet: string,
+export async function deleteDeploymentVenueAgent(
+  deploymentId: string,
   venue: 'HYPERLIQUID' | 'OSTIUM' | 'GMX' | 'SPOT'
 ): Promise<boolean> {
-  const normalizedWallet = normalizeAddress(userWallet);
-  console.warn(`[UserVenueAgent] ⚠️ Deleting agent for ${userWallet} on ${venue}`);
+  console.warn(`[DeploymentVenueAgent] ⚠️ Deleting agent for deployment ${deploymentId} on ${venue}`);
   
-  await prisma.user_venue_agents.deleteMany({
+  await prisma.deployment_venue_agents.deleteMany({
     where: {
-      user_wallet: normalizedWallet,
+      deployment_id: deploymentId,
       venue: venue,
     },
   });

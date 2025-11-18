@@ -54,12 +54,13 @@ model agent_deployments {
   ostium_agent_key_encrypted      String?
   ostium_agent_key_iv             String?
   ostium_agent_key_tag            String?
-  agents                          agents              @relation(fields: [agent_id], references: [id], onDelete: Cascade)
+  agents                          agents                      @relation(fields: [agent_id], references: [id], onDelete: Cascade)
   billing_events                  billing_events[]
   pnl_snapshots                   pnl_snapshots[]
   positions                       positions[]
   telegram_trades                 telegram_trades[]
   telegram_users                  telegram_users[]
+  deployment_venue_agents         deployment_venue_agents[]
 
   @@unique([user_wallet, agent_id])
   @@index([agent_id])
@@ -521,6 +522,23 @@ model wallet_pool {
   private_key             String
   assigned_to_user_wallet String?
   created_at              DateTime? @default(now()) @db.Timestamptz(6)
+}
+
+model deployment_venue_agents {
+  id                     String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  deployment_id          String             @db.Uuid
+  venue                  venue_t
+  agent_address          String             @unique
+  encrypted_private_key  String
+  key_iv                 String
+  key_tag                String?
+  created_at             DateTime           @default(now()) @db.Timestamptz(6)
+  agent_deployments      agent_deployments  @relation(fields: [deployment_id], references: [id], onDelete: Cascade)
+
+  @@unique([deployment_id, venue])
+  @@index([deployment_id])
+  @@index([venue])
+  @@index([agent_address])
 }
 
 enum agent_status_t {

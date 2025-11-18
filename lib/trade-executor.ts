@@ -20,7 +20,7 @@ import {
   getOstiumBalance,
   transferOstiumUSDC,
 } from './adapters/ostium-adapter';
-import { getUserVenueAgentAddress } from './user-venue-agent';
+import { getDeploymentVenueAgentAddress } from './user-venue-agent';
 
 const prisma = new PrismaClient();
 
@@ -146,13 +146,14 @@ export class TradeExecutor {
   }
 
   /**
-   * Get agent address for a user on a specific venue
+   * Get agent address for a deployment on a specific venue
+   * Each deployment gets unique addresses per venue
    */
   private async getAgentAddressForVenue(
-    userWallet: string,
+    deploymentId: string,
     venue: 'HYPERLIQUID' | 'OSTIUM' | 'GMX' | 'SPOT'
   ): Promise<string> {
-    return getUserVenueAgentAddress(userWallet, venue);
+    return getDeploymentVenueAgentAddress(deploymentId, venue);
   }
 
   /**
@@ -802,8 +803,8 @@ export class TradeExecutor {
    */
   private async executeHyperliquidTrade(ctx: ExecutionContext): Promise<ExecutionResult> {
     try {
-      // Get agent address for this user on Hyperliquid
-      const agentAddress = await this.getAgentAddressForVenue(ctx.deployment.user_wallet, 'HYPERLIQUID');
+      // Get agent address for this deployment on Hyperliquid
+      const agentAddress = await this.getAgentAddressForVenue(ctx.deployment.id, 'HYPERLIQUID');
       
       // Get agent private key from wallet pool
       const { getPrivateKeyForAddress } = await import('./wallet-pool');
@@ -945,8 +946,8 @@ export class TradeExecutor {
    */
   private async executeOstiumTrade(ctx: ExecutionContext): Promise<ExecutionResult> {
     try {
-      // Get agent address for this user on Ostium
-      const agentAddress = await this.getAgentAddressForVenue(ctx.deployment.user_wallet, 'OSTIUM');
+      // Get agent address for this deployment on Ostium
+      const agentAddress = await this.getAgentAddressForVenue(ctx.deployment.id, 'OSTIUM');
       
       // Get agent private key from wallet pool
       const { getPrivateKeyForAddress } = await import('./wallet-pool');
@@ -1414,18 +1415,8 @@ export class TradeExecutor {
       throw new Error('HYPERLIQUID_PLATFORM_WALLET not configured');
     }
 
-    // Get deployment to find user wallet
-    const deployment = await prisma.agent_deployments.findUnique({
-      where: { id: params.deploymentId },
-      select: { user_wallet: true }
-    });
-    
-    if (!deployment) {
-      throw new Error('Deployment not found');
-    }
-    
-    // Get agent address for this user on Hyperliquid
-    const agentAddress = await this.getAgentAddressForVenue(deployment.user_wallet, 'HYPERLIQUID');
+    // Get agent address for this deployment on Hyperliquid
+    const agentAddress = await this.getAgentAddressForVenue(params.deploymentId, 'HYPERLIQUID');
     
     // Get agent private key from wallet pool
     const { getPrivateKeyForAddress } = await import('./wallet-pool');
@@ -1614,8 +1605,8 @@ export class TradeExecutor {
         venue: position.venue,
       });
 
-      // Get agent address for this user on Ostium
-      const agentAddress = await this.getAgentAddressForVenue(position.agent_deployments.user_wallet, 'OSTIUM');
+      // Get agent address for this deployment on Ostium
+      const agentAddress = await this.getAgentAddressForVenue(position.deployment_id, 'OSTIUM');
       
       // Get agent private key from wallet pool
       const { getPrivateKeyForAddress } = await import('./wallet-pool');
@@ -1805,18 +1796,8 @@ export class TradeExecutor {
       throw new Error('OSTIUM_PLATFORM_WALLET not configured');
     }
 
-    // Get deployment to find user wallet
-    const deployment = await prisma.agent_deployments.findUnique({
-      where: { id: params.deploymentId },
-      select: { user_wallet: true }
-    });
-    
-    if (!deployment) {
-      throw new Error('Deployment not found');
-    }
-    
-    // Get agent address for this user on Ostium
-    const agentAddress = await this.getAgentAddressForVenue(deployment.user_wallet, 'OSTIUM');
+    // Get agent address for this deployment on Ostium
+    const agentAddress = await this.getAgentAddressForVenue(params.deploymentId, 'OSTIUM');
     
     // Get agent private key from wallet pool
     const { getPrivateKeyForAddress } = await import('./wallet-pool');

@@ -5,7 +5,7 @@
 
 import { NextApiRequest, NextApiResponse } from 'next';
 import { PrismaClient } from '@prisma/client';
-import { getUserVenueAgentAddress } from '../../../lib/user-venue-agent';
+import { getDeploymentVenueAgentAddress } from '../../../lib/user-venue-agent';
 
 const prisma = new PrismaClient();
 
@@ -36,11 +36,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (!agent) {
       return res.status(404).json({ error: 'Agent not found' });
     }
-
-    // Get or create agent address for this user on Hyperliquid
-    const agentAddress = await getUserVenueAgentAddress(userWallet, 'HYPERLIQUID');
-
-    console.log('[CreateDeployment] Agent address for Hyperliquid:', agentAddress);
 
     // All agents are multi-venue now
     const enabledVenues = ['HYPERLIQUID'];
@@ -82,6 +77,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     console.log('[CreateDeployment] ✅ Deployment created/updated:', deployment.id);
+
+    // Get or create agent address for this deployment on Hyperliquid
+    const agentAddress = await getDeploymentVenueAgentAddress(deployment.id, 'HYPERLIQUID');
+
+    console.log('[CreateDeployment] Agent address for Hyperliquid:', agentAddress);
 
     return res.status(200).json({
       success: true,
