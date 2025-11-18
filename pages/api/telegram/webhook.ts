@@ -3,7 +3,6 @@ import { PrismaClient } from '@prisma/client';
 import { createTelegramBot, type TelegramUpdate } from '../../../lib/telegram-bot';
 import { createCommandParser } from '../../../lib/telegram-command-parser';
 import { TradeExecutor } from '../../../lib/trade-executor';
-
 const prisma = new PrismaClient();
 const bot = createTelegramBot();
 const parser = createCommandParser();
@@ -45,13 +44,13 @@ async function handleTextMessage(update: TelegramUpdate) {
 
   console.log('[Telegram] Processing message from', telegramUserId, ':', text);
 
-  // Check if user is linked
-  const telegramUser = await prisma.telegramUser.findUnique({
-    where: { telegramUserId },
+  // Check if user is linked to an agent deployment (for trading)
+  const telegramUser = await prisma.telegram_users.findUnique({
+    where: { telegram_user_id: telegramUserId },
     include: {
-      deployment: {
+      agent_deployments: {
         include: {
-          agent: true
+          agents: true
         }
       }
     }
@@ -68,14 +67,14 @@ async function handleTextMessage(update: TelegramUpdate) {
     const result = await bot.linkUser(telegramUserId, code);
     if (result.success) {
       // Get the linked deployment to show agent details
-      const deployment = await prisma.agentDeployment.findUnique({
+      const deployment = await prisma.agent_deployments.findUnique({
         where: { id: result.deploymentId },
-        include: { agent: true }
+        include: { agents: true }
       });
       
       await bot.sendMessage(
         chatId, 
-        `✅ Successfully linked to *${deployment?.agent.name}* (${deployment?.agent.venue})\n\n` +
+        `✅ Successfully linked to *${deployment?.agents.name}* (${deployment?.agents.venue})\n\n` +
         `You can now trade via Telegram:\n` +
         `• "Buy 5 USDC of ETH"\n` +
         `• "Status" - View positions\n` +
@@ -89,26 +88,52 @@ async function handleTextMessage(update: TelegramUpdate) {
     return;
   }
 
-  // Check if user is linked for other commands
+  // Handle alpha messages (from users NOT linked to trading agents)
+  // These become signal sources for agent creators
   if (!telegramUser) {
-    await bot.sendMessage(
-      chatId,
-      '👋 Welcome to Maxxit!\n\nTo start trading, please link your Safe wallet:\n\n1. Go to your agent page on Maxxit\n2. Click "Connect Telegram"\n3. Send me the link code: /link ABC123'
-    );
-    return;
+    // Check if message looks like alpha (not a basic command)
+    const isBasicCommand = text.startsWith('/') || 
+                          /^(buy|sell|close|status|help)$/i.test(text.trim()) ||
+                          text.length < 15; // Too short to be meaningful alpha
+    
+    if (!isBasicCommand) {
+      // This is an alpha message - classify and store it
+      await handleAlphaMessage(message, telegramUserId, chatId);
+      return;
+    } else {
+      // It's a command but user not linked
+      await bot.sendMessage(
+        chatId,
+        '👋 *Welcome to Maxxit Alpha Bot!*\n\n' +
+        '💡 *Share Alpha:* Send me your trading insights and signals. Agent creators can subscribe to your alpha!\n\n' +
+        '📊 *Want to trade yourself?*\n' +
+        '1. Create an agent at Maxxit\n' +
+        '2. Deploy it\n' +
+        '3. Use /link CODE to connect',
+        { parse_mode: 'Markdown' }
+      );
+      return;
+    }
   }
 
+  // User is linked - handle trading commands
   // Update last active
-  await prisma.telegramUser.update({
+  await prisma.telegram_users.update({
     where: { id: telegramUser.id },
-    data: { lastActiveAt: new Date() }
+    data: { last_active_at: new Date() }
   });
 
-  // Parse command
+  // Check if message is alpha (even from linked users)
   const intent = await parser.parseCommand(text);
   console.log('[Telegram] Parsed intent:', JSON.stringify(intent, null, 2));
 
-  // Handle different actions
+  // If it's not a recognized command and long enough, treat as alpha
+  if (intent.action === 'UNKNOWN' && text.length > 20) {
+    await handleAlphaMessage(message, telegramUserId, chatId);
+    return;
+  }
+
+  // Handle trading commands
   switch (intent.action) {
     case 'HELP':
       await bot.sendMessage(
@@ -119,7 +144,7 @@ async function handleTextMessage(update: TelegramUpdate) {
       break;
 
     case 'STATUS':
-      await handleStatusCommand(chatId, telegramUser.deploymentId);
+      await handleStatusCommand(chatId, telegramUser.deployment_id);
       break;
 
     case 'BUY':
@@ -133,20 +158,20 @@ async function handleTextMessage(update: TelegramUpdate) {
       }
 
       // Store trade intent and ask for confirmation
-      const trade = await prisma.telegramTrade.create({
+      const trade = await prisma.telegram_trades.create({
         data: {
-          telegramUserId: telegramUser.id,
-          deploymentId: telegramUser.deploymentId,
-          messageId: message.message_id.toString(),
+          telegram_user_id: telegramUser.id,
+          deployment_id: telegramUser.deployment_id,
+          message_id: message.message_id.toString(),
           command: text,
-          parsedIntent: intent as any,
+          parsed_intent: intent as any,
           status: 'pending',
         }
       });
 
       // Get wallet balance for confirmation message
       const { createSafeWallet } = await import('../../../lib/safe-wallet');
-      const safeWallet = createSafeWallet(telegramUser.deployment.safeWallet, 42161);
+      const safeWallet = createSafeWallet(telegramUser.agent_deployments.safe_wallet, 42161);
       const balance = await safeWallet.getUSDCBalance();
 
       const confirmationMsg = parser.formatConfirmation(intent, balance);
@@ -175,6 +200,115 @@ async function handleTextMessage(update: TelegramUpdate) {
   }
 }
 
+/**
+ * Handle alpha messages from users (signal sources)
+ * Stores raw messages - classification happens in telegram-alpha-worker service
+ */
+async function handleAlphaMessage(message: any, telegramUserId: string, chatId: number) {
+  try {
+    const text = message.text;
+    
+    console.log('[Alpha] Processing alpha from user:', telegramUserId);
+
+    // Get or create telegram_alpha_user
+    let alphaUser = await prisma.telegram_alpha_users.findUnique({
+      where: { telegram_user_id: telegramUserId }
+    });
+
+    if (!alphaUser) {
+      // Create new alpha user
+      alphaUser = await prisma.telegram_alpha_users.create({
+        data: {
+          telegram_user_id: telegramUserId,
+          telegram_username: message.from.username || null,
+          first_name: message.from.first_name || null,
+          last_name: message.from.last_name || null,
+          is_active: true,
+          last_message_at: new Date(),
+        }
+      });
+      
+      console.log('[Alpha] Created new alpha user:', alphaUser.id);
+      
+      // Welcome message for first-time alpha provider
+      await bot.sendMessage(
+        chatId,
+        '🎉 *Welcome to Maxxit Alpha!*\n\n' +
+        'Your trading insights are now live! Agent creators can subscribe to your signals.\n\n' +
+        '📊 Keep sharing quality alpha to build your reputation and following!',
+        { parse_mode: 'Markdown' }
+      );
+    } else {
+      // Update last message time
+      await prisma.telegram_alpha_users.update({
+        where: { id: alphaUser.id },
+        data: { last_message_at: new Date() }
+      });
+    }
+
+    // Quick pre-filter: Skip obvious non-signals (store but mark as not signal)
+    const hasToken = /\$[A-Z]{2,10}\b|BTC|ETH|SOL|AVAX|ARB|OP|MATIC|LINK|UNI|AAVE/i.test(text);
+    const isShortNonSignal = text.length < 20 && !hasToken;
+    const isCommonChatter = /^(gm|gn|good morning|good night|hello|hi|hey|wagmi|lfg|lets go|thank you|thanks|👍|❤️|🔥)$/i.test(text.trim());
+
+    if (isShortNonSignal || isCommonChatter) {
+      // Store but mark as not signal (skip worker processing)
+      const messageKey = `alpha_${telegramUserId}_${message.message_id}`;
+      await prisma.telegram_posts.create({
+        data: {
+          alpha_user_id: alphaUser.id,
+          source_id: null,
+          message_id: messageKey,
+          message_text: text,
+          message_created_at: new Date(message.date * 1000),
+          sender_id: telegramUserId,
+          sender_username: message.from.username || null,
+          is_signal_candidate: false, // Mark as not signal immediately
+          extracted_tokens: [],
+          processed_for_signals: false,
+        },
+      });
+      console.log('[Alpha] Stored non-signal message (too short/common)');
+      return;
+    }
+
+    // Store message WITHOUT classification (worker will classify it)
+    // This allows the worker service to handle LLM classification
+    const messageKey = `alpha_${telegramUserId}_${message.message_id}`;
+    
+    await prisma.telegram_posts.create({
+      data: {
+        alpha_user_id: alphaUser.id,
+        source_id: null, // Not from a channel, from individual user
+        message_id: messageKey,
+        message_text: text,
+        message_created_at: new Date(message.date * 1000),
+        sender_id: telegramUserId,
+        sender_username: message.from.username || null,
+        is_signal_candidate: null, // NULL = not yet classified (worker will process)
+        extracted_tokens: [],
+        confidence_score: null,
+        signal_type: null,
+        processed_for_signals: false,
+      },
+    });
+
+    console.log('[Alpha] Stored message (awaiting classification by worker)');
+
+    // Give user feedback that message was received
+    await bot.sendMessage(
+      chatId,
+      '✅ *Message received!*\n\n' +
+      'Your alpha is being processed and will be available to agents following you shortly.',
+      { parse_mode: 'Markdown' }
+    );
+
+  } catch (error: any) {
+    console.error('[Alpha] Error handling alpha message:', error);
+    await bot.sendMessage(chatId, '⚠️ Message received but couldn\'t be processed. Try again!');
+  }
+}
+
 async function handleCallback(update: TelegramUpdate) {
   const callback = update.callback_query!;
   const chatId = callback.message.chat.id;
@@ -189,7 +323,7 @@ async function handleCallback(update: TelegramUpdate) {
     await executeTrade(chatId, tradeId);
   } else if (data.startsWith('cancel_')) {
     const tradeId = data.replace('cancel_', '');
-    await prisma.telegramTrade.update({
+    await prisma.telegram_trades.update({
       where: { id: tradeId },
       data: { status: 'cancelled' }
     });
@@ -202,86 +336,73 @@ async function executeTrade(chatId: number, tradeId: string) {
     await bot.sendMessage(chatId, '⏳ Executing trade...');
 
     // CRITICAL FIX: Use atomic update to prevent race condition
-    // This ensures only ONE execution even if webhook is called multiple times
     let trade;
     try {
-      trade = await prisma.telegramTrade.update({
+      trade = await prisma.telegram_trades.update({
         where: { 
           id: tradeId,
-          status: 'pending' // Only update if still pending (atomic check-and-set)
+          status: 'pending'
         },
         data: {
           status: 'executing',
-          confirmedAt: new Date(),
+          confirmed_at: new Date(),
         },
         include: {
-          deployment: {
+          agent_deployments: {
             include: {
-              agent: true
+              agents: true
             }
           }
         }
       });
     } catch (error: any) {
-      // If update fails, trade was already processed or doesn't exist
-      if (error.code === 'P2025') { // Prisma: Record not found
+      if (error.code === 'P2025') {
         await bot.sendMessage(chatId, '❌ Trade already processed or not found');
         return;
       }
       throw error;
     }
 
-    const intent = trade.parsedIntent as any;
+    const intent = trade.parsed_intent as any;
 
-    // Add unique suffix to tokenSymbol to bypass 6h constraint
-    // Format: "WETH_MANUAL_1234567890"
-    // The trade executor will strip this suffix when looking up token
     const uniqueTokenSymbol = `${intent.token}_MANUAL_${Date.now()}`;
 
-    // Manual trades: Use actual USDC amounts directly (not percentage)
-    // Auto trades: Use percentage of balance
     const sizeModel = {
       type: intent.amountType === 'USDC' ? 'fixed-usdc' : 'balance-percentage',
-      value: intent.amount || 5, // Default to 5% if no amount specified
+      value: intent.amount || 5,
     };
 
-    const signal = await prisma.signal.create({
+    const signal = await prisma.signals.create({
       data: {
-        agentId: trade.deployment.agentId,
-        tokenSymbol: uniqueTokenSymbol, // Unique token symbol bypasses constraint
-        venue: trade.deployment.agent.venue,
+        agent_id: trade.agent_deployments.agent_id,
+        token_symbol: uniqueTokenSymbol,
+        venue: trade.agent_deployments.agents.venue,
         side: intent.action === 'BUY' ? 'LONG' : 'SHORT',
-        sizeModel,
-        riskModel: {
-          // NO fixed stop loss or take profit - using trailing stop only
-          // Trailing stop is set automatically when position is created
-        },
-        sourceTweets: [`telegram_manual_${trade.id}_${Date.now()}`],
+        size_model: sizeModel,
+        risk_model: {},
+        source_tweets: [`telegram_manual_${trade.id}_${Date.now()}`],
       }
     });
 
-    // Execute via TradeExecutor with SPECIFIC deployment ID
-    // This ensures the trade executes on the correct user's Safe, not the first deployment
     const executor = new TradeExecutor();
-    const result = await executor.executeSignalForDeployment(signal.id, trade.deployment.id);
+    const result = await executor.executeSignalForDeployment(signal.id, trade.deployment_id);
 
     if (result.success) {
-      await prisma.telegramTrade.update({
+      await prisma.telegram_trades.update({
         where: { id: tradeId },
         data: {
           status: 'executed',
-          executedAt: new Date(),
-          signalId: signal.id,
+          executed_at: new Date(),
+          signal_id: signal.id,
         }
       });
 
-      // Update position source
       if (result.positionId) {
-        await prisma.position.update({
+        await prisma.positions.update({
           where: { id: result.positionId },
           data: {
             source: 'telegram',
-            manualTradeId: tradeId,
+            manual_trade_id: tradeId,
           }
         });
       }
@@ -292,11 +413,11 @@ async function executeTrade(chatId: number, tradeId: string) {
         { parse_mode: 'Markdown' }
       );
     } else {
-      await prisma.telegramTrade.update({
+      await prisma.telegram_trades.update({
         where: { id: tradeId },
         data: {
           status: 'failed',
-          errorMessage: result.error || 'Unknown error',
+          error_message: result.error || 'Unknown error',
         }
       });
 
@@ -310,14 +431,14 @@ async function executeTrade(chatId: number, tradeId: string) {
 
 async function handleStatusCommand(chatId: number, deploymentId: string) {
   try {
-    const positions = await prisma.position.findMany({
+    const positions = await prisma.positions.findMany({
       where: {
-        deploymentId,
-        source: 'telegram', // Only show manual positions
-        closedAt: null,
+        deployment_id: deploymentId,
+        source: 'telegram',
+        closed_at: null,
       },
       include: {
-        signal: true
+        signals: true
       },
       orderBy: {
         opened_at: 'desc'
@@ -331,10 +452,10 @@ async function handleStatusCommand(chatId: number, deploymentId: string) {
 
     let msg = `📊 *Your Manual Positions:*\n\n`;
     positions.forEach((pos, i) => {
-      msg += `${i + 1}. ${pos.tokenSymbol} ${pos.side}\n`;
+      msg += `${i + 1}. ${pos.token_symbol} ${pos.side}\n`;
       msg += `   Qty: ${parseFloat(pos.qty.toString()).toFixed(4)}\n`;
-      msg += `   Entry: $${parseFloat(pos.entryPrice.toString()).toFixed(2)}\n`;
-      msg += `   TX: ${pos.entryTxHash?.slice(0, 10)}...\n\n`;
+      msg += `   Entry: $${parseFloat(pos.entry_price.toString()).toFixed(2)}\n`;
+      msg += `   TX: ${pos.entry_tx_hash?.slice(0, 10)}...\n\n`;
     });
 
     msg += `To close: "Close my WETH"`;
@@ -348,12 +469,12 @@ async function handleStatusCommand(chatId: number, deploymentId: string) {
 
 async function handleCloseCommand(chatId: number, telegramUser: any, token?: string) {
   try {
-    const positions = await prisma.position.findMany({
+    const positions = await prisma.positions.findMany({
       where: {
-        deploymentId: telegramUser.deploymentId,
+        deployment_id: telegramUser.deployment_id,
         source: 'telegram',
-        closedAt: null,
-        ...(token && { tokenSymbol: token }),
+        closed_at: null,
+        ...(token && { token_symbol: token }),
       }
     });
 
@@ -373,7 +494,7 @@ async function handleCloseCommand(chatId: number, telegramUser: any, token?: str
       if (result.success) {
         successCount++;
       } else {
-        errors.push(`${position.tokenSymbol}: ${result.error || 'Unknown error'}`);
+        errors.push(`${position.token_symbol}: ${result.error || 'Unknown error'}`);
       }
     }
 
@@ -389,5 +510,3 @@ async function handleCloseCommand(chatId: number, telegramUser: any, token?: str
     await bot.sendMessage(chatId, `❌ Error closing positions: ${error.message}`);
   }
 }
-
-

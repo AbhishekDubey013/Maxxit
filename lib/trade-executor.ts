@@ -1613,6 +1613,44 @@ export class TradeExecutor {
         throw new Error('User Arbitrum address not found in deployment');
       }
 
+      // PRE-FLIGHT CHECK: Verify position still exists on-chain before closing
+      // This prevents errors from trying to close already-closed positions
+      console.log('[TradeExecutor] 🔍 Pre-flight check: Verifying position exists on-chain...');
+      const { getOstiumPositions } = await import('./adapters/ostium-adapter');
+      const onChainPositions = await getOstiumPositions(userArbitrumAddress);
+      
+      // Check if position exists on-chain (match by tradeId or market+side)
+      const positionExistsOnChain = onChainPositions.some(
+        p => p.tradeId === position.entry_tx_hash || 
+             (p.market === position.token_symbol && p.side.toUpperCase() === position.side)
+      );
+
+      if (!positionExistsOnChain) {
+        console.log('[TradeExecutor] ⚠️  Position not found on-chain - already closed externally');
+        console.log('[TradeExecutor] 📝 Syncing DB status to CLOSED (idempotent)');
+        
+        // Update DB to reflect reality
+        await prisma.positions.update({
+          where: { id: position.id },
+          data: {
+            status: 'CLOSED',
+            closed_at: new Date(),
+            exit_price: null,
+            exit_reason: 'CLOSED_EXTERNALLY',
+            pnl: 0, // Unknown PnL
+          },
+        });
+        
+        console.log('[TradeExecutor] ✅ DB synced - position marked as closed');
+        return {
+          success: true,
+          positionId: position.id,
+          message: 'Position already closed externally',
+        };
+      }
+
+      console.log('[TradeExecutor] ✅ Position verified on-chain, proceeding with close...');
+
       // Close position via Ostium adapter
       const result = await closeOstiumPosition({
         agentAddress: agentAddress, // Use agentAddress instead of privateKey (service will look up key)
@@ -1623,15 +1661,17 @@ export class TradeExecutor {
       });
 
       if (!result.success) {
-        // Check if already closed (idempotent)
-        if (result.message && result.message.includes('No open position')) {
+        // Check if already closed (idempotent) - backup check if pre-flight missed it
+        if (result.message && (result.message.includes('No open position') || result.message.includes('already closed'))) {
           console.log('[TradeExecutor] ⚠️  Position already closed on Ostium, updating DB...');
           
           await prisma.positions.update({
             where: { id: position.id },
             data: {
+              status: 'CLOSED',
               closed_at: new Date(),
               exit_price: null,
+              exit_reason: 'CLOSED_EXTERNALLY',
               pnl: 0,
             },
           });
@@ -1655,8 +1695,10 @@ export class TradeExecutor {
       await prisma.positions.update({
         where: { id: position.id },
         data: {
+          status: 'CLOSED',
           closed_at: new Date(),
           exit_price: result.result?.exitPrice || null,
+          exit_reason: 'TRAILING_STOP',
           pnl: pnl,
         },
       });

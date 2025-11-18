@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { insertAgentSchema, VenueEnum } from '@shared/schema';
 import { db } from '../client/src/lib/db';
 import { useRouter } from 'next/router';
-import { Check, User, Building2, Sliders, Wallet, Eye, Rocket, Twitter, Search, Plus as PlusIcon, X, Shield } from 'lucide-react';
+import { Check, User, Building2, Sliders, Wallet, Eye, Rocket, Twitter, Search, Plus as PlusIcon, X, Shield, Send } from 'lucide-react';
 import { Header } from '@components/Header';
 import { usePrivy } from '@privy-io/react-auth';
 import { createProofOfIntentWithMetaMask } from '@lib/proof-of-intent';
@@ -13,6 +13,7 @@ import { HyperliquidConnect } from '@components/HyperliquidConnect';
 import { OstiumConnect } from '@components/OstiumConnect';
 import { OstiumApproval } from '@components/OstiumApproval';
 import { ResearchInstituteSelector } from '@components/ResearchInstituteSelector';
+import { TelegramAlphaUserSelector } from '@components/TelegramAlphaUserSelector';
 
 const wizardSchema = insertAgentSchema.extend({
   description: z.string().max(500).optional(),
@@ -70,6 +71,9 @@ export default function CreateAgent() {
 
   // Research Institutes state
   const [selectedResearchInstitutes, setSelectedResearchInstitutes] = useState<string[]>([]);
+
+  // Telegram Alpha Users state
+  const [selectedTelegramUsers, setSelectedTelegramUsers] = useState<Set<string>>(new Set());
 
   const {
     register,
@@ -244,9 +248,9 @@ export default function CreateAgent() {
       return;
     }
 
-    // Validate CT accounts selection
-    if (selectedCtAccounts.size === 0) {
-      setError('Please select at least one CT account');
+    // Validate CT accounts or Telegram users selection (need at least one source)
+    if (selectedCtAccounts.size === 0 && selectedTelegramUsers.size === 0) {
+      setError('Please select at least one CT account or Telegram alpha user');
       setStep(4);
       return;
     }
@@ -254,7 +258,7 @@ export default function CreateAgent() {
     // Validate proof of intent
     if (!proofOfIntent) {
       setError('Please create a proof of intent by signing with MetaMask');
-      setStep(6);
+      setStep(7);
       return;
     }
 
@@ -354,6 +358,39 @@ export default function CreateAgent() {
           } catch (instituteLinkError: any) {
             console.error('❌ Failed to link research institutes:', instituteLinkError);
             setError(`Agent created but some research institutes failed to link: ${instituteLinkError.message}`);
+            // Don't return here - still show the deploy modal
+          }
+        }
+
+        // Link selected Telegram alpha users to the agent
+        console.log('🔗 LINKING TELEGRAM ALPHA USERS - Starting...', Array.from(selectedTelegramUsers));
+        
+        if (selectedTelegramUsers.size > 0) {
+          const telegramLinkPromises = Array.from(selectedTelegramUsers).map(async (telegramAlphaUserId) => {
+            console.log('  Linking telegram alpha user:', telegramAlphaUserId);
+            const response = await fetch(`/api/agents/${agentId}/telegram-users`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ telegram_alpha_user_id: telegramAlphaUserId }),
+            });
+            
+            if (!response.ok) {
+              const error = await response.json().catch(() => ({ error: 'Failed to link telegram user' }));
+              console.error('  Failed to link telegram user:', telegramAlphaUserId, error);
+              throw new Error(error.error || `Failed to link telegram user ${telegramAlphaUserId}`);
+            }
+            
+            const result = await response.json();
+            console.log('  Successfully linked:', result);
+            return result;
+          });
+          
+          try {
+            await Promise.all(telegramLinkPromises);
+            console.log('✅ All telegram alpha users linked successfully');
+          } catch (telegramLinkError: any) {
+            console.error('❌ Failed to link telegram alpha users:', telegramLinkError);
+            setError(`Agent created but some telegram users failed to link: ${telegramLinkError.message}`);
             // Don't return here - still show the deploy modal
           }
         }
@@ -470,15 +507,18 @@ export default function CreateAgent() {
       }
       isValid = true;
     } else if (step === 5) {
+      // Telegram alpha users (optional, can skip)
+      isValid = true;
+    } else if (step === 6) {
       const validWallet = await trigger('creatorWallet');
       const validProfit = await trigger('profitReceiverAddress');
       isValid = validWallet && validProfit;
-    } else if (step === 6) {
+    } else if (step === 7) {
       // Proof of intent step - check if proof exists
       isValid = !!proofOfIntent;
     }
     
-    if (isValid && step < 7) {
+    if (isValid && step < 8) {
       setStep(step + 1);
       setError(null);
     }
@@ -493,9 +533,10 @@ export default function CreateAgent() {
     { number: 2, label: 'Venue', icon: Building2 },
     { number: 3, label: 'Strategy', icon: Sliders },
     { number: 4, label: 'CT Accounts', icon: Twitter },
-    { number: 5, label: 'Wallet', icon: Wallet },
-    { number: 6, label: 'Proof of Intent', icon: Shield },
-    { number: 7, label: 'Review', icon: Eye },
+    { number: 5, label: 'Telegram Alpha', icon: Send },
+    { number: 6, label: 'Wallet', icon: Wallet },
+    { number: 7, label: 'Proof of Intent', icon: Shield },
+    { number: 8, label: 'Review', icon: Eye },
   ];
 
   return (
@@ -943,8 +984,52 @@ export default function CreateAgent() {
             </div>
           )}
 
-          {/* Step 5: Creator Wallet */}
+          {/* Step 5: Telegram Alpha Users */}
           {step === 5 && (
+            <div className="space-y-6">
+              <h2 className="text-2xl font-semibold text-foreground mb-4">
+                Select Telegram Alpha Sources
+              </h2>
+              <p className="text-sm text-muted-foreground mb-6">
+                Choose Telegram users whose DM signals your agent should follow. These are individual users who share alpha directly to the bot.
+              </p>
+
+              <TelegramAlphaUserSelector
+                selectedIds={selectedTelegramUsers}
+                onToggle={(id) => {
+                  const newSelected = new Set(selectedTelegramUsers);
+                  if (newSelected.has(id)) {
+                    newSelected.delete(id);
+                  } else {
+                    newSelected.add(id);
+                  }
+                  setSelectedTelegramUsers(newSelected);
+                }}
+              />
+
+              <div className="flex gap-4">
+                <button
+                  type="button"
+                  onClick={prevStep}
+                  className="flex-1 px-6 py-3 bg-secondary text-secondary-foreground rounded-md font-semibold hover:bg-secondary/90 transition-colors"
+                  data-testid="button-back"
+                >
+                  Back
+                </button>
+                <button
+                  type="button"
+                  onClick={nextStep}
+                  className="flex-1 px-6 py-3 bg-primary text-primary-foreground rounded-md font-semibold hover:bg-primary/90 transition-colors"
+                  data-testid="button-next"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Step 6: Creator Wallet */}
+          {step === 6 && (
             <div className="space-y-6">
               <h2 className="text-2xl font-semibold text-foreground mb-4">
                 Connect Your Wallet
@@ -1035,8 +1120,8 @@ export default function CreateAgent() {
             </div>
           )}
 
-          {/* Step 6: Proof of Intent */}
-          {step === 6 && (
+          {/* Step 7: Proof of Intent */}
+          {step === 7 && (
             <div className="space-y-6">
               <h2 className="text-2xl font-semibold text-foreground mb-4">
                 Proof of Intent
@@ -1149,8 +1234,8 @@ export default function CreateAgent() {
             </div>
           )}
 
-          {/* Step 7: Review & Submit */}
-          {step === 7 && (
+          {/* Step 8: Review & Submit */}
+          {step === 8 && (
             <div className="space-y-6">
               <h2 className="text-2xl font-semibold text-foreground mb-4">
                 Review Your Agent

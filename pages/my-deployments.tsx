@@ -101,7 +101,7 @@ export default function MyDeployments() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           deploymentId: selectedDeploymentId,
-          userWallet: connectedWallet // SECURITY: Verify ownership
+          userWallet: user?.wallet?.address || ''
         }),
       });
 
