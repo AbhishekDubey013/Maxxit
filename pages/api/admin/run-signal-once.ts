@@ -215,6 +215,9 @@ export default async function handler(
             continue;
           }
 
+          // For MULTI venue agents, default to HYPERLIQUID (Agent Where will route dynamically)
+          const signalVenue = agent.venue === 'MULTI' ? 'HYPERLIQUID' : agent.venue;
+
           // Get LunarCrush score for dynamic position sizing
           let positionSizePercentage = 5; // Default 5%
           let lunarCrushScore = null;
@@ -249,7 +252,7 @@ export default async function handler(
               data: {
                 agent_id: agent.id,
                 token_symbol: tokenSymbol,
-                venue: agent.venue,
+                venue: signalVenue, // MULTI agents → HYPERLIQUID (Agent Where will re-route if needed)
                 side: 'LONG', // Simplified - would use sentiment analysis
                 size_model: {
                   type: 'balance-percentage',

@@ -133,13 +133,16 @@ export default async function handler(
             console.log(`[GenerateSignals] Generating signal for ${agent.name} (${agent.venue})`);
             console.log(`[GenerateSignals] Token: ${token}, Sentiment: ${sentiment}`);
 
+            // For MULTI venue agents, default to HYPERLIQUID (Agent Where will route dynamically)
+            const signalVenue = agent.venue === 'MULTI' ? 'HYPERLIQUID' : agent.venue;
+
             // Generate signal using LLM
             const tradingSignal = await signalGenerator.generateSignal({
               tweetText: tweet.tweetText,
               tweetSentiment: sentiment,
               tweetConfidence: 0.75,
               tokenSymbol: token,
-              venue: agent.venue,
+              venue: signalVenue,
               marketIndicators: indicators?.indicators as any,
               ctAccountImpactFactor: tweet.ctAccount.impactFactor,
             });
@@ -164,7 +167,7 @@ export default async function handler(
               data: {
                 agentId: agent.id,
                 tokenSymbol: token,
-                venue: agent.venue,
+                venue: signalVenue, // MULTI agents → HYPERLIQUID (Agent Where will re-route if needed)
                 side: tradingSignal.side,
                 sizeModel: {
                   type: 'balance-percentage',
@@ -189,7 +192,7 @@ export default async function handler(
             results.push({
               signalId: signal.id,
               agent: agent.name,
-              venue: agent.venue,
+              venue: signalVenue,
               token,
               side: tradingSignal.side,
               confidence: tradingSignal.confidence,
