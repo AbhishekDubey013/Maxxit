@@ -4,6 +4,7 @@ import { db } from '../client/src/lib/db';
 import { AgentCard } from '@components/AgentCard';
 import { AgentDrawer } from '@components/AgentDrawer';
 import { HyperliquidConnect } from '@components/HyperliquidConnect';
+import { OstiumConnect } from '@components/OstiumConnect';
 import { MultiVenueSelector } from '@components/MultiVenueSelector';
 import { Bot, TrendingUp, Shield, Zap } from 'lucide-react';
 import { Header } from '@components/Header';
@@ -26,6 +27,9 @@ export default function Home() {
   const [hyperliquidModalOpen, setHyperliquidModalOpen] = useState(false);
   const [hyperliquidAgentId, setHyperliquidAgentId] = useState<string>('');
   const [hyperliquidAgentName, setHyperliquidAgentName] = useState<string>('');
+  const [ostiumModalOpen, setOstiumModalOpen] = useState(false);
+  const [ostiumAgentId, setOstiumAgentId] = useState<string>('');
+  const [ostiumAgentName, setOstiumAgentName] = useState<string>('');
   const [multiVenueSelectorOpen, setMultiVenueSelectorOpen] = useState(false);
   const [multiVenueAgent, setMultiVenueAgent] = useState<{ id: string; name: string } | null>(null);
 
@@ -58,6 +62,11 @@ export default function Home() {
       // For MULTI agents, open venue selector directly
       setMultiVenueAgent({ id: agent.id, name: agent.name });
       setMultiVenueSelectorOpen(true);
+    } else if (agent.venue === 'OSTIUM') {
+      // For OSTIUM agents, open Ostium connect modal
+      setOstiumAgentId(agent.id);
+      setOstiumAgentName(agent.name);
+      setOstiumModalOpen(true);
     } else {
       // For other agents, open the drawer
       setSelectedAgent(agent);
@@ -273,6 +282,18 @@ export default function Home() {
           onClose={() => setHyperliquidModalOpen(false)}
           onSuccess={() => {
             console.log('Hyperliquid setup complete!');
+          }}
+        />
+      )}
+
+      {/* Ostium Setup Modal */}
+      {ostiumModalOpen && (
+        <OstiumConnect
+          agentId={ostiumAgentId}
+          agentName={ostiumAgentName}
+          onClose={() => setOstiumModalOpen(false)}
+          onSuccess={() => {
+            console.log('Ostium setup complete!');
           }}
         />
       )}

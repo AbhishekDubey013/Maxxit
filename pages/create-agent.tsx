@@ -11,7 +11,6 @@ import { usePrivy } from '@privy-io/react-auth';
 import { createProofOfIntentWithMetaMask } from '@lib/proof-of-intent';
 import { HyperliquidConnect } from '@components/HyperliquidConnect';
 import { OstiumConnect } from '@components/OstiumConnect';
-import { OstiumApproval } from '@components/OstiumApproval';
 import { ResearchInstituteSelector } from '@components/ResearchInstituteSelector';
 import { TelegramAlphaUserSelector } from '@components/TelegramAlphaUserSelector';
 
@@ -48,7 +47,6 @@ export default function CreateAgent() {
   const [ostiumModalOpen, setOstiumModalOpen] = useState(false);
   const [ostiumAgentId, setOstiumAgentId] = useState('');
   const [ostiumAgentName, setOstiumAgentName] = useState('');
-  const [ostiumIsProcessing, setOstiumIsProcessing] = useState(false);
 
   // Proof of Intent state
   const [proofOfIntent, setProofOfIntent] = useState<{
@@ -425,56 +423,6 @@ export default function CreateAgent() {
     }
   };
 
-  const [ostiumApprovalModal, setOstiumApprovalModal] = useState<{
-    deploymentId: string;
-    agentAddress: string;
-    userWallet: string;
-  } | null>(null);
-
-  const deployOstiumAgent = async (agentId: string) => {
-    try {
-      setIsSubmitting(true);
-      setError(null);
-
-      if (!authenticated || !user?.wallet?.address) {
-        alert('Please connect your wallet first');
-        await login();
-        return;
-      }
-
-      const userWallet = user.wallet.address;
-      console.log('[Ostium Deploy] Starting deployment for agent:', agentId, 'user wallet:', userWallet);
-
-      const response = await fetch('/api/ostium/deploy-complete', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ agentId, userWallet }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to deploy Ostium agent');
-      }
-
-      console.log('[Ostium Deploy] Agent assigned:', data);
-
-      // Open approval modal for user to sign transaction
-      setOstiumApprovalModal({
-        deploymentId: data.deploymentId,
-        agentAddress: data.agentAddress,
-        userWallet: data.userWallet,
-      });
-
-    } catch (err: any) {
-      console.error('[Ostium Deploy] Error:', err);
-      setError(err.message || 'Failed to deploy Ostium agent');
-      alert(`Failed to deploy: ${err.message}`);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
   const handleDeploy = () => {
     console.log('Deploy clicked! Agent ID:', createdAgentId, 'Venue:', formData.venue);
     if (createdAgentId) {
@@ -488,9 +436,11 @@ export default function CreateAgent() {
         setHyperliquidAgentName(formData.name);
         setHyperliquidModalOpen(true);
       } else if (formData.venue === 'OSTIUM') {
-        // For Ostium, deploy directly
-        console.log('Deploying Ostium agent directly:', createdAgentId);
-        deployOstiumAgent(createdAgentId);
+        // For Ostium, open the setup modal
+        console.log('Opening Ostium setup modal for agent:', createdAgentId);
+        setOstiumAgentId(createdAgentId);
+        setOstiumAgentName(formData.name);
+        setOstiumModalOpen(true);
       } else {
         // For other venues (SPOT, GMX), use standard Safe wallet deployment
         console.log('Navigating to standard deployment:', `/deploy-agent/${createdAgentId}`);
@@ -1473,21 +1423,6 @@ export default function CreateAgent() {
             setOstiumModalOpen(false);
             router.push('/my-deployments');
           }}
-        />
-      )}
-
-      {/* Ostium Approval Modal - User signs with wallet */}
-      {ostiumApprovalModal && (
-        <OstiumApproval
-          deploymentId={ostiumApprovalModal.deploymentId}
-          agentAddress={ostiumApprovalModal.agentAddress}
-          userWallet={ostiumApprovalModal.userWallet}
-          onApprovalComplete={() => {
-            console.log('Ostium agent approved!');
-            setOstiumApprovalModal(null);
-            router.push('/my-deployments');
-          }}
-          onClose={() => setOstiumApprovalModal(null)}
         />
       )}
     </div>
