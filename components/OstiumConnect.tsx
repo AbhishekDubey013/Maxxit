@@ -22,7 +22,7 @@ interface OstiumConnectProps {
 const OSTIUM_TRADING_CONTRACT = '0x2A9B9c988393f46a2537B0ff11E98c2C15a95afe';
 const OSTIUM_TRADING_ABI = [
   'function setDelegate(address delegate) external',
-  'function delegations(address delegator) view returns (address)',
+  // Note: delegations() view function may not be public, so we just call setDelegate directly
 ];
 
 // USDC on Arbitrum Sepolia (testnet)
@@ -185,22 +185,12 @@ export function OstiumConnect({
       );
 
       console.log('[Ostium] Contract:', OSTIUM_TRADING_CONTRACT);
-      console.log('[Ostium] Checking current delegation...');
-
-      // Check if agent is already delegated
-      const currentDelegate = await contract.delegations(user.wallet.address);
-
-      if (currentDelegate.toLowerCase() === agentAddress.toLowerCase()) {
-        console.log('[Ostium] Agent already delegated, skipping transaction');
-        setDelegateApproved(true);
-        setStep('usdc');
-        return;
-      }
-
-      console.log('[Ostium] Current delegate:', currentDelegate);
+      console.log('[Ostium] User:', user.wallet.address);
+      console.log('[Ostium] Agent:', agentAddress);
       console.log('[Ostium] Calling setDelegate...');
 
       // Call setDelegate (user signs this transaction)
+      // Note: setDelegate is idempotent - safe to call multiple times
       const tx = await contract.setDelegate(agentAddress);
       console.log('[Ostium] Transaction sent:', tx.hash);
       setTxHash(tx.hash);
@@ -219,6 +209,13 @@ export function OstiumConnect({
       
       if (err.code === 4001) {
         setError('Transaction rejected by user');
+      } else if (err.code === 'CALL_EXCEPTION') {
+        setError(
+          'Contract call failed. Please ensure:\n' +
+          '1. You are on Arbitrum Sepolia network\n' +
+          '2. You have some ETH for gas (~$0.01)\n' +
+          '3. The contract is deployed at the correct address'
+        );
       } else if (err.code === -32603) {
         setError('Transaction failed. Please try again.');
       } else {
