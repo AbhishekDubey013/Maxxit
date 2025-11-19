@@ -143,6 +143,38 @@ export function OstiumConnect({
       }
 
       const ethersProvider = new ethers.providers.Web3Provider(provider);
+      
+      // ⚠️ CRITICAL: Check network - MUST be Arbitrum Sepolia
+      const network = await ethersProvider.getNetwork();
+      console.log('[Ostium] Current network:', network.name, 'Chain ID:', network.chainId);
+      
+      const ARBITRUM_SEPOLIA_CHAIN_ID = 421614;
+      if (network.chainId !== ARBITRUM_SEPOLIA_CHAIN_ID) {
+        // Attempt to switch networks automatically
+        try {
+          await provider.request({
+            method: 'wallet_switchEthereumChain',
+            params: [{ chainId: `0x${ARBITRUM_SEPOLIA_CHAIN_ID.toString(16)}` }],
+          });
+          console.log('[Ostium] Switched to Arbitrum Sepolia');
+        } catch (switchError: any) {
+          // This error code indicates that the chain has not been added to MetaMask
+          if (switchError.code === 4902) {
+            throw new Error(
+              'Arbitrum Sepolia not found in your wallet. Please add it manually:\n' +
+              'Network: Arbitrum Sepolia\n' +
+              'Chain ID: 421614\n' +
+              'RPC: https://sepolia-rollup.arbitrum.io/rpc'
+            );
+          }
+          throw new Error(
+            `Please switch to Arbitrum Sepolia network in your wallet.\n` +
+            `Current: ${network.name} (Chain ID: ${network.chainId})\n` +
+            `Required: Arbitrum Sepolia (Chain ID: ${ARBITRUM_SEPOLIA_CHAIN_ID})`
+          );
+        }
+      }
+      
       const signer = ethersProvider.getSigner();
 
       // Create contract instance
@@ -152,6 +184,7 @@ export function OstiumConnect({
         signer
       );
 
+      console.log('[Ostium] Contract:', OSTIUM_TRADING_CONTRACT);
       console.log('[Ostium] Checking current delegation...');
 
       // Check if agent is already delegated
@@ -217,6 +250,13 @@ export function OstiumConnect({
       }
 
       const ethersProvider = new ethers.providers.Web3Provider(provider);
+      
+      // Verify still on Arbitrum Sepolia
+      const network = await ethersProvider.getNetwork();
+      const ARBITRUM_SEPOLIA_CHAIN_ID = 421614;
+      if (network.chainId !== ARBITRUM_SEPOLIA_CHAIN_ID) {
+        throw new Error(`Please switch to Arbitrum Sepolia (Chain ID: ${ARBITRUM_SEPOLIA_CHAIN_ID})`);
+      }
       const signer = ethersProvider.getSigner();
 
       // Create USDC contract instance
