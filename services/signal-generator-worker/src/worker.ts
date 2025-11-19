@@ -164,8 +164,8 @@ async function generateSignals() {
         });
 
         const subscribedAgents = agentLinks
-          .map(link => link.agents)
-          .filter(agent => agent.status === 'PUBLIC');
+          .map((link: any) => link.agents)
+          .filter((agent: any) => agent.status === 'PUBLIC');
 
         if (subscribedAgents.length === 0) {
           console.log(`  ⏭️  No active agents subscribed\n`);
