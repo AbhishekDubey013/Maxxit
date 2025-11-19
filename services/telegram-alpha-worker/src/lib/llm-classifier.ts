@@ -61,7 +61,7 @@ export class LLMTweetClassifier {
       return this.parseResponse(response, tweetText);
     } catch (error: any) {
       console.error('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      console.error('❌ LLM CLASSIFIER FAILED - TWEET WILL BE SKIPPED!');
+      console.error('❌ LLM CLASSIFIER FAILED - MESSAGE WILL STAY NULL!');
       console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
       console.error(`Provider: ${this.provider.toUpperCase()}`);
       console.error(`Error: ${error.message}`);
@@ -70,18 +70,13 @@ export class LLMTweetClassifier {
         console.error('   → Check your API key in Railway environment variables');
         console.error('   → Verify your API credits at the provider dashboard');
       }
-      console.error('⚠️  Tweet marked as NOT a signal candidate (no fallback)');
+      console.error('⚠️  Message will remain NULL (not classified)');
       console.error('⚠️  FIX YOUR API KEY TO RESUME SIGNAL DETECTION!');
       console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
       
-      // Return NOT a signal candidate (no fallback)
-      return {
-        isSignalCandidate: false,
-        extractedTokens: [],
-        sentiment: 'neutral',
-        confidence: 0,
-        reasoning: `LLM classification failed: ${error.message}`,
-      };
+      // Throw error - worker will keep message as NULL for retry
+      // No regex fallback - messages stay NULL until LLM works
+      throw error;
     }
   }
 
@@ -314,16 +309,11 @@ export async function classifyTweet(tweetText: string): Promise<ClassificationRe
   const classifier = createLLMClassifier();
   
   if (!classifier) {
-    // No API key - return NOT a signal candidate
-    console.error('[LLM Classifier] ❌ NO LLM API KEY - Tweet cannot be classified!');
+    // No API key - throw error so message stays NULL
+    const error = new Error('No LLM API key configured');
+    console.error('[LLM Classifier] ❌ NO LLM API KEY - Message will stay NULL!');
     console.error('   Set PERPLEXITY_API_KEY, OPENAI_API_KEY, or ANTHROPIC_API_KEY');
-    return {
-      isSignalCandidate: false,
-      extractedTokens: [],
-      sentiment: 'neutral',
-      confidence: 0,
-      reasoning: 'No LLM API key configured',
-    };
+    throw error;
   }
   
   return classifier.classifyTweet(tweetText);
