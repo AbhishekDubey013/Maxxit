@@ -13,6 +13,7 @@ import { prisma } from './lib/prisma-client';
 import { setupGracefulShutdown, registerCleanup } from './lib/graceful-shutdown';
 import { checkDatabaseHealth } from './lib/prisma-client';
 import { getLunarCrushScore, canUseLunarCrush } from './lib/lunarcrush-wrapper';
+import { venue_t } from '@prisma/client';
 
 dotenv.config();
 
@@ -159,7 +160,7 @@ async function generateSignalForAgentAndToken(
     // Check if token is available on the target venue
     // For MULTI agents, check if token is available on ANY enabled venue
     let venueMarket: any;
-    let signalVenue: string; // The actual venue to use for the signal
+    let signalVenue: venue_t; // The actual venue to use for the signal
     
     if (agent.venue === 'MULTI') {
       // For multi-venue agents, check if token is available on Hyperliquid OR Ostium
