@@ -64,12 +64,47 @@ export function HyperliquidConnect({
           const address = accounts[0];
           setUserWallet(address);
           
-          // Check if user has preferences
-          await checkUserPreferences(address);
+          // Check if user has already completed setup
+          await checkSetupStatus(address);
         }
       }
     } catch (err) {
       console.error('Error checking existing connection:', err);
+    }
+  };
+
+  const checkSetupStatus = async (wallet: string) => {
+    try {
+      // Check if user already has addresses (from previous deployments)
+      const response = await fetch(`/api/user/check-setup-status?userWallet=${wallet}`);
+      if (response.ok) {
+        const data = await response.json();
+        
+        if (data.setupComplete) {
+          // User already has addresses - SKIP setup flow
+          console.log('[HyperliquidConnect] User already has addresses - skipping setup');
+          console.log('[HyperliquidConnect] Hyperliquid:', data.addresses.hyperliquid);
+          console.log('[HyperliquidConnect] Ostium:', data.addresses.ostium);
+          
+          // Store address for display
+          if (data.addresses.hyperliquid) {
+            setAgentAddress(data.addresses.hyperliquid);
+          }
+          
+          // Create deployment immediately (no setup needed)
+          await createDeploymentDirectly(wallet);
+        } else {
+          // First time user - check preferences
+          await checkUserPreferences(wallet);
+        }
+      } else {
+        // Fallback to preference check
+        await checkUserPreferences(wallet);
+      }
+    } catch (err) {
+      console.error('Error checking setup status:', err);
+      // Fallback to preference check
+      await checkUserPreferences(wallet);
     }
   };
 
@@ -112,14 +147,58 @@ export function HyperliquidConnect({
       
       setUserWallet(address);
       
-      // Check preferences
-      await checkUserPreferences(address);
+      // Check if user has already completed setup
+      await checkSetupStatus(address);
       
-      // Move to preferences step if needed
-      setStep('preferences');
+      // If setup not complete, will move to preferences step
+      // If setup complete, deployment will be created directly
+      if (step === 'connect') {
+        setStep('preferences');
+      }
     } catch (err: any) {
       console.error('Connection error:', err);
       setError(err.message || 'Failed to connect wallet');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const createDeploymentDirectly = async (wallet: string) => {
+    setLoading(true);
+    setError('');
+
+    try {
+      console.log('[HyperliquidConnect] Creating deployment directly (user already has addresses)');
+      
+      // User already has addresses - just create deployment
+      const response = await fetch('/api/hyperliquid/create-deployment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          agentId,
+          userWallet: wallet,
+          // Backend will fetch addresses from user_agent_addresses
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to create deployment');
+      }
+
+      const data = await response.json();
+      console.log('[HyperliquidConnect] ✅ Deployment created:', data.deployment.id);
+      
+      // Show success immediately
+      setStep('complete');
+      
+      // Notify parent
+      if (onSuccess) {
+        setTimeout(() => onSuccess(), 1500);
+      }
+    } catch (err: any) {
+      console.error('Error creating deployment:', err);
+      setError(err.message || 'Failed to create deployment');
     } finally {
       setLoading(false);
     }
