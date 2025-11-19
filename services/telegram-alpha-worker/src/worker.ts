@@ -131,20 +131,11 @@ async function processTelegramAlphaMessages() {
       } catch (error: any) {
         totalErrors++;
         console.error(`[Message ${message.id}] ❌ Error:`, error.message);
+        console.error(`[Message ${message.id}] ⚠️  Keeping message as NULL for retry`);
         
-        // Mark as error (not a signal) to avoid reprocessing
-        try {
-          await prisma.telegram_posts.update({
-            where: { id: message.id },
-            data: {
-              is_signal_candidate: false,
-              extracted_tokens: [],
-              confidence_score: 0,
-            },
-          });
-        } catch (updateError) {
-          console.error(`[Message ${message.id}] Failed to mark as processed:`, updateError);
-        }
+        // DON'T mark as false - keep as NULL so it can be retried
+        // Only mark as false if we're certain it's not a signal (after successful LLM classification)
+        // If classification fails, leave it NULL for next worker cycle
       }
     }
 
