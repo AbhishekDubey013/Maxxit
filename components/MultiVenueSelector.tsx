@@ -1,11 +1,15 @@
 /**
  * Multi-Venue Selector Modal
  * Direct action buttons for each venue - user clicks and immediately whitelists
+ * 
+ * NEW BEHAVIOR:
+ * - If user already has addresses → skip modal → create deployments directly
+ * - If user is new → show venue selector → guide through setup
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { usePrivy } from '@privy-io/react-auth';
-import { X, Zap, ArrowRight } from 'lucide-react';
+import { X, Zap, ArrowRight, Loader2, CheckCircle } from 'lucide-react';
 import { HyperliquidConnect } from './HyperliquidConnect';
 import { OstiumConnect } from './OstiumConnect';
 
@@ -22,9 +26,94 @@ export function MultiVenueSelector({
   onClose,
   onComplete,
 }: MultiVenueSelectorProps) {
-  const { authenticated, login } = usePrivy();
+  const { authenticated, user, login } = usePrivy();
   const [hyperliquidModalOpen, setHyperliquidModalOpen] = useState(false);
   const [ostiumModalOpen, setOstiumModalOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [creatingDeployments, setCreatingDeployments] = useState(false);
+  const [setupStatus, setSetupStatus] = useState<{
+    hasHyperliquid: boolean;
+    hasOstium: boolean;
+  } | null>(null);
+
+  // Check if user already has addresses on mount
+  useEffect(() => {
+    if (authenticated && user?.wallet?.address) {
+      checkSetupStatus();
+    } else {
+      setLoading(false);
+    }
+  }, [authenticated, user?.wallet?.address]);
+
+  const checkSetupStatus = async () => {
+    if (!user?.wallet?.address) return;
+
+    try {
+      const response = await fetch(`/api/user/check-setup-status?userWallet=${user.wallet.address}`);
+      if (response.ok) {
+        const data = await response.json();
+        
+        setSetupStatus({
+          hasHyperliquid: data.hasHyperliquidAddress,
+          hasOstium: data.hasOstiumAddress,
+        });
+
+        // If user has both addresses, create deployments immediately
+        if (data.hasHyperliquidAddress && data.hasOstiumAddress) {
+          console.log('[MultiVenueSelector] User has both addresses - creating deployments directly');
+          await createBothDeploymentsDirectly(user.wallet.address);
+        } else if (data.hasHyperliquidAddress || data.hasOstiumAddress) {
+          // User has partial setup - show selector but pre-select unavailable venue
+          console.log('[MultiVenueSelector] User has partial setup - showing selector');
+          setLoading(false);
+        } else {
+          // New user - show full selector
+          setLoading(false);
+        }
+      } else {
+        setLoading(false);
+      }
+    } catch (err) {
+      console.error('Error checking setup status:', err);
+      setLoading(false);
+    }
+  };
+
+  const createBothDeploymentsDirectly = async (wallet: string) => {
+    setCreatingDeployments(true);
+
+    try {
+      // Create Hyperliquid deployment
+      const hlResponse = await fetch('/api/hyperliquid/create-deployment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ agentId, userWallet: wallet }),
+      });
+
+      // Create Ostium deployment
+      const ostiumResponse = await fetch('/api/ostium/create-deployment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ agentId, userWallet: wallet }),
+      });
+
+      if (hlResponse.ok && ostiumResponse.ok) {
+        console.log('[MultiVenueSelector] ✅ Both deployments created successfully');
+        
+        // Show success briefly then complete
+        setTimeout(() => {
+          onComplete();
+        }, 1500);
+      } else {
+        throw new Error('Failed to create deployments');
+      }
+    } catch (err: any) {
+      console.error('Error creating deployments:', err);
+      // Fall back to showing the selector
+      setLoading(false);
+      setCreatingDeployments(false);
+    }
+  };
 
   const venues = [
     {
@@ -70,6 +159,34 @@ export function MultiVenueSelector({
     }
   };
 
+  // Show loading or success state while creating deployments
+  if (loading || creatingDeployments) {
+    return (
+      <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="bg-card border border-border rounded-lg shadow-xl max-w-md w-full p-8">
+          <div className="flex flex-col items-center text-center space-y-4">
+            {creatingDeployments ? (
+              <>
+                <CheckCircle className="h-16 w-16 text-green-500" />
+                <h3 className="text-xl font-bold">Agent Deployed! 🎉</h3>
+                <p className="text-muted-foreground">
+                  {agentName} is now active on Hyperliquid and Ostium.
+                  <br />
+                  Signals will execute immediately.
+                </p>
+              </>
+            ) : (
+              <>
+                <Loader2 className="h-12 w-12 animate-spin text-primary" />
+                <p className="text-muted-foreground">Checking your setup...</p>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <>
       <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
@@ -78,9 +195,17 @@ export function MultiVenueSelector({
           <div className="border-b border-border p-6">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-2xl font-bold">Setup Trading Venues</h2>
+                <h2 className="text-2xl font-bold">
+                  {setupStatus?.hasHyperliquid || setupStatus?.hasOstium
+                    ? 'Complete Venue Setup'
+                    : 'Setup Trading Venues'}
+                </h2>
                 <p className="text-muted-foreground mt-1">
-                  Connect {agentName} to trading platforms
+                  {setupStatus?.hasHyperliquid && !setupStatus?.hasOstium
+                    ? 'Setup Ostium to complete multi-venue trading'
+                    : setupStatus?.hasOstium && !setupStatus?.hasHyperliquid
+                    ? 'Setup Hyperliquid to complete multi-venue trading'
+                    : `Connect ${agentName} to trading platforms`}
                 </p>
               </div>
               <button
@@ -94,18 +219,40 @@ export function MultiVenueSelector({
 
           {/* Content */}
           <div className="p-6 space-y-4">
-            <div className={`${venues[0].bgColor} border ${venues[0].borderColor} rounded-lg p-4 mb-4`}>
-              <p className={`text-sm ${venues[0].textColor} font-medium`}>
-                ℹ️ This is a multi-venue agent. Click each venue to whitelist the agent and start trading.
-              </p>
-            </div>
+            {/* Show info banner based on setup status */}
+            {setupStatus?.hasHyperliquid && setupStatus?.hasOstium ? (
+              <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4 mb-4">
+                <p className="text-sm text-green-600 dark:text-green-400 font-medium">
+                  ✅ You're all set! Your addresses are already configured.
+                </p>
+              </div>
+            ) : setupStatus?.hasHyperliquid || setupStatus?.hasOstium ? (
+              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-4">
+                <p className="text-sm text-blue-600 dark:text-blue-400 font-medium">
+                  ℹ️ {setupStatus.hasHyperliquid ? 'Hyperliquid' : 'Ostium'} is already set up. Complete the other venue to enable full multi-venue trading.
+                </p>
+              </div>
+            ) : (
+              <div className={`${venues[0].bgColor} border ${venues[0].borderColor} rounded-lg p-4 mb-4`}>
+                <p className={`text-sm ${venues[0].textColor} font-medium`}>
+                  ℹ️ This is a multi-venue agent. Click each venue to whitelist the agent and start trading.
+                </p>
+              </div>
+            )}
 
-            {venues.map((venue) => (
+            {venues.map((venue) => {
+              const isAlreadySetup = 
+                (venue.id === 'HYPERLIQUID' && setupStatus?.hasHyperliquid) ||
+                (venue.id === 'OSTIUM' && setupStatus?.hasOstium);
+              
+              return (
               <button
                 key={venue.id}
-                onClick={() => !venue.disabled && handleVenueClick(venue.id)}
-                disabled={venue.disabled}
-                className={`w-full p-6 rounded-lg border-2 transition-all text-left hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed ${venue.borderColor} hover:border-primary`}
+                onClick={() => !venue.disabled && !isAlreadySetup && handleVenueClick(venue.id)}
+                disabled={venue.disabled || isAlreadySetup}
+                className={`w-full p-6 rounded-lg border-2 transition-all text-left hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed ${venue.borderColor} ${
+                  isAlreadySetup ? 'bg-green-50 dark:bg-green-900/10 border-green-300 dark:border-green-700' : 'hover:border-primary'
+                }`}
               >
                 <div className="flex items-center justify-between">
                   <div className="flex-1">
@@ -144,6 +291,11 @@ export function MultiVenueSelector({
                       <div className="px-4 py-2 bg-muted rounded-lg text-sm text-muted-foreground">
                         Soon
                       </div>
+                    ) : isAlreadySetup ? (
+                      <div className="px-5 py-3 bg-green-500 text-white rounded-lg font-semibold flex items-center gap-2">
+                        <CheckCircle className="w-4 h-4" />
+                        <span>Active</span>
+                      </div>
                     ) : (
                       <div className={`px-5 py-3 bg-gradient-to-r ${venue.gradient} text-white rounded-lg font-semibold flex items-center gap-2 hover:shadow-lg transition-shadow`}>
                         <span>Setup</span>
@@ -153,7 +305,8 @@ export function MultiVenueSelector({
                   </div>
                 </div>
               </button>
-            ))}
+              );
+            })}
 
             <div className="bg-muted rounded-lg p-4 text-sm text-muted-foreground">
               <p className="font-semibold mb-2">How it works:</p>
@@ -183,10 +336,14 @@ export function MultiVenueSelector({
         <HyperliquidConnect
           agentId={agentId}
           agentName={agentName}
+          agentVenue="MULTI"
           onClose={() => setHyperliquidModalOpen(false)}
           onSuccess={() => {
             setHyperliquidModalOpen(false);
-            onComplete();
+            // Refresh setup status
+            if (user?.wallet?.address) {
+              checkSetupStatus();
+            }
           }}
         />
       )}
@@ -199,7 +356,10 @@ export function MultiVenueSelector({
           onClose={() => setOstiumModalOpen(false)}
           onSuccess={() => {
             setOstiumModalOpen(false);
-            onComplete();
+            // Refresh setup status
+            if (user?.wallet?.address) {
+              checkSetupStatus();
+            }
           }}
         />
       )}
