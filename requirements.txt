@@ -15,3 +15,6 @@ ostium-python-sdk==3.0.0
 python-dotenv>=1.0.0
 requests>=2.31.0
 
+# Encryption (for agent private key decryption)
+cryptography>=41.0.0
+

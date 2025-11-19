@@ -342,6 +342,9 @@ def open_position():
                 # Import here to avoid circular dependency
                 import psycopg2
                 from psycopg2.extras import RealDictCursor
+                import sys
+                sys.path.insert(0, os.path.dirname(__file__))
+                from encryption_helper import decrypt_private_key
                 
                 # Get database URL from environment
                 database_url = os.getenv('DATABASE_URL')
@@ -351,29 +354,67 @@ def open_position():
                         "error": "DATABASE_URL not configured"
                     }), 500
                 
-                # Query wallet pool for agent's private key
                 conn = psycopg2.connect(database_url)
                 cur = conn.cursor(cursor_factory=RealDictCursor)
+                
+                # Try user_agent_addresses first (new system)
                 cur.execute(
-                    "SELECT private_key FROM wallet_pool WHERE LOWER(address) = LOWER(%s)",
+                    """
+                    SELECT 
+                        ostium_agent_key_encrypted,
+                        ostium_agent_key_iv,
+                        ostium_agent_key_tag
+                    FROM user_agent_addresses 
+                    WHERE LOWER(ostium_agent_address) = LOWER(%s)
+                    """,
                     (agent_address,)
                 )
-                wallet = cur.fetchone()
+                user_address_row = cur.fetchone()
+                
+                if user_address_row and user_address_row['ostium_agent_key_encrypted']:
+                    # Decrypt the private key
+                    try:
+                        private_key = decrypt_private_key(
+                            user_address_row['ostium_agent_key_encrypted'],
+                            user_address_row['ostium_agent_key_iv'],
+                            user_address_row['ostium_agent_key_tag']
+                        )
+                        logger.info(f"✅ Found and decrypted agent key for {agent_address} from user_agent_addresses")
+                    except Exception as decrypt_error:
+                        logger.error(f"Failed to decrypt key: {decrypt_error}")
+                        cur.close()
+                        conn.close()
+                        return jsonify({
+                            "success": False,
+                            "error": f"Failed to decrypt agent key: {str(decrypt_error)}"
+                        }), 500
+                else:
+                    # Fallback to wallet_pool (legacy)
+                    cur.execute(
+                        "SELECT private_key FROM wallet_pool WHERE LOWER(address) = LOWER(%s)",
+                        (agent_address,)
+                    )
+                    wallet = cur.fetchone()
+                    
+                    if not wallet:
+                        cur.close()
+                        conn.close()
+                        return jsonify({
+                            "success": False,
+                            "error": f"Agent address {agent_address} not found in user_agent_addresses or wallet_pool"
+                        }), 404
+                    
+                    private_key = wallet['private_key']
+                    logger.info(f"Found agent key for {agent_address} in wallet_pool (legacy)")
+                
                 cur.close()
                 conn.close()
-                
-                if not wallet:
-                    return jsonify({
-                        "success": False,
-                        "error": f"Agent address {agent_address} not found in wallet pool"
-                    }), 404
-                
-                private_key = wallet['private_key']
                 use_delegation = True
-                logger.info(f"Found agent key for {agent_address} in wallet pool")
                 
             except Exception as e:
                 logger.error(f"Error fetching agent key: {e}")
+                import traceback
+                logger.error(traceback.format_exc())
                 return jsonify({
                     "success": False,
                     "error": f"Failed to fetch agent key: {str(e)}"
@@ -543,6 +584,9 @@ def close_position():
             try:
                 import psycopg2
                 from psycopg2.extras import RealDictCursor
+                import sys
+                sys.path.insert(0, os.path.dirname(__file__))
+                from encryption_helper import decrypt_private_key
                 
                 database_url = os.getenv('DATABASE_URL')
                 if not database_url:
@@ -553,26 +597,65 @@ def close_position():
                 
                 conn = psycopg2.connect(database_url)
                 cur = conn.cursor(cursor_factory=RealDictCursor)
+                
+                # Try user_agent_addresses first (new system)
                 cur.execute(
-                    "SELECT private_key FROM wallet_pool WHERE LOWER(address) = LOWER(%s)",
+                    """
+                    SELECT 
+                        ostium_agent_key_encrypted,
+                        ostium_agent_key_iv,
+                        ostium_agent_key_tag
+                    FROM user_agent_addresses 
+                    WHERE LOWER(ostium_agent_address) = LOWER(%s)
+                    """,
                     (agent_address,)
                 )
-                wallet = cur.fetchone()
+                user_address_row = cur.fetchone()
+                
+                if user_address_row and user_address_row['ostium_agent_key_encrypted']:
+                    # Decrypt the private key
+                    try:
+                        private_key = decrypt_private_key(
+                            user_address_row['ostium_agent_key_encrypted'],
+                            user_address_row['ostium_agent_key_iv'],
+                            user_address_row['ostium_agent_key_tag']
+                        )
+                        logger.info(f"✅ Found and decrypted agent key for {agent_address} from user_agent_addresses")
+                    except Exception as decrypt_error:
+                        logger.error(f"Failed to decrypt key: {decrypt_error}")
+                        cur.close()
+                        conn.close()
+                        return jsonify({
+                            "success": False,
+                            "error": f"Failed to decrypt agent key: {str(decrypt_error)}"
+                        }), 500
+                else:
+                    # Fallback to wallet_pool (legacy)
+                    cur.execute(
+                        "SELECT private_key FROM wallet_pool WHERE LOWER(address) = LOWER(%s)",
+                        (agent_address,)
+                    )
+                    wallet = cur.fetchone()
+                    
+                    if not wallet:
+                        cur.close()
+                        conn.close()
+                        return jsonify({
+                            "success": False,
+                            "error": f"Agent address {agent_address} not found in user_agent_addresses or wallet_pool"
+                        }), 404
+                    
+                    private_key = wallet['private_key']
+                    logger.info(f"Found agent key for {agent_address} in wallet_pool (legacy)")
+                
                 cur.close()
                 conn.close()
-                
-                if not wallet:
-                    return jsonify({
-                        "success": False,
-                        "error": f"Agent address {agent_address} not found in wallet pool"
-                    }), 404
-                
-                private_key = wallet['private_key']
                 use_delegation = True
-                logger.info(f"Found agent key for {agent_address} in wallet pool")
                 
             except Exception as e:
                 logger.error(f"Error fetching agent key: {e}")
+                import traceback
+                logger.error(traceback.format_exc())
                 return jsonify({
                     "success": False,
                     "error": f"Failed to fetch agent key: {str(e)}"
