@@ -1518,13 +1518,17 @@ export class TradeExecutor {
         venue: position.venue,
       });
 
-      // Get user's Hyperliquid address from deployment
-      const userHyperliquidAddress = position.agent_deployments.safe_wallet;
+      // Get user's wallet from deployment
+      const userWallet = position.agent_deployments?.user_wallet;
       
-      if (!userHyperliquidAddress) {
-        throw new Error('User Hyperliquid address not found in deployment');
+      if (!userWallet) {
+        throw new Error('User wallet not found in deployment');
       }
 
+      // Get user's Hyperliquid address (their trading account, not agent address)
+      // This is the address that holds the funds on Hyperliquid
+      const userHyperliquidAddress = position.agent_deployments.safe_wallet || userWallet;
+      
       // Close position via Hyperliquid service
       const result = await closeHyperliquidPosition({
         deploymentId: position.deployment_id,

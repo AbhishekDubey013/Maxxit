@@ -108,18 +108,28 @@ export async function closeHyperliquidPosition(params: {
   size?: number; // Optional - if not provided, closes full position
 }): Promise<{ success: boolean; result?: any; error?: string }> {
   try {
-    // Get deployment with agent address
+    // Get deployment with user_wallet
     const deployment = await prisma.agent_deployments.findUnique({
       where: { id: params.deploymentId },
+      select: { user_wallet: true }
+    });
+    
+    if (!deployment) {
+      throw new Error('Deployment not found');
+    }
+    
+    // Get user's Hyperliquid agent address from user_agent_addresses
+    const userAddress = await prisma.user_agent_addresses.findUnique({
+      where: { user_wallet: deployment.user_wallet.toLowerCase() },
       select: { hyperliquid_agent_address: true }
     });
     
-    if (!deployment?.hyperliquid_agent_address) {
+    if (!userAddress?.hyperliquid_agent_address) {
       throw new Error('Hyperliquid agent wallet not registered. Please run setup first.');
     }
     
-    // Get agent private key from wallet pool (NO decryption!)
-    const agentPrivateKey = await getPrivateKeyForAddress(deployment.hyperliquid_agent_address);
+    // Get agent private key (getPrivateKeyForAddress handles user_agent_addresses)
+    const agentPrivateKey = await getPrivateKeyForAddress(userAddress.hyperliquid_agent_address);
     
     if (!agentPrivateKey) {
       throw new Error('Hyperliquid agent private key not found in wallet pool.');
