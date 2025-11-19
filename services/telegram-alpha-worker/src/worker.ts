@@ -84,8 +84,9 @@ async function processTelegramAlphaMessages() {
     const classifier = createLLMClassifier();
     if (!classifier) {
       console.log('⚠️  LLM Classifier not available - skipping classification');
-      console.log('   Set PERPLEXITY_API_KEY, OPENAI_API_KEY, or ANTHROPIC_API_KEY\n');
-      return;
+      console.log('   Set PERPLEXITY_API_KEY, OPENAI_API_KEY, or ANTHROPIC_API_KEY');
+      console.log('   Messages will remain NULL until API key is configured\n');
+      return; // Don't process without LLM - messages stay NULL
     }
 
     let totalProcessed = 0;
@@ -100,25 +101,8 @@ async function processTelegramAlphaMessages() {
         
         console.log(`[${username}] Processing: "${message.message_text.substring(0, 50)}..."`);
 
-        // Quick pre-filter: Skip obvious non-signals
-        const hasToken = /\$[A-Z]{2,10}\b|BTC|ETH|SOL|AVAX|ARB|OP|MATIC|LINK|UNI|AAVE/i.test(message.message_text);
-        const isShortNonSignal = message.message_text.length < 20 && !hasToken;
-        const isCommonChatter = /^(gm|gn|good morning|good night|hello|hi|hey|wagmi|lfg|lets go|thank you|thanks|👍|❤️|🔥)$/i.test(message.message_text.trim());
-
-        if (isShortNonSignal || isCommonChatter) {
-          // Mark as not a signal (skip LLM call)
-          await prisma.telegram_posts.update({
-            where: { id: message.id },
-            data: {
-              is_signal_candidate: false,
-              extracted_tokens: [],
-              confidence_score: 0,
-            },
-          });
-          totalProcessed++;
-          console.log(`[${username}] ⏭️  Skipped (too short/common chatter)`);
-          continue;
-        }
+        // NO PRE-FILTERING - Let LLM decide everything
+        // All messages go through LLM classification
 
         // Classify message using LLM
         const classification = await classifier.classifyTweet(message.message_text);
