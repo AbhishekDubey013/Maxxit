@@ -4,26 +4,40 @@ Matches the encryption/decryption logic in lib/deployment-agent-address.ts
 """
 
 import os
+import hashlib
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives.kdf.scrypt import Scrypt
 
 
 def get_encryption_key() -> bytes:
     """Get the encryption key from environment variables"""
     # Try both ENCRYPTION_KEY and MASTER_ENCRYPTION_KEY
-    key_hex = os.getenv('ENCRYPTION_KEY') or os.getenv('MASTER_ENCRYPTION_KEY')
+    key_string = os.getenv('ENCRYPTION_KEY') or os.getenv('MASTER_ENCRYPTION_KEY')
     
-    if not key_hex:
+    if not key_string:
         raise ValueError(
             "ENCRYPTION_KEY or MASTER_ENCRYPTION_KEY environment variable not set. "
             "This is required to decrypt agent private keys from user_agent_addresses table."
         )
     
-    # Convert hex string to bytes
+    # Use scrypt derivation to match Node.js crypto.scryptSync()
+    # Node.js: crypto.scryptSync(ENCRYPTION_KEY, 'salt', 32)
+    # Python equivalent:
+    kdf = Scrypt(
+        salt=b'salt',  # Same salt as Node.js
+        length=32,     # 32 bytes = 256 bits for AES-256
+        n=2**14,       # CPU/memory cost (Node.js default)
+        r=8,           # Block size (Node.js default)
+        p=1,           # Parallelization (Node.js default)
+        backend=default_backend()
+    )
+    
     try:
-        return bytes.fromhex(key_hex)
-    except ValueError as e:
-        raise ValueError(f"Invalid encryption key format (must be hex): {e}")
+        derived_key = kdf.derive(key_string.encode('utf-8'))
+        return derived_key
+    except Exception as e:
+        raise ValueError(f"Failed to derive encryption key: {e}")
 
 
 def decrypt_private_key(encrypted_hex: str, iv_hex: str, tag_hex: str) -> str:
