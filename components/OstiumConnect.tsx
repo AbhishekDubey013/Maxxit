@@ -64,27 +64,52 @@ export function OstiumConnect({
     setError('');
 
     try {
-      console.log('[Ostium] Assigning agent for user:', user?.wallet?.address);
+      console.log('[Ostium] Getting/generating agent address for user:', user?.wallet?.address);
 
-      const response = await fetch('/api/ostium/deploy-complete', {
+      // Step 1: Generate/get user's agent address (NEW API)
+      const addressResponse = await fetch(`/api/agents/${agentId}/generate-deployment-address`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userWallet: user?.wallet?.address,
+          venue: 'OSTIUM', // Or 'MULTI' if agent supports multi-venue
+        }),
+      });
+
+      if (!addressResponse.ok) {
+        const errorData = await addressResponse.json();
+        throw new Error(errorData.error || 'Failed to generate agent address');
+      }
+
+      const addressData = await addressResponse.json();
+      const agentAddr = addressData.address || addressData.addresses?.ostium?.address;
+      
+      if (!agentAddr) {
+        throw new Error('No Ostium agent address returned');
+      }
+
+      setAgentAddress(agentAddr);
+      console.log('[Ostium] Agent address:', agentAddr);
+
+      // Step 2: Create deployment (NEW API)
+      const deployResponse = await fetch('/api/ostium/create-deployment', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           agentId,
           userWallet: user?.wallet?.address,
+          // No need to send agentAddress - backend gets it from user_agent_addresses
         }),
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to assign agent');
+      if (!deployResponse.ok) {
+        const errorData = await deployResponse.json();
+        throw new Error(errorData.error || 'Failed to create deployment');
       }
 
-      const data = await response.json();
-      setAgentAddress(data.agentAddress);
-      setDeploymentId(data.deploymentId);
-      console.log('[Ostium] Agent assigned:', data.agentAddress);
-      console.log('[Ostium] Deployment created:', data.deploymentId);
+      const deployData = await deployResponse.json();
+      setDeploymentId(deployData.deployment.id);
+      console.log('[Ostium] Deployment created:', deployData.deployment.id);
       setStep('delegate');
     } catch (err: any) {
       console.error('[Ostium] Failed to assign agent:', err);
