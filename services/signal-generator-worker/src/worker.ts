@@ -327,7 +327,28 @@ async function generateSignalForAgentAndToken(
       console.log(`    ⚠️  LunarCrush not configured - using default 5% position size`);
     }
 
-    // Create signal (wrapped in try-catch to handle duplicates gracefully)
+    // Check for existing signal in current 6-hour bucket to avoid Prisma error logging
+    const now = new Date();
+    const bucket6hStart = new Date(
+      Math.floor(now.getTime() / (6 * 60 * 60 * 1000)) * 6 * 60 * 60 * 1000
+    );
+    
+    const existingSignal = await prisma.signals.findFirst({
+      where: {
+        agent_id: agent.id,
+        token_symbol: token.toUpperCase(),
+        created_at: {
+          gte: bucket6hStart,
+        },
+      },
+    });
+
+    if (existingSignal) {
+      console.log(`    ⏭️  Signal already exists for ${token} (within 6-hour window)`);
+      return; // Skip creating duplicate signal
+    }
+
+    // Create signal (wrapped in try-catch as fallback)
     // Note: risk_model is unused - position monitor has hardcoded risk management:
     //   • Hard stop loss: 10%
     //   • Trailing stop: Activates at +3% profit, trails by 1%
@@ -341,10 +362,10 @@ async function generateSignalForAgentAndToken(
           size_model: {
             type: 'balance-percentage',
             value: positionSizePercent, // Dynamic from LunarCrush!
-            impactFactor: tweet.ct_accounts.impact_factor || 0,
+            impactFactor: tweet.ct_accounts?.impact_factor || 0,
           },
           risk_model: {}, // Empty - risk management is hardcoded in position monitor
-          source_tweets: [tweet.tweet_id],
+          source_tweets: [tweet.tweet_id || tweet.message_id],
           lunarcrush_score: lunarcrushScore,
           lunarcrush_reasoning: lunarcrushReasoning,
           lunarcrush_breakdown: lunarcrushBreakdown,
@@ -353,9 +374,9 @@ async function generateSignalForAgentAndToken(
 
       console.log(`    ✅ Signal created: ${side} ${token} on ${signalVenue} (${positionSizePercent.toFixed(2)}% position)`);
     } catch (createError: any) {
-      // P2002: Unique constraint violation (signal already exists for this agent+token in 6h window)
+      // P2002: Unique constraint violation (race condition - another worker created it first)
       if (createError.code === 'P2002') {
-        console.log(`    ⏭️  Signal already exists for ${token} (within 6-hour window)`);
+        console.log(`    ⏭️  Signal already exists for ${token} (race condition - created by another worker)`);
       } else {
         // Re-throw unexpected errors
         throw createError;
