@@ -54,10 +54,91 @@ export function OstiumConnect({
   // Auto-assign agent when wallet is connected
   useEffect(() => {
     if (authenticated && user?.wallet?.address && !agentAddress && !loading) {
+      // Check if user already has addresses first
+      checkSetupStatus();
+    }
+  }, [authenticated, user?.wallet?.address]);
+
+  const checkSetupStatus = async () => {
+    if (!user?.wallet?.address) return;
+
+    try {
+      // Check if user already has addresses (from previous deployments)
+      const response = await fetch(`/api/user/check-setup-status?userWallet=${user.wallet.address}`);
+      if (response.ok) {
+        const data = await response.json();
+        
+        if (data.setupComplete && data.hasOstiumAddress) {
+          // User already has Ostium address - SKIP setup flow
+          console.log('[OstiumConnect] User already has Ostium address - skipping setup');
+          console.log('[OstiumConnect] Ostium address:', data.addresses.ostium);
+          
+          // Store address for display
+          setAgentAddress(data.addresses.ostium);
+          
+          // Create deployment immediately (no delegation needed - already done)
+          await createDeploymentDirectly(user.wallet.address);
+        } else {
+          // First time Ostium user - show full setup flow
+          setStep('agent');
+          assignAgent();
+        }
+      } else {
+        // Fallback to full setup
+        setStep('agent');
+        assignAgent();
+      }
+    } catch (err) {
+      console.error('Error checking setup status:', err);
+      // Fallback to full setup
       setStep('agent');
       assignAgent();
     }
-  }, [authenticated, user?.wallet?.address]);
+  };
+
+  const createDeploymentDirectly = async (wallet: string) => {
+    setLoading(true);
+    setError('');
+
+    try {
+      console.log('[OstiumConnect] Creating deployment directly (user already has address and delegation)');
+      
+      // User already has addresses - just create deployment
+      const response = await fetch('/api/ostium/create-deployment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          agentId,
+          userWallet: wallet,
+          // Backend will fetch addresses from user_agent_addresses
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to create deployment');
+      }
+
+      const data = await response.json();
+      setDeploymentId(data.deployment.id);
+      console.log('[OstiumConnect] ✅ Deployment created:', data.deployment.id);
+      
+      // Show success immediately
+      setStep('complete');
+      setDelegateApproved(true);
+      setUsdcApproved(true);
+      
+      // Notify parent
+      if (onSuccess) {
+        setTimeout(() => onSuccess(), 1500);
+      }
+    } catch (err: any) {
+      console.error('Error creating deployment:', err);
+      setError(err.message || 'Failed to create deployment');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const assignAgent = async () => {
     setLoading(true);
