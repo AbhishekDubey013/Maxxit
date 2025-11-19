@@ -40,9 +40,11 @@ export function MultiVenueSelector({
   useEffect(() => {
     if (authenticated && user?.wallet?.address) {
       checkSetupStatus();
-    } else {
+    } else if (authenticated === false) {
+      // User is definitely not authenticated - show login prompt
       setLoading(false);
     }
+    // If authenticated is undefined/null, keep loading (waiting for auth state)
   }, [authenticated, user?.wallet?.address]);
 
   const checkSetupStatus = async () => {
@@ -158,6 +160,35 @@ export function MultiVenueSelector({
       setOstiumModalOpen(true);
     }
   };
+
+  // If not authenticated, show login prompt instead of venue selector
+  if (!authenticated && !loading) {
+    return (
+      <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="bg-card border border-border rounded-lg shadow-xl max-w-md w-full p-8">
+          <div className="flex flex-col items-center text-center space-y-4">
+            <Zap className="h-16 w-16 text-primary" />
+            <h3 className="text-xl font-bold">Connect Your Wallet</h3>
+            <p className="text-muted-foreground">
+              Please connect your wallet to deploy {agentName}
+            </p>
+            <button
+              onClick={() => login()}
+              className="w-full px-6 py-3 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors"
+            >
+              Connect Wallet
+            </button>
+            <button
+              onClick={onClose}
+              className="w-full px-6 py-3 border border-border rounded-lg font-medium hover:bg-accent transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Show loading or success state while creating deployments
   if (loading || creatingDeployments) {
