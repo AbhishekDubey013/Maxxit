@@ -16,3 +16,6 @@ psycopg2-binary>=2.9.9
 python-dotenv>=1.0.0
 requests>=2.31.0
 
+# Encryption (for agent private key decryption from user_agent_addresses)
+cryptography>=41.0.0
+
