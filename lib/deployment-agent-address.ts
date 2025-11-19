@@ -22,7 +22,13 @@ const prisma = new PrismaClient();
 const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || process.env.MASTER_ENCRYPTION_KEY;
 
 if (!ENCRYPTION_KEY) {
-  console.warn('[DeploymentAgentAddress] ⚠️  No ENCRYPTION_KEY found - using fallback (NOT SECURE FOR PRODUCTION)');
+  console.warn(
+    '[DeploymentAgentAddress] ⚠️  WARNING: No ENCRYPTION_KEY found!\n' +
+    '  - Using fallback key for NEW encryptions (NOT SECURE)\n' +
+    '  - EXISTING encrypted keys will FAIL to decrypt\n' +
+    '  - Set ENCRYPTION_KEY or MASTER_ENCRYPTION_KEY environment variable\n' +
+    '  - This is required for production deployments'
+  );
 }
 
 // Derive 32-byte key from environment variable
@@ -65,14 +71,36 @@ function decryptPrivateKey(
   iv: string,
   tag: string
 ): string {
-  const key = getEncryptionKey();
-  const decipher = crypto.createDecipheriv('aes-256-gcm', key, Buffer.from(iv, 'hex'));
-  decipher.setAuthTag(Buffer.from(tag, 'hex'));
+  try {
+    const key = getEncryptionKey();
+    const decipher = crypto.createDecipheriv('aes-256-gcm', key, Buffer.from(iv, 'hex'));
+    decipher.setAuthTag(Buffer.from(tag, 'hex'));
 
-  let decrypted = decipher.update(encrypted, 'hex', 'utf8');
-  decrypted += decipher.final('utf8');
+    let decrypted = decipher.update(encrypted, 'hex', 'utf8');
+    decrypted += decipher.final('utf8');
 
-  return decrypted;
+    return decrypted;
+  } catch (error: any) {
+    const hasEncryptionKey = !!ENCRYPTION_KEY;
+    const errorMsg = error.message || 'Unknown decryption error';
+    
+    if (error.code === 'ERR_CRYPTO_INVALID_TAG' || errorMsg.includes('bad decrypt')) {
+      if (!hasEncryptionKey) {
+        throw new Error(
+          'Decryption failed: ENCRYPTION_KEY environment variable is missing. ' +
+          'The private key was encrypted with a different key. ' +
+          'Please set ENCRYPTION_KEY or MASTER_ENCRYPTION_KEY environment variable.'
+        );
+      } else {
+        throw new Error(
+          'Decryption failed: The encryption key does not match the key used to encrypt this data. ' +
+          'Please verify that ENCRYPTION_KEY or MASTER_ENCRYPTION_KEY is set correctly.'
+        );
+      }
+    }
+    
+    throw new Error(`Failed to decrypt private key: ${errorMsg}`);
+  }
 }
 
 /**
