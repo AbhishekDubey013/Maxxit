@@ -203,17 +203,32 @@ async function executeSignal(signalId: string, deploymentId: string) {
  * Main worker loop
  */
 async function runWorker() {
-  console.log('🚀 Trade Executor Worker starting...');
-  console.log(`⏱️  Interval: ${INTERVAL}ms (${INTERVAL / 1000}s)`);
-  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  
-  // Run immediately on startup
-  await executeAllPendingSignals();
-  
-  // Then run on interval
-  workerInterval = setInterval(async () => {
+  try {
+    console.log('🚀 Trade Executor Worker starting...');
+    console.log(`⏱️  Interval: ${INTERVAL}ms (${INTERVAL / 1000}s)`);
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    
+    // Test database connection first
+    const dbHealthy = await checkDatabaseHealth();
+    if (!dbHealthy) {
+      throw new Error('Database connection failed. Check DATABASE_URL environment variable.');
+    }
+    console.log('✅ Database connection: OK');
+    
+    // Run immediately on startup
     await executeAllPendingSignals();
-  }, INTERVAL);
+    
+    // Then run on interval
+    workerInterval = setInterval(async () => {
+      await executeAllPendingSignals();
+    }, INTERVAL);
+    
+    console.log('✅ Trade Executor Worker started successfully');
+  } catch (error: any) {
+    console.error('[TradeExecutor] ❌ Failed to start worker:', error.message);
+    console.error('[TradeExecutor] Stack:', error.stack);
+    throw error; // Re-throw to be caught by caller
+  }
 }
 
 // Register cleanup to stop worker interval
@@ -232,7 +247,13 @@ setupGracefulShutdown('Trade Executor Worker', server);
 if (require.main === module) {
   runWorker().catch(error => {
     console.error('[TradeExecutor] ❌ Worker failed to start:', error);
-    process.exit(1);
+    console.error('[TradeExecutor] Stack:', error.stack);
+    // Don't exit immediately - let Railway health checks handle it
+    // This allows the service to stay up and show errors in logs
+    setTimeout(() => {
+      console.error('[TradeExecutor] Exiting after error...');
+      process.exit(1);
+    }, 5000);
   });
 }
 

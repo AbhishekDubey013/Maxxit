@@ -282,38 +282,53 @@ async function generateSignalForAgentAndToken(
  * Main worker loop
  */
 async function runWorker() {
-  console.log('🚀 Signal Generator Worker starting...');
-  console.log(`⏱️  Interval: ${INTERVAL}ms (${INTERVAL / 1000 / 60} minutes)`);
-  console.log('');
-  console.log('📋 Signal Generation Flow:');
-  console.log('   1. Tweet classified by LLM (in tweet-ingestion-worker)');
-  console.log('   2. LunarCrush scores market data → position size (0-10%)');
-  console.log('   3. Signal created with side (LONG/SHORT) + size');
-  console.log('');
-  console.log('🛡️  Risk Management (Hardcoded in Position Monitor):');
-  console.log('   • Hard Stop Loss: 10%');
-  console.log('   • Trailing Stop: Activates at +3% profit, trails by 1%');
-  console.log('   Note: These are NOT read from signal, but hardcoded in monitor');
-  console.log('');
-  
-  // Check LunarCrush availability
-  if (canUseLunarCrush()) {
-    console.log('✅ LunarCrush Scoring: ENABLED');
-  } else {
-    console.log('⚠️  LunarCrush Scoring: DISABLED');
-    console.log('   Set LUNARCRUSH_API_KEY for dynamic position sizing');
-    console.log('   Will use default 5% position size without it');
-  }
-  
-  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  
-  // Run immediately on startup
-  await generateSignals();
-  
-  // Then run on interval
-  workerInterval = setInterval(async () => {
+  try {
+    console.log('🚀 Signal Generator Worker starting...');
+    console.log(`⏱️  Interval: ${INTERVAL}ms (${INTERVAL / 1000 / 60} minutes)`);
+    console.log('');
+    console.log('📋 Signal Generation Flow:');
+    console.log('   1. Tweet classified by LLM (in tweet-ingestion-worker)');
+    console.log('   2. LunarCrush scores market data → position size (0-10%)');
+    console.log('   3. Signal created with side (LONG/SHORT) + size');
+    console.log('');
+    console.log('🛡️  Risk Management (Hardcoded in Position Monitor):');
+    console.log('   • Hard Stop Loss: 10%');
+    console.log('   • Trailing Stop: Activates at +3% profit, trails by 1%');
+    console.log('   Note: These are NOT read from signal, but hardcoded in monitor');
+    console.log('');
+    
+    // Test database connection first
+    const dbHealthy = await checkDatabaseHealth();
+    if (!dbHealthy) {
+      throw new Error('Database connection failed. Check DATABASE_URL environment variable.');
+    }
+    console.log('✅ Database connection: OK');
+    
+    // Check LunarCrush availability
+    if (canUseLunarCrush()) {
+      console.log('✅ LunarCrush Scoring: ENABLED');
+    } else {
+      console.log('⚠️  LunarCrush Scoring: DISABLED');
+      console.log('   Set LUNARCRUSH_API_KEY for dynamic position sizing');
+      console.log('   Will use default 5% position size without it');
+    }
+    
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    
+    // Run immediately on startup
     await generateSignals();
-  }, INTERVAL);
+    
+    // Then run on interval
+    workerInterval = setInterval(async () => {
+      await generateSignals();
+    }, INTERVAL);
+    
+    console.log('✅ Signal Generator Worker started successfully');
+  } catch (error: any) {
+    console.error('[SignalGenerator] ❌ Failed to start worker:', error.message);
+    console.error('[SignalGenerator] Stack:', error.stack);
+    throw error; // Re-throw to be caught by caller
+  }
 }
 
 // Register cleanup to stop worker interval
@@ -332,7 +347,13 @@ setupGracefulShutdown('Signal Generator Worker', server);
 if (require.main === module) {
   runWorker().catch(error => {
     console.error('[SignalGenerator] ❌ Worker failed to start:', error);
-    process.exit(1);
+    console.error('[SignalGenerator] Stack:', error.stack);
+    // Don't exit immediately - let Railway health checks handle it
+    // This allows the service to stay up and show errors in logs
+    setTimeout(() => {
+      console.error('[SignalGenerator] Exiting after error...');
+      process.exit(1);
+    }, 5000);
   });
 }
 
