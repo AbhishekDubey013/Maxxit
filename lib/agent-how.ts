@@ -12,7 +12,7 @@
  */
 
 import { PrismaClient } from '@prisma/client';
-import { getLunarCrushScore } from './lunarcrush-score';
+import { createLunarCrushScorer } from './lunarcrush-score';
 
 const prisma = new PrismaClient();
 
@@ -200,10 +200,21 @@ export async function calculatePersonalizedPositionSize(
   let rawMetrics: any = {};
   
   try {
-    const lcData = await getLunarCrushScore(input.tokenSymbol, input.venue);
-    lunarcrushScore = lcData.aggregatedScore;
-    rawMetrics = lcData.metrics;
-    reasoning.push(`LunarCrush base score: ${(lunarcrushScore * 100).toFixed(0)}%`);
+    const scorer = createLunarCrushScorer();
+    if (scorer) {
+      const lcResult = await scorer.getTokenScore(input.tokenSymbol, input.confidence);
+      lunarcrushScore = lcResult.combinedScore;
+      rawMetrics = {
+        galaxyScore: lcResult.breakdown.galaxy,
+        sentiment: lcResult.breakdown.sentiment,
+        socialVolumeChange: lcResult.breakdown.social,
+        priceMomentum: lcResult.breakdown.momentum,
+        altRank: lcResult.breakdown.rank,
+      };
+      reasoning.push(`LunarCrush base score: ${(lunarcrushScore * 100).toFixed(0)}%`);
+    } else {
+      reasoning.push('LunarCrush unavailable: API key not configured');
+    }
   } catch (error) {
     console.error('[AgentHow] LunarCrush error:', error);
     reasoning.push('LunarCrush unavailable: Using neutral score');
