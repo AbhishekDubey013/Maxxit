@@ -48,7 +48,7 @@ async function generateSignals() {
     console.log('\n🔍 Signal Generator Worker - Starting cycle...');
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
-    // Get unprocessed signal candidates
+    // Get unprocessed Twitter signal candidates
     const unprocessedTweets = await prisma.ct_posts.findMany({
       where: {
         is_signal_candidate: true,
@@ -71,9 +71,28 @@ async function generateSignals() {
       take: 20, // Process 20 tweets per cycle
     });
 
-    console.log(`📊 Found ${unprocessedTweets.length} unprocessed signal candidate(s)\n`);
+    // Get unprocessed Telegram signal candidates (from alpha users)
+    const unprocessedTelegram = await prisma.telegram_posts.findMany({
+      where: {
+        is_signal_candidate: true,
+        processed_for_signals: false,
+        alpha_user_id: { not: null }, // Only from alpha users (DMs)
+        telegram_alpha_users: {
+          is_active: true,
+        },
+      },
+      include: {
+        telegram_alpha_users: true,
+      },
+      orderBy: {
+        message_created_at: 'desc',
+      },
+      take: 20, // Process 20 messages per cycle
+    });
 
-    if (unprocessedTweets.length === 0) {
+    console.log(`📊 Found ${unprocessedTweets.length} Twitter + ${unprocessedTelegram.length} Telegram unprocessed signal candidate(s)\n`);
+
+    if (unprocessedTweets.length === 0 && unprocessedTelegram.length === 0) {
       console.log('✅ No signals to generate\n');
       return;
     }
@@ -129,10 +148,79 @@ async function generateSignals() {
       }
     }
 
+    // Process Telegram messages
+    for (const message of unprocessedTelegram) {
+      try {
+        const username = message.telegram_alpha_users?.telegram_username || message.telegram_alpha_users?.first_name || 'Unknown';
+        console.log(`[Telegram @${username}] Processing...`);
+        console.log(`  Text: ${message.message_text.substring(0, 60)}...`);
+        console.log(`  Tokens: ${message.extracted_tokens.join(', ')}`);
+        console.log(`  Sentiment: ${message.signal_type || 'unknown'}`);
+
+        // Get agents subscribed to this Telegram alpha user
+        const agentLinks = await prisma.agent_telegram_users.findMany({
+          where: { telegram_alpha_user_id: message.alpha_user_id! },
+          include: { agents: true },
+        });
+
+        const subscribedAgents = agentLinks
+          .map(link => link.agents)
+          .filter(agent => agent.status === 'PUBLIC');
+
+        if (subscribedAgents.length === 0) {
+          console.log(`  ⏭️  No active agents subscribed\n`);
+          // Mark as processed even if no agents
+          await prisma.telegram_posts.update({
+            where: { id: message.id },
+            data: { processed_for_signals: true },
+          });
+          continue;
+        }
+
+        console.log(`  🤖 ${subscribedAgents.length} agent(s) subscribed`);
+
+        // Generate signal for each subscribed agent
+        for (const agent of subscribedAgents) {
+          try {
+            // Generate signals for each extracted token
+            for (const token of message.extracted_tokens) {
+              await generateSignalForAgentAndToken(
+                {
+                  ...message,
+                  tweet_id: message.message_id,
+                  tweet_text: message.message_text,
+                  tweet_created_at: message.message_created_at,
+                  ct_accounts: {
+                    impact_factor: message.telegram_alpha_users?.impact_factor || 0.5,
+                  },
+                },
+                agent,
+                token
+              );
+              signalsGenerated++;
+            }
+          } catch (error: any) {
+            console.log(`  ❌ Error generating signal for agent ${agent.name}:`, error.message);
+          }
+        }
+
+        // Mark Telegram message as processed
+        await prisma.telegram_posts.update({
+          where: { id: message.id },
+          data: { processed_for_signals: true },
+        });
+
+        console.log(`  ✅ Telegram message processed\n`);
+      } catch (error: any) {
+        console.error(`[Telegram ${message.message_id}] ❌ Error:`, error.message);
+      }
+    }
+
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     console.log('📊 SIGNAL GENERATION SUMMARY');
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.log(`  Tweets Processed: ${unprocessedTweets.length}`);
+    console.log(`  Twitter Tweets: ${unprocessedTweets.length}`);
+    console.log(`  Telegram Messages: ${unprocessedTelegram.length}`);
     console.log(`  Signals Generated: ${signalsGenerated}`);
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
   } catch (error: any) {
