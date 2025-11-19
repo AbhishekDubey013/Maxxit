@@ -246,34 +246,9 @@ async function handleAlphaMessage(message: any, telegramUserId: string, chatId: 
       });
     }
 
-    // Quick pre-filter: Skip obvious non-signals (store but mark as not signal)
-    const hasToken = /\$[A-Z]{2,10}\b|BTC|ETH|SOL|AVAX|ARB|OP|MATIC|LINK|UNI|AAVE/i.test(text);
-    const isShortNonSignal = text.length < 20 && !hasToken;
-    const isCommonChatter = /^(gm|gn|good morning|good night|hello|hi|hey|wagmi|lfg|lets go|thank you|thanks|👍|❤️|🔥)$/i.test(text.trim());
-
-    if (isShortNonSignal || isCommonChatter) {
-      // Store but mark as not signal (skip worker processing)
-      const messageKey = `alpha_${telegramUserId}_${message.message_id}`;
-      await prisma.telegram_posts.create({
-        data: {
-          alpha_user_id: alphaUser.id,
-          source_id: null,
-          message_id: messageKey,
-          message_text: text,
-          message_created_at: new Date(message.date * 1000),
-          sender_id: telegramUserId,
-          sender_username: message.from.username || null,
-          is_signal_candidate: false, // Mark as not signal immediately
-          extracted_tokens: [],
-          processed_for_signals: false,
-        },
-      });
-      console.log('[Alpha] Stored non-signal message (too short/common)');
-      return;
-    }
-
-    // Store message WITHOUT classification (worker will classify it)
-    // This allows the worker service to handle LLM classification
+    // Store ALL messages with NULL classification
+    // Let the LLM worker decide what is/isn't a signal
+    // This ensures consistent classification logic in one place
     const messageKey = `alpha_${telegramUserId}_${message.message_id}`;
     
     await prisma.telegram_posts.create({

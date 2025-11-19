@@ -143,30 +143,7 @@ async function ingestTelegramMessages() {
 
             console.log(`   Processing: "${msg.text.substring(0, 50)}..."`);
 
-            // Quick pre-filter: Skip obvious non-signals
-            const hasToken = /\$[A-Z]{2,10}\b|BTC|ETH|SOL|AVAX|ARB|OP|MATIC|LINK|UNI|AAVE/i.test(msg.text);
-            const isShortNonSignal = msg.text.length < 30 && !hasToken;
-            const isCommonChatter = /^(gm|gn|good morning|good night|hello|hi|hey|wagmi|lfg|lets go|thank you|thanks|👍|❤️|🔥)$/i.test(msg.text.trim());
-
-            if (isShortNonSignal || isCommonChatter) {
-              // Store but mark as not signal
-              await prisma.telegram_posts.create({
-                data: {
-                  source_id: source.id,
-                  message_id: messageKey,
-                  message_text: msg.text,
-                  message_created_at: new Date(msg.date * 1000),
-                  sender_id: msg.from?.id ? String(msg.from.id) : null,
-                  sender_username: msg.from?.username || null,
-                  is_signal_candidate: false,
-                  extracted_tokens: [],
-                },
-              });
-              processedCount++;
-              continue;
-            }
-
-            // Classify message using LLM
+            // Classify ALL messages using LLM (no pre-filtering)
             const classification = await classifier.classifyTweet(msg.text);
 
             // Store message with classification
