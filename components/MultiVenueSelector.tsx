@@ -48,12 +48,26 @@ export function MultiVenueSelector({
   }, [authenticated, user?.wallet?.address]);
 
   const checkSetupStatus = async () => {
-    if (!user?.wallet?.address) return;
+    if (!user?.wallet?.address) {
+      console.log('[MultiVenueSelector] No wallet address - skipping check');
+      return;
+    }
+
+    console.log('[MultiVenueSelector] 🔍 Checking setup status for:', user.wallet.address);
 
     try {
       const response = await fetch(`/api/user/check-setup-status?userWallet=${user.wallet.address}`);
+      
+      console.log('[MultiVenueSelector] API response status:', response.status);
+      
       if (response.ok) {
         const data = await response.json();
+        
+        console.log('[MultiVenueSelector] Setup status:', {
+          hasHyperliquid: data.hasHyperliquidAddress,
+          hasOstium: data.hasOstiumAddress,
+          addresses: data.addresses,
+        });
         
         setSetupStatus({
           hasHyperliquid: data.hasHyperliquidAddress,
@@ -62,21 +76,25 @@ export function MultiVenueSelector({
 
         // If user has both addresses, create deployments immediately
         if (data.hasHyperliquidAddress && data.hasOstiumAddress) {
-          console.log('[MultiVenueSelector] User has both addresses - creating deployments directly');
+          console.log('[MultiVenueSelector] ✅ User has both addresses - creating deployments directly');
           await createBothDeploymentsDirectly(user.wallet.address);
         } else if (data.hasHyperliquidAddress || data.hasOstiumAddress) {
           // User has partial setup - show selector but pre-select unavailable venue
-          console.log('[MultiVenueSelector] User has partial setup - showing selector');
+          console.log('[MultiVenueSelector] ⚠️  User has partial setup - showing selector');
+          console.log('  - Hyperliquid:', data.hasHyperliquidAddress ? '✅' : '❌');
+          console.log('  - Ostium:', data.hasOstiumAddress ? '✅' : '❌');
           setLoading(false);
         } else {
           // New user - show full selector
+          console.log('[MultiVenueSelector] ❌ New user - showing full selector');
           setLoading(false);
         }
       } else {
+        console.error('[MultiVenueSelector] API error:', response.status, response.statusText);
         setLoading(false);
       }
     } catch (err) {
-      console.error('Error checking setup status:', err);
+      console.error('[MultiVenueSelector] Error checking setup status:', err);
       setLoading(false);
     }
   };
