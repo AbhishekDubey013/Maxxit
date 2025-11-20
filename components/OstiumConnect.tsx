@@ -64,20 +64,43 @@ export function OstiumConnect({
 
     try {
       // Check if user already has addresses (from previous deployments)
-      const response = await fetch(`/api/user/check-setup-status?userWallet=${user.wallet.address}`);
-      if (response.ok) {
-        const data = await response.json();
+      const setupResponse = await fetch(`/api/user/check-setup-status?userWallet=${user.wallet.address}`);
+      
+      if (setupResponse.ok) {
+        const setupData = await setupResponse.json();
         
-        if (data.setupComplete && data.hasOstiumAddress) {
-          // User already has Ostium address - SKIP setup flow
-          console.log('[OstiumConnect] User already has Ostium address - skipping setup');
-          console.log('[OstiumConnect] Ostium address:', data.addresses.ostium);
+        if (setupData.setupComplete && setupData.hasOstiumAddress) {
+          // User has address, but check if they've actually approved on-chain
+          console.log('[OstiumConnect] User has Ostium address, checking on-chain approvals...');
           
-          // Store address for display
-          setAgentAddress(data.addresses.ostium);
+          const approvalResponse = await fetch(`/api/ostium/check-approval-status?userWallet=${user.wallet.address}`);
           
-          // Create deployment immediately (no delegation needed - already done)
-          await createDeploymentDirectly(user.wallet.address);
+          if (approvalResponse.ok) {
+            const approvalData = await approvalResponse.json();
+            
+            console.log('[OstiumConnect] Approval status:', {
+              hasApproval: approvalData.hasApproval,
+              allowance: approvalData.usdcAllowance,
+              balance: approvalData.usdcBalance,
+            });
+            
+            if (approvalData.hasApproval && approvalData.hasSufficientBalance) {
+              // User has address AND on-chain approval - skip setup
+              console.log('[OstiumConnect] ✅ User has valid approvals - skipping setup');
+              setAgentAddress(setupData.addresses.ostium);
+              await createDeploymentDirectly(user.wallet.address);
+            } else {
+              // User has address but MISSING approval - force approval flow
+              console.log('[OstiumConnect] ⚠️  User missing on-chain approval - showing approval flow');
+              setAgentAddress(setupData.addresses.ostium);
+              setStep('delegate'); // Skip to approval steps
+            }
+          } else {
+            // Can't check approval - assume needs setup
+            console.log('[OstiumConnect] Could not check approval status - showing full flow');
+            setStep('agent');
+            assignAgent();
+          }
         } else {
           // First time Ostium user - show full setup flow
           setStep('agent');
