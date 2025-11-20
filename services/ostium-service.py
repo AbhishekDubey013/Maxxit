@@ -897,6 +897,8 @@ def close_position():
         except Exception as sdk_error:
             # Use traceback module (imported at top) - ensure it's available
             import traceback as tb_module
+            from web3.exceptions import ContractCustomError
+            
             print(f"[CLOSE] ❌ SDK close_trade FAILED: {sdk_error}")
             print(f"[CLOSE]    Error type: {type(sdk_error)}")
             try:
@@ -910,15 +912,32 @@ def close_position():
             except Exception as tb_err:
                 logger.error(f"Could not format traceback: {tb_err}")
             
-            # Check if the exception message contains the error tuple
-            error_str = str(sdk_error)
-            if '0xf77a8069' in error_str:
+            # Check if this is a ContractCustomError with 0xf77a8069 (NoOpenPosition/PositionAlreadyClosed)
+            is_position_closed_error = False
+            
+            if isinstance(sdk_error, ContractCustomError):
+                # ContractCustomError has args that contain the error data
+                error_args = getattr(sdk_error, 'args', [])
+                if error_args:
+                    # Check if any arg contains the error code
+                    for arg in error_args:
+                        arg_str = str(arg)
+                        if '0xf77a8069' in arg_str:
+                            is_position_closed_error = True
+                            break
+            else:
+                # For other exceptions, check the string representation
+                error_str = str(sdk_error)
+                if '0xf77a8069' in error_str:
+                    is_position_closed_error = True
+            
+            if is_position_closed_error:
                 # This is "NoOpenPosition" or "PositionAlreadyClosed" error
-                logger.error(f"❌ Position already closed or doesn't exist (detected in exception)")
-                logger.error(f"   This is normal if position was closed externally")
+                logger.info(f"✅ Position already closed or doesn't exist (error code: 0xf77a8069)")
+                logger.info(f"   This is normal if position was closed externally or doesn't exist")
                 return jsonify({
                     "success": True,  # Treat as success (idempotent)
-                    "message": "Position already closed (idempotent)",
+                    "message": "Position already closed or doesn't exist (idempotent)",
                     "closePnl": 0,
                     "alreadyClosed": True
                 })
