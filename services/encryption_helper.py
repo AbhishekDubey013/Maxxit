@@ -55,42 +55,58 @@ def decrypt_private_key(encrypted_hex: str, iv_hex: str, tag_hex: str) -> str:
     Raises:
         ValueError: If decryption fails or key is missing
     """
+    import logging
+    logger = logging.getLogger(__name__)
+    
     try:
+        logger.info("[EncryptionHelper] Starting decryption...")
+        logger.info(f"[EncryptionHelper] Encrypted length: {len(encrypted_hex)}, IV length: {len(iv_hex)}, Tag length: {len(tag_hex)}")
+        
         # Get encryption key
         key = get_encryption_key()
+        logger.info(f"[EncryptionHelper] Derived key length: {len(key)} bytes")
         
         # Convert hex strings to bytes
         encrypted = bytes.fromhex(encrypted_hex)
         iv = bytes.fromhex(iv_hex)
         tag = bytes.fromhex(tag_hex)
         
+        logger.info(f"[EncryptionHelper] Converted - Encrypted: {len(encrypted)} bytes, IV: {len(iv)} bytes, Tag: {len(tag)} bytes")
+        
         # Combine encrypted data with authentication tag (AESGCM expects them together)
         ciphertext = encrypted + tag
+        logger.info(f"[EncryptionHelper] Combined ciphertext length: {len(ciphertext)} bytes")
         
         # Create AESGCM cipher
         aesgcm = AESGCM(key)
         
         # Decrypt
+        logger.info("[EncryptionHelper] Attempting decryption...")
         plaintext = aesgcm.decrypt(iv, ciphertext, None)
+        
+        logger.info("[EncryptionHelper] ✅ Decryption successful!")
         
         # Convert bytes to string
         return plaintext.decode('utf-8')
         
     except Exception as e:
+        logger.error(f"[EncryptionHelper] ❌ Decryption failed: {type(e).__name__}: {e}")
+        import traceback
+        logger.error(f"[EncryptionHelper] Stack trace:\n{traceback.format_exc()}")
+        
         error_msg = str(e)
-        if 'Insufficient key' in error_msg or 'authentication tag' in error_msg.lower():
+        if 'Insufficient key' in error_msg or 'authentication tag' in error_msg.lower() or 'Authentication tag verification failed' in error_msg:
             raise ValueError(
-                "Decryption failed: The encryption key does not match the key used to encrypt this data. "
-                "Please verify that ENCRYPTION_KEY or MASTER_ENCRYPTION_KEY is set correctly."
+                f"Decryption failed: The encryption key does not match. "
+                f"Error: {error_msg}"
             )
         elif 'ENCRYPTION_KEY' in error_msg:
             raise ValueError(
-                "Decryption failed: ENCRYPTION_KEY environment variable is missing. "
-                "The private key was encrypted with a different key. "
-                "Please set ENCRYPTION_KEY or MASTER_ENCRYPTION_KEY environment variable."
+                f"Decryption failed: ENCRYPTION_KEY environment variable issue. "
+                f"Error: {error_msg}"
             )
         else:
-            raise ValueError(f"Failed to decrypt private key: {error_msg}")
+            raise ValueError(f"Failed to decrypt private key: {type(e).__name__}: {error_msg}")
 
 
 # Test the module when run directly
