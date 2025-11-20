@@ -21,7 +21,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    const { userWallet } = req.query;
+    const { userWallet, agentId } = req.query;
 
     if (!userWallet || typeof userWallet !== 'string') {
       return res.status(400).json({ error: 'User wallet required' });
@@ -52,16 +52,47 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const hasHyperliquidAddress = !!(userAddress?.hyperliquid_agent_address);
     const hasOstiumAddress = !!(userAddress?.ostium_agent_address);
     const hasPreferences = !!preferences;
-    const hasAnyAddress = hasHyperliquidAddress || hasOstiumAddress;
 
-    // User has completed setup if they have at least one address
-    const setupComplete = hasAnyAddress;
+    // CRITICAL FIX: Check if deployments exist for THIS agent (not just addresses)
+    // Having an address doesn't mean user whitelisted it - they need to complete the flow
+    let hasHyperliquidDeployment = false;
+    let hasOstiumDeployment = false;
+
+    if (agentId && typeof agentId === 'string') {
+      // Check if user has deployments for this specific agent
+      const deployments = await prisma.agent_deployments.findMany({
+        where: {
+          user_wallet: normalizedWallet,
+          agent_id: agentId,
+          status: 'ACTIVE',
+        },
+        select: {
+          enabled_venues: true,
+        },
+      });
+
+      // Check if any deployment has Hyperliquid enabled
+      hasHyperliquidDeployment = deployments.some(d => 
+        d.enabled_venues.includes('HYPERLIQUID')
+      );
+
+      // Check if any deployment has Ostium enabled
+      hasOstiumDeployment = deployments.some(d => 
+        d.enabled_venues.includes('OSTIUM')
+      );
+    }
+
+    // User has completed setup if they have addresses AND preferences
+    // But for venue-specific checks, use deployment status (actual whitelisting)
+    const setupComplete = hasHyperliquidAddress && hasOstiumAddress && hasPreferences;
 
     return res.status(200).json({
       success: true,
       setupComplete,
       hasHyperliquidAddress,
       hasOstiumAddress,
+      hasHyperliquidDeployment, // NEW: Actual deployment status
+      hasOstiumDeployment, // NEW: Actual deployment status
       hasPreferences,
       addresses: {
         hyperliquid: userAddress?.hyperliquid_agent_address || null,

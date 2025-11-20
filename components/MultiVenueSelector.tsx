@@ -56,7 +56,9 @@ export function MultiVenueSelector({
     console.log('[MultiVenueSelector] 🔍 Checking setup status for:', user.wallet.address);
 
     try {
-      const response = await fetch(`/api/user/check-setup-status?userWallet=${user.wallet.address}`);
+      // CRITICAL FIX: Pass agentId to check deployments for THIS specific agent
+      // Not just if addresses exist (addresses can exist but not be whitelisted)
+      const response = await fetch(`/api/user/check-setup-status?userWallet=${user.wallet.address}&agentId=${agentId}`);
       
       console.log('[MultiVenueSelector] API response status:', response.status);
       
@@ -64,29 +66,35 @@ export function MultiVenueSelector({
         const data = await response.json();
         
         console.log('[MultiVenueSelector] Setup status:', {
-          hasHyperliquid: data.hasHyperliquidAddress,
-          hasOstium: data.hasOstiumAddress,
+          hasHyperliquidAddress: data.hasHyperliquidAddress,
+          hasOstiumAddress: data.hasOstiumAddress,
+          hasHyperliquidDeployment: data.hasHyperliquidDeployment,
+          hasOstiumDeployment: data.hasOstiumDeployment,
           addresses: data.addresses,
         });
         
+        // Use deployment status (actual whitelisting) not just address existence
+        const hasHyperliquid = data.hasHyperliquidDeployment || false;
+        const hasOstium = data.hasOstiumDeployment || false;
+        
         setSetupStatus({
-          hasHyperliquid: data.hasHyperliquidAddress,
-          hasOstium: data.hasOstiumAddress,
+          hasHyperliquid,
+          hasOstium,
         });
 
-        // If user has both addresses, create deployments immediately
-        if (data.hasHyperliquidAddress && data.hasOstiumAddress) {
-          console.log('[MultiVenueSelector] ✅ User has both addresses - creating deployments directly');
-          await createBothDeploymentsDirectly(user.wallet.address);
-        } else if (data.hasHyperliquidAddress || data.hasOstiumAddress) {
-          // User has partial setup - show selector but pre-select unavailable venue
-          console.log('[MultiVenueSelector] ⚠️  User has partial setup - showing selector');
-          console.log('  - Hyperliquid:', data.hasHyperliquidAddress ? '✅' : '❌');
-          console.log('  - Ostium:', data.hasOstiumAddress ? '✅' : '❌');
-          setLoading(false);
+        // CRITICAL FIX: Only auto-create if BOTH deployments exist for THIS agent
+        // Don't auto-create just because addresses exist (user might not have whitelisted)
+        if (hasHyperliquid && hasOstium) {
+          console.log('[MultiVenueSelector] ✅ User has both deployments for this agent - skipping selector');
+          // Both already deployed - just close
+          setTimeout(() => {
+            onComplete();
+          }, 500);
         } else {
-          // New user - show full selector
-          console.log('[MultiVenueSelector] ❌ New user - showing full selector');
+          // User needs to whitelist one or both venues - show selector
+          console.log('[MultiVenueSelector] ⚠️  User needs to complete venue setup');
+          console.log('  - Hyperliquid:', hasHyperliquid ? '✅ Deployed' : '❌ Needs setup');
+          console.log('  - Ostium:', hasOstium ? '✅ Deployed' : '❌ Needs setup');
           setLoading(false);
         }
       } else {
@@ -272,13 +280,13 @@ export function MultiVenueSelector({
             {setupStatus?.hasHyperliquid && setupStatus?.hasOstium ? (
               <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4 mb-4">
                 <p className="text-sm text-green-600 dark:text-green-400 font-medium">
-                  ✅ You're all set! Your addresses are already configured.
+                  ✅ Both venues are already deployed for this agent!
                 </p>
               </div>
             ) : setupStatus?.hasHyperliquid || setupStatus?.hasOstium ? (
               <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-4">
                 <p className="text-sm text-blue-600 dark:text-blue-400 font-medium">
-                  ℹ️ {setupStatus.hasHyperliquid ? 'Hyperliquid' : 'Ostium'} is already set up. Complete the other venue to enable full multi-venue trading.
+                  ℹ️ {setupStatus.hasHyperliquid ? 'Hyperliquid' : 'Ostium'} is already deployed for this agent. Click the other venue to complete multi-venue setup.
                 </p>
               </div>
             ) : (
