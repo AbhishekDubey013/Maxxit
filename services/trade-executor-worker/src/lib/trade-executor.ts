@@ -80,10 +80,26 @@ async function executeHyperliquidTrade(
     }
 
     // Calculate position size based on signal's size_model (Agent HOW percentage)
-    // Get user's Hyperliquid balance
-    const { getHyperliquidBalance } = await import('../../../../lib/adapters/hyperliquid-adapter');
-    const hlBalance = await getHyperliquidBalance(userAddress.hyperliquid_agent_address);
-    const availableBalance = hlBalance.withdrawable;
+    // Get user's Hyperliquid balance via Python service
+    const balanceResponse = await fetch(`${HYPERLIQUID_SERVICE_URL}/balance`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        address: userAddress.hyperliquid_agent_address,
+      }),
+    });
+    
+    if (!balanceResponse.ok) {
+      throw new Error(`Failed to fetch Hyperliquid balance: ${balanceResponse.status}`);
+    }
+    
+    const balanceData = await balanceResponse.json() as any;
+    
+    if (!balanceData.success) {
+      throw new Error(balanceData.error || 'Failed to get Hyperliquid balance');
+    }
+    
+    const availableBalance = parseFloat(balanceData.withdrawable || '0');
     
     // Hyperliquid minimum order size is $10
     const HYPERLIQUID_MIN_ORDER = 10;
@@ -190,11 +206,27 @@ async function executeOstiumTrade(
       throw new Error('No token_symbol in signal');
     }
 
-    // Get user's USDC balance on Ostium
-    const { getOstiumBalance } = await import('../../../../lib/adapters/ostium-adapter');
+    // Get user's USDC balance on Ostium via Python service
     const userArbitrumWallet = deployment.safe_wallet || deployment.user_wallet;
-    const balance = await getOstiumBalance(userArbitrumWallet);
-    const usdcBalance = parseFloat(balance.usdcBalance);
+    const balanceResponse = await fetch(`${OSTIUM_SERVICE_URL}/balance`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        address: userArbitrumWallet,
+      }),
+    });
+    
+    if (!balanceResponse.ok) {
+      throw new Error(`Failed to fetch Ostium balance: ${balanceResponse.status}`);
+    }
+    
+    const balanceData = await balanceResponse.json() as any;
+    
+    if (!balanceData.success) {
+      throw new Error(balanceData.error || 'Failed to get Ostium balance');
+    }
+    
+    const usdcBalance = parseFloat(balanceData.usdcBalance || '0');
     
     // Ostium minimum order size is $10
     const OSTIUM_MIN_ORDER = 10;
