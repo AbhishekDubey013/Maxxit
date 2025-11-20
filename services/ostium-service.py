@@ -1196,15 +1196,27 @@ def get_price(token):
         
         # Get price from Ostium SDK
         # Returns tuple: (price, isMarketOpen, isDayTradingClosed)
+        # NOTE: get_price may be async - check if it's a coroutine
         try:
             price_result = sdk.price.get_price(token.upper(), 'USD')
+            
+            # Check if it's a coroutine (async function) and await it
+            import asyncio
+            import inspect
+            if inspect.iscoroutine(price_result):
+                logger.info(f"get_price returned coroutine, awaiting...")
+                price_result = asyncio.run(price_result)
+            elif hasattr(price_result, '__await__'):
+                # Alternative check for awaitable
+                price_result = asyncio.run(price_result)
+            
             logger.info(f"Raw price result for {token}: {price_result} (type: {type(price_result)})")
         except Exception as sdk_error:
             logger.error(f"SDK get_price failed for {token}: {str(sdk_error)}")
-            logger.error(f"This is likely a testnet oracle issue")
+            logger.error(traceback.format_exc())
             return jsonify({
                 "success": False,
-                "error": f"Price feed unavailable on testnet for {token}",
+                "error": f"Price feed unavailable: {str(sdk_error)}",
                 "testnet_issue": True
             }), 503  # Service Unavailable
         

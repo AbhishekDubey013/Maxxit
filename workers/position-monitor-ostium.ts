@@ -22,34 +22,6 @@ const executor = new TradeExecutor();
 const LOCK_FILE = path.join(__dirname, '../.position-monitor-ostium.lock');
 const LOCK_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
 
-/**
- * Map token symbols to CoinGecko IDs for price fallback
- */
-function getCoinGeckoId(tokenSymbol: string): string | null {
-  const mapping: Record<string, string> = {
-    'BTC': 'bitcoin',
-    'ETH': 'ethereum',
-    'SOL': 'solana',
-    'XRP': 'ripple',
-    'ADA': 'cardano',
-    'HYPE': 'hyperliquid', // May need adjustment
-    'ARB': 'arbitrum',
-    'OP': 'optimism',
-    'MATIC': 'matic-network',
-    'LINK': 'chainlink',
-    'UNI': 'uniswap',
-    'AAVE': 'aave',
-    'AVAX': 'avalanche-2',
-    'DOGE': 'dogecoin',
-    'DOT': 'polkadot',
-    'ATOM': 'cosmos',
-    'NEAR': 'near',
-    'APT': 'aptos',
-    'SUI': 'sui',
-  };
-  
-  return mapping[tokenSymbol.toUpperCase()] || null;
-}
 
 /**
  * Acquire a file-based lock to prevent concurrent monitor instances
@@ -298,51 +270,25 @@ export async function monitorOstiumPositions() {
               continue;
             }
 
-            // Get CURRENT market price from Ostium service (with CoinGecko fallback)
+            // Get CURRENT market price from Ostium service ONLY
             let currentPrice: number;
             try {
               // Extract token symbol (e.g., "BTC" from "BTC/USD")
               const tokenSymbol = position.token_symbol.replace('/USD', '').replace('/USDT', '');
               
-              // Try Ostium service first
+              // Get price from Ostium service (Ostium platform prices only)
               const ostiumServiceUrl = process.env.OSTIUM_SERVICE_URL || 'http://localhost:5002';
-              try {
-                const priceResponse = await axios.get(`${ostiumServiceUrl}/price/${tokenSymbol}`, { timeout: 5000 });
-                
-                if (priceResponse.data.success && priceResponse.data.price) {
-                  currentPrice = parseFloat(priceResponse.data.price);
-                  console.log(`   💰 Current Price (Ostium): $${currentPrice.toFixed(4)} | Entry: $${position.entry_price.toFixed(4)}`);
-                } else {
-                  throw new Error('Ostium price not available');
-                }
-              } catch (ostiumError: any) {
-                // Fallback to CoinGecko if Ostium fails (common on testnet)
-                console.log(`   ⚠️  Ostium price feed unavailable, trying CoinGecko fallback...`);
-                
-                const coinGeckoId = getCoinGeckoId(tokenSymbol);
-                if (coinGeckoId) {
-                  try {
-                    const cgResponse = await axios.get(
-                      `https://api.coingecko.com/api/v3/simple/price?ids=${coinGeckoId}&vs_currencies=usd`,
-                      { timeout: 5000 }
-                    );
-                    
-                    if (cgResponse.data[coinGeckoId]?.usd) {
-                      currentPrice = cgResponse.data[coinGeckoId].usd;
-                      console.log(`   💰 Current Price (CoinGecko): $${currentPrice.toFixed(4)} | Entry: $${position.entry_price.toFixed(4)}`);
-                    } else {
-                      throw new Error('CoinGecko price not available');
-                    }
-                  } catch (cgError: any) {
-                    throw new Error(`Both Ostium and CoinGecko failed: ${ostiumError.message}`);
-                  }
-                } else {
-                  throw new Error(`No CoinGecko ID for ${tokenSymbol}`);
-                }
+              const priceResponse = await axios.get(`${ostiumServiceUrl}/price/${tokenSymbol}`, { timeout: 5000 });
+              
+              if (priceResponse.data.success && priceResponse.data.price) {
+                currentPrice = parseFloat(priceResponse.data.price);
+                console.log(`   💰 Current Price: $${currentPrice.toFixed(4)} | Entry: $${position.entry_price.toFixed(4)}`);
+              } else {
+                throw new Error(priceResponse.data.error || 'Price not available from Ostium');
               }
             } catch (priceError: any) {
               console.error(`   ⚠️  Could not fetch current price for ${position.token_symbol}: ${priceError.message}`);
-              console.log(`   ⏭️  Using entry price as fallback (P&L will show $0.00)`);
+              console.log(`   ⏭️  Skipping trailing stop check (using entry price as fallback)`);
               currentPrice = ostPosition.entryPrice; // Fallback to entry price
             }
 
