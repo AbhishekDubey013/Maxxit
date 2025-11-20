@@ -251,25 +251,42 @@ async function generateSignalForAgentAndToken(
     let signalVenue: venue_t; // The actual venue to use for the signal
     
     if (agent.venue === 'MULTI') {
-      // For multi-venue agents, check if token is available on Hyperliquid OR Ostium
-      const multiVenueMarkets = await prisma.venue_markets.findMany({
+      // For multi-venue agents, check Ostium FIRST, then Hyperliquid
+      // Priority: OSTIUM → HYPERLIQUID
+      
+      // Check Ostium first
+      const ostiumMarket = await prisma.venue_markets.findFirst({
         where: {
           token_symbol: token.toUpperCase(),
-          venue: { in: ['HYPERLIQUID', 'OSTIUM'] },
+          venue: 'OSTIUM',
           is_active: true,
         },
       });
       
-      if (multiVenueMarkets.length === 0) {
-        console.log(`    ⏭️  Skipping ${token} - not available on Hyperliquid or Ostium`);
-        console.log(`       (Multi-venue agents need token on at least one enabled venue)`);
-        return;
+      if (ostiumMarket) {
+        venueMarket = ostiumMarket;
+        signalVenue = 'OSTIUM';
+        console.log(`    ✅ ${token} available on OSTIUM (multi-venue, using OSTIUM)`);
+      } else {
+        // Ostium not available, check Hyperliquid
+        const hyperliquidMarket = await prisma.venue_markets.findFirst({
+          where: {
+            token_symbol: token.toUpperCase(),
+            venue: 'HYPERLIQUID',
+            is_active: true,
+          },
+        });
+        
+        if (hyperliquidMarket) {
+          venueMarket = hyperliquidMarket;
+          signalVenue = 'HYPERLIQUID';
+          console.log(`    ✅ ${token} available on HYPERLIQUID (not on OSTIUM, using HYPERLIQUID)`);
+        } else {
+          console.log(`    ⏭️  Skipping ${token} - not available on OSTIUM or HYPERLIQUID`);
+          console.log(`       (Multi-venue agents need token on at least one enabled venue)`);
+          return;
+        }
       }
-      
-      venueMarket = multiVenueMarkets[0]; // Use first available venue for market info
-      signalVenue = multiVenueMarkets[0].venue; // Use first available venue for signal (Agent Where will re-route if needed)
-      const venueNames = multiVenueMarkets.map(m => m.venue).join(', ');
-      console.log(`    ✅ ${token} available on ${venueNames} (multi-venue, defaulting to ${signalVenue})`);
     } else {
       // For single-venue agents, check specific venue
       venueMarket = await prisma.venue_markets.findFirst({

@@ -23,7 +23,7 @@ export interface VenueRouterResult {
 
 /**
  * Route signal to best available venue
- * Priority: Hyperliquid → Ostium → GMX → SPOT
+ * Priority: Ostium → Hyperliquid → GMX → SPOT
  */
 export async function routeToVenue(input: VenueRouterInput): Promise<VenueRouterResult> {
   const startTime = Date.now();
@@ -34,19 +34,29 @@ export async function routeToVenue(input: VenueRouterInput): Promise<VenueRouter
   const checkedVenues: string[] = [];
   const venueAvailability: Record<string, boolean> = {};
 
-  // Try venues in priority order
-  for (const venue of enabledVenues) {
+  // Priority: Check OSTIUM first, then HYPERLIQUID
+  // Reorder enabledVenues to prioritize OSTIUM
+  const prioritizedVenues = [...enabledVenues].sort((a, b) => {
+    if (a === 'OSTIUM') return -1;
+    if (b === 'OSTIUM') return 1;
+    if (a === 'HYPERLIQUID') return -1;
+    if (b === 'HYPERLIQUID') return 1;
+    return 0;
+  });
+
+  // Try venues in priority order (OSTIUM first)
+  for (const venue of prioritizedVenues) {
     checkedVenues.push(venue);
 
-    if (venue === 'HYPERLIQUID') {
-      const available = await checkHyperliquidMarket(tokenSymbol);
-      venueAvailability['HYPERLIQUID'] = available;
+    if (venue === 'OSTIUM') {
+      const available = await checkOstiumMarket(tokenSymbol);
+      venueAvailability['OSTIUM'] = available;
       
       if (available) {
         const duration = Date.now() - startTime;
         const result: VenueRouterResult = {
-          selectedVenue: 'HYPERLIQUID',
-          routingReason: `Hyperliquid: ${tokenSymbol}-USD available (220 pairs, low fees)`,
+          selectedVenue: 'OSTIUM',
+          routingReason: `Ostium: ${tokenSymbol} available (41 synthetic pairs) - Priority venue`,
           checkedVenues,
           venueAvailability,
           routingDurationMs: duration,
@@ -61,15 +71,15 @@ export async function routeToVenue(input: VenueRouterInput): Promise<VenueRouter
       }
     }
 
-    if (venue === 'OSTIUM') {
-      const available = await checkOstiumMarket(tokenSymbol);
-      venueAvailability['OSTIUM'] = available;
+    if (venue === 'HYPERLIQUID') {
+      const available = await checkHyperliquidMarket(tokenSymbol);
+      venueAvailability['HYPERLIQUID'] = available;
       
       if (available) {
         const duration = Date.now() - startTime;
         const result: VenueRouterResult = {
-          selectedVenue: 'OSTIUM',
-          routingReason: `Ostium: ${tokenSymbol} available (41 synthetic pairs)`,
+          selectedVenue: 'HYPERLIQUID',
+          routingReason: `Hyperliquid: ${tokenSymbol}-USD available (220 pairs, low fees) - Fallback (not on Ostium)`,
           checkedVenues,
           venueAvailability,
           routingDurationMs: duration,
