@@ -1196,19 +1196,13 @@ def get_price(token):
         
         # Get price from Ostium SDK
         # Returns tuple: (price, isMarketOpen, isDayTradingClosed)
-        # NOTE: get_price may be async - check if it's a coroutine
+        # NOTE: get_price is async, need to run it in event loop
         try:
-            price_result = sdk.price.get_price(token.upper(), 'USD')
-            
-            # Check if it's a coroutine (async function) and await it
             import asyncio
-            import inspect
-            if inspect.iscoroutine(price_result):
-                logger.info(f"get_price returned coroutine, awaiting...")
-                price_result = asyncio.run(price_result)
-            elif hasattr(price_result, '__await__'):
-                # Alternative check for awaitable
-                price_result = asyncio.run(price_result)
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            price_result = loop.run_until_complete(sdk.price.get_price(token.upper(), 'USD'))
+            loop.close()
             
             logger.info(f"Raw price result for {token}: {price_result} (type: {type(price_result)})")
         except Exception as sdk_error:
