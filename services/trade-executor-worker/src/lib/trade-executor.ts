@@ -79,9 +79,44 @@ async function executeHyperliquidTrade(
       throw new Error(`Agent private key not found for address ${userAddress.hyperliquid_agent_address}`);
     }
 
-    // Calculate position size (for now use a fixed small amount for testing)
-    // TODO: Calculate based on account balance and sizeModel.value percentage
-    const positionSize = 10; // $10 USD for testing
+    // Calculate position size based on signal's size_model (Agent HOW percentage)
+    // Get user's Hyperliquid balance
+    const { getHyperliquidBalance } = await import('../../../../lib/adapters/hyperliquid-adapter');
+    const hlBalance = await getHyperliquidBalance(userAddress.hyperliquid_agent_address);
+    const availableBalance = hlBalance.withdrawable;
+    
+    // Hyperliquid minimum order size is $10
+    const HYPERLIQUID_MIN_ORDER = 10;
+    
+    if (availableBalance < HYPERLIQUID_MIN_ORDER) {
+      throw new Error(`Order must have minimum value of $10. Available: $${availableBalance.toFixed(2)}`);
+    }
+    
+    let positionSize: number;
+    
+    if (sizeModel.type === 'fixed-usdc') {
+      // Manual trades: Use exact USDC amount specified
+      positionSize = sizeModel.value || 0;
+    } else {
+      // Auto trades: Use percentage of actual balance (from Agent HOW)
+      const percentageToUse = sizeModel.value || 5;
+      positionSize = (availableBalance * percentageToUse) / 100;
+    }
+    
+    // Ensure position size meets minimum requirement
+    positionSize = Math.max(positionSize, HYPERLIQUID_MIN_ORDER);
+    
+    // Validate positionSize
+    if (!positionSize || positionSize <= 0 || isNaN(positionSize)) {
+      throw new Error(`Invalid position size calculated: $${positionSize}. Please check balance and percentage settings.`);
+    }
+    
+    // Final check: ensure user has enough balance
+    if (positionSize > availableBalance) {
+      throw new Error(`Insufficient balance. Available: $${availableBalance.toFixed(2)}, Required: $${positionSize.toFixed(2)}`);
+    }
+    
+    console.log(`[TradeExecutor] Position sizing: ${positionSize.toFixed(2)} USDC (${sizeModel.value || 5}% of $${availableBalance.toFixed(2)} balance)`);
 
     // Call Hyperliquid service /open-position endpoint
     const response = await fetch(`${HYPERLIQUID_SERVICE_URL}/open-position`, {
@@ -93,7 +128,7 @@ async function executeHyperliquidTrade(
         agentPrivateKey: agentPrivateKey, // From user_agent_addresses (decrypted)
         coin: signal.token_symbol,
         isBuy: signal.side === 'LONG',
-        size: positionSize,
+        size: positionSize, // Use calculated percentage-based position size
         slippage: 0.01, // 1% slippage
         vaultAddress: deployment.safe_wallet || deployment.user_wallet, // User's wallet (agent trading on behalf)
       }),
@@ -155,17 +190,51 @@ async function executeOstiumTrade(
       throw new Error('No token_symbol in signal');
     }
 
-    // Calculate collateral (for now use a fixed small amount for testing)
-    // TODO: Calculate based on account balance and sizeModel.value percentage
-    const collateral = 1000; // $10 USDC for testing (fixed typo: was 1000)
-    const leverage = 3; // 3x leverage default
+    // Get user's USDC balance on Ostium
+    const { getOstiumBalance } = await import('../../../../lib/adapters/ostium-adapter');
+    const userArbitrumWallet = deployment.safe_wallet || deployment.user_wallet;
+    const balance = await getOstiumBalance(userArbitrumWallet);
+    const usdcBalance = parseFloat(balance.usdcBalance);
+    
+    // Ostium minimum order size is $10
+    const OSTIUM_MIN_ORDER = 10;
+    
+    if (usdcBalance < OSTIUM_MIN_ORDER) {
+      throw new Error(`Order must have minimum value of $10. Balance: $${usdcBalance.toFixed(2)}`);
+    }
+
+    // Calculate collateral based on signal's size_model (Agent HOW percentage)
+    const leverage = sizeModel.leverage || 10;
+    let collateralUSDC: number;
+    
+    if (sizeModel.type === 'fixed-usdc') {
+      // Manual trades: Use exact USDC amount specified
+      collateralUSDC = sizeModel.value || 0;
+    } else {
+      // Auto trades: Use percentage of actual balance (from Agent HOW)
+      const percentageToUse = sizeModel.value || 5;
+      collateralUSDC = (usdcBalance * percentageToUse) / 100;
+    }
+
+    // Ensure collateral meets minimum requirement
+    collateralUSDC = Math.max(collateralUSDC, OSTIUM_MIN_ORDER);
+    
+    // Validate collateralUSDC
+    if (!collateralUSDC || collateralUSDC <= 0 || isNaN(collateralUSDC)) {
+      throw new Error(`Invalid position size calculated: $${collateralUSDC}. Please check balance and percentage settings.`);
+    }
+    
+    // Final check: ensure user has enough balance
+    if (collateralUSDC > usdcBalance) {
+      throw new Error(`Insufficient balance. Available: $${usdcBalance.toFixed(2)}, Required: $${collateralUSDC.toFixed(2)}`);
+    }
 
     console.log(`[TradeExecutor] Preparing Ostium request:`);
     console.log(`[TradeExecutor]    agentAddress: ${userAddress.ostium_agent_address}`);
-    console.log(`[TradeExecutor]    userAddress: ${deployment.safe_wallet || deployment.user_wallet}`);
+    console.log(`[TradeExecutor]    userAddress: ${userArbitrumWallet}`);
     console.log(`[TradeExecutor]    market: ${signal.token_symbol}`);
     console.log(`[TradeExecutor]    side: ${signal.side.toLowerCase()}`);
-    console.log(`[TradeExecutor]    collateral: ${collateral} USDC`);
+    console.log(`[TradeExecutor]    collateral: ${collateralUSDC.toFixed(2)} USDC (${sizeModel.value || 5}% of $${usdcBalance.toFixed(2)} balance)`);
     console.log(`[TradeExecutor]    leverage: ${leverage}x`);
 
     // Call Ostium service /open-position endpoint
@@ -176,10 +245,10 @@ async function executeOstiumTrade(
       },
       body: JSON.stringify({
         agentAddress: userAddress.ostium_agent_address, // Agent's address (private key looked up in service)
-        userAddress: deployment.safe_wallet || deployment.user_wallet, // User's wallet
+        userAddress: userArbitrumWallet, // User's wallet
         market: signal.token_symbol,
         side: signal.side.toLowerCase(), // "long" or "short"
-        collateral: collateral,
+        collateral: collateralUSDC, // Use calculated percentage-based collateral
         leverage: leverage,
       }),
     });
