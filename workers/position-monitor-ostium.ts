@@ -336,6 +336,9 @@ export async function monitorOstiumPositions() {
             const entryValue = qtyNum * (ostPosition.leverage || 1); // Position size = collateral * leverage
             const pnlPercent = entryValue > 0 ? (pnlUSD / entryValue) * 100 : 0;
             
+            // Determine position side (needed for trailing stop logic)
+            const isLong = position.side === 'LONG' || position.side === 'BUY';
+            
             console.log(`   📈 P&L: $${pnlUSD.toFixed(2)} (${pnlPercent.toFixed(2)}%) | From Ostium SDK`);
 
             // Check trailing stop logic
