@@ -44,12 +44,34 @@ async function executeAllPendingSignals() {
   
   try {
     // Fetch pending signals (signals without positions, not skipped)
+    // Also include signals that failed due to backend errors (retryable)
     const pendingSignals = await prisma.signals.findMany({
       where: {
         positions: {
           none: {}, // No positions created yet
         },
-        skipped_reason: null, // Not skipped
+        // Include signals that are not skipped, OR signals that failed due to retryable errors
+        // But limit retries: only retry if created within last 24 hours (prevents infinite retries)
+        OR: [
+          { skipped_reason: null }, // Not skipped
+          { 
+            // Retryable errors: backend/service errors that should be retried
+            // Only retry signals created in last 24 hours
+            AND: [
+              {
+                executor_agreement_error: {
+                  contains: 'RETRYABLE',
+                  mode: 'insensitive',
+                },
+              },
+              {
+                created_at: {
+                  gte: new Date(Date.now() - 24 * 60 * 60 * 1000), // Last 24 hours
+                },
+              },
+            ],
+          },
+        ],
         agents: {
           status: 'PUBLIC', // Only execute for public agents
           agent_deployments: {
@@ -172,31 +194,144 @@ async function executeSignal(signalId: string, deploymentId: string) {
       console.log(`[TradeExecutor] ✅ Trade executed successfully`);
       console.log(`[TradeExecutor]    TX Hash: ${result.txHash || 'N/A'}`);
     } else {
-      // Mark signal as skipped
-      await prisma.signals.update({
-        where: { id: signalId },
-        data: {
-          skipped_reason: result.error || result.reason || 'Execution failed',
-        },
-      });
+      // Check if error is retryable (backend/service errors)
+      const errorMessage = result.error || result.reason || 'Execution failed';
+      const isRetryable = isRetryableError(errorMessage);
+      
+      if (isRetryable) {
+        // Check signal age - only retry signals created within last 24 hours
+        const signal = await prisma.signals.findUnique({
+          where: { id: signalId },
+          select: { created_at: true, executor_agreement_error: true },
+        });
+        
+        const signalAge = Date.now() - (signal?.created_at?.getTime() || 0);
+        const MAX_RETRY_AGE = 24 * 60 * 60 * 1000; // 24 hours
+        const MAX_RETRIES = 10; // Maximum 10 retries
+        
+        // Count retries by checking how many times RETRY # appears
+        const retryCount = (signal?.executor_agreement_error?.match(/RETRY #/g)?.length || 0) + 1;
+        
+        if (signalAge > MAX_RETRY_AGE) {
+          // Signal too old - mark as permanently failed
+          await prisma.signals.update({
+            where: { id: signalId },
+            data: {
+              skipped_reason: `Retry timeout (signal older than 24h): ${errorMessage}`,
+              executor_agreement_error: null,
+            },
+          });
+          console.log(`[TradeExecutor] ❌ Trade failed - signal too old for retry: ${errorMessage}`);
+        } else if (retryCount > MAX_RETRIES) {
+          // Max retries reached - mark as permanently failed
+          await prisma.signals.update({
+            where: { id: signalId },
+            data: {
+              skipped_reason: `Max retries (${MAX_RETRIES}) exceeded: ${errorMessage}`,
+              executor_agreement_error: null,
+            },
+          });
+          console.log(`[TradeExecutor] ❌ Trade failed after ${MAX_RETRIES} retries: ${errorMessage}`);
+        } else {
+          // Store error in executor_agreement_error for retry tracking
+          // Don't mark as skipped - allow retry
+          const existingError = signal?.executor_agreement_error || '';
+          const retryError = existingError.includes('RETRYABLE') 
+            ? `${existingError} | RETRY #${retryCount}`
+            : `RETRYABLE: ${errorMessage} | RETRY #${retryCount}`;
+          
+          await prisma.signals.update({
+            where: { id: signalId },
+            data: {
+              executor_agreement_error: retryError,
+              skipped_reason: null, // Clear skip flag to allow retry
+            },
+          });
 
-      console.log(`[TradeExecutor] ❌ Trade failed: ${result.error || result.reason}`);
+          console.log(`[TradeExecutor] ⚠️  Trade failed (retryable, attempt ${retryCount}/${MAX_RETRIES}): ${errorMessage}`);
+          console.log(`[TradeExecutor]    Will retry in next cycle`);
+        }
+      } else {
+        // Permanent failure - mark as skipped
+        await prisma.signals.update({
+          where: { id: signalId },
+          data: {
+            skipped_reason: errorMessage,
+            executor_agreement_error: null, // Clear retry flag
+          },
+        });
+
+        console.log(`[TradeExecutor] ❌ Trade failed (permanent): ${errorMessage}`);
+      }
     }
   } catch (error: any) {
     console.error(`[TradeExecutor] ❌ Error executing signal:`, error.message);
     
-    // Mark signal as skipped on error
+    // Check if error is retryable
+    const isRetryable = isRetryableError(error.message);
+    
     try {
-      await prisma.signals.update({
-        where: { id: signalId },
-        data: {
-          skipped_reason: `Execution error: ${error.message}`,
-        },
-      });
+      if (isRetryable) {
+        // Store error for retry
+        await prisma.signals.update({
+          where: { id: signalId },
+          data: {
+            executor_agreement_error: `RETRYABLE: ${error.message}`,
+            skipped_reason: null, // Clear skip flag to allow retry
+          },
+        });
+        console.log(`[TradeExecutor] ⚠️  Execution error (retryable): ${error.message}`);
+        console.log(`[TradeExecutor]    Will retry in next cycle`);
+      } else {
+        // Permanent failure - mark as skipped
+        await prisma.signals.update({
+          where: { id: signalId },
+          data: {
+            skipped_reason: `Execution error: ${error.message}`,
+            executor_agreement_error: null,
+          },
+        });
+        console.log(`[TradeExecutor] ❌ Execution error (permanent): ${error.message}`);
+      }
     } catch (updateError) {
       console.error(`[TradeExecutor] ❌ Failed to update signal:`, updateError);
     }
   }
+}
+
+/**
+ * Check if an error is retryable (backend/service errors)
+ */
+function isRetryableError(errorMessage: string): boolean {
+  if (!errorMessage) return false;
+  
+  const lowerError = errorMessage.toLowerCase();
+  
+  // Retryable errors: backend/service errors
+  const retryablePatterns = [
+    'service error',
+    '500',
+    '503',
+    '502',
+    '504',
+    'timeout',
+    'network',
+    'connection',
+    'econnrefused',
+    'econnreset',
+    'etimedout',
+    'fetch failed',
+    'request failed',
+    'ostium service',
+    'hyperliquid service',
+    'backend error',
+    'internal server error',
+    'bad gateway',
+    'service unavailable',
+    'gateway timeout',
+  ];
+  
+  return retryablePatterns.some(pattern => lowerError.includes(pattern));
 }
 
 /**
