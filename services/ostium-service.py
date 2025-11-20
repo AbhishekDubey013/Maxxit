@@ -547,7 +547,11 @@ def open_position():
     
     except Exception as e:
         logger.error(f"Open position error: {str(e)}")
-        logger.error(traceback.format_exc())
+        try:
+            import traceback as tb
+            logger.error(tb.format_exc())
+        except:
+            logger.error("Could not format traceback")
         return jsonify({"success": False, "error": str(e)}), 500
 
 
@@ -677,7 +681,18 @@ def close_position():
         sdk = get_sdk(private_key, use_delegation)
         
         # Check if position exists
-        address_to_check = user_address if use_delegation else sdk.ostium.get_public_address()
+        # CRITICAL: Web3.py requires checksummed addresses
+        if use_delegation and user_address:
+            try:
+                address_to_check = Web3.to_checksum_address(user_address)
+            except Exception as e:
+                logger.error(f"Invalid user_address format: {user_address}, error: {e}")
+                return jsonify({
+                    "success": False,
+                    "error": f"Invalid userAddress format: {user_address}"
+                }), 400
+        else:
+            address_to_check = sdk.ostium.get_public_address()
         
         # get_open_trades is async, need to run it
         import asyncio
@@ -815,13 +830,22 @@ def close_position():
         
         try:
             if use_delegation:
-                print(f"[CLOSE] Using delegation - closing on behalf of {user_address}")
-                logger.info(f"Using delegation - closing on behalf of {user_address}")
+                # CRITICAL: Web3.py requires checksummed addresses
+                if not user_address:
+                    raise ValueError("userAddress is required for delegation")
+                try:
+                    checksummed_user_address = Web3.to_checksum_address(user_address)
+                except Exception as e:
+                    logger.error(f"Invalid user_address format: {user_address}, error: {e}")
+                    raise ValueError(f"Invalid userAddress format: {user_address}")
+                
+                print(f"[CLOSE] Using delegation - closing on behalf of {checksummed_user_address}")
+                logger.info(f"Using delegation - closing on behalf of {checksummed_user_address}")
                 result = sdk.ostium.close_trade(
                     trade_index=trade_index,
                     market_price=current_price,
                     pair_id=pair_index,
-                    trader_address=user_address  # THIS IS THE KEY!
+                    trader_address=checksummed_user_address  # THIS IS THE KEY! Must be checksummed
                 )
             else:
                 print("[CLOSE] Direct close (no delegation)")
@@ -871,12 +895,20 @@ def close_position():
                 })
                 
         except Exception as sdk_error:
+            # Use traceback module (imported at top) - ensure it's available
+            import traceback as tb_module
             print(f"[CLOSE] ❌ SDK close_trade FAILED: {sdk_error}")
             print(f"[CLOSE]    Error type: {type(sdk_error)}")
-            print(f"[CLOSE]    Traceback: {traceback.format_exc()}")
+            try:
+                print(f"[CLOSE]    Traceback: {tb_module.format_exc()}")
+            except Exception as tb_err:
+                print(f"[CLOSE]    Could not format traceback: {tb_err}")
             logger.error(f"❌ SDK close_trade FAILED: {sdk_error}")
             logger.error(f"   Error type: {type(sdk_error)}")
-            logger.error(traceback.format_exc())
+            try:
+                logger.error(tb_module.format_exc())
+            except Exception as tb_err:
+                logger.error(f"Could not format traceback: {tb_err}")
             
             # Check if the exception message contains the error tuple
             error_str = str(sdk_error)
@@ -1016,8 +1048,18 @@ def approve_agent():
         # Get user account
         user_account = web3.eth.account.from_key(user_key)
         
+        # CRITICAL: Web3.py requires checksummed addresses
+        try:
+            checksummed_agent_address = Web3.to_checksum_address(agent_address)
+        except Exception as e:
+            logger.error(f"Invalid agent_address format: {agent_address}, error: {e}")
+            return jsonify({
+                "success": False,
+                "error": f"Invalid agentAddress format: {agent_address}"
+            }), 400
+        
         # Build the transaction
-        tx = trading_contract.functions.setDelegate(agent_address).build_transaction({
+        tx = trading_contract.functions.setDelegate(checksummed_agent_address).build_transaction({
             'from': user_account.address,
             'nonce': web3.eth.get_transaction_count(user_account.address),
             'gas': 200000,
