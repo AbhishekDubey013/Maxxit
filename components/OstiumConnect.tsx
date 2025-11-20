@@ -356,15 +356,26 @@ export function OstiumConnect({
         throw new Error('No wallet provider found. Please install MetaMask.');
       }
 
+      console.log('[Ostium] Provider found:', !!provider);
+      console.log('[Ostium] Requesting accounts...');
+      
       const ethersProvider = new ethers.providers.Web3Provider(provider);
+      
+      // CRITICAL: Request accounts first - this triggers MetaMask popup
+      await ethersProvider.send('eth_requestAccounts', []);
+      console.log('[Ostium] Accounts requested');
       
       // Verify still on Arbitrum Sepolia
       const network = await ethersProvider.getNetwork();
+      console.log('[Ostium] Network:', network.name, 'Chain ID:', network.chainId);
       const ARBITRUM_SEPOLIA_CHAIN_ID = 421614;
       if (network.chainId !== ARBITRUM_SEPOLIA_CHAIN_ID) {
         throw new Error(`Please switch to Arbitrum Sepolia (Chain ID: ${ARBITRUM_SEPOLIA_CHAIN_ID})`);
       }
+      
       const signer = ethersProvider.getSigner();
+      const signerAddress = await signer.getAddress();
+      console.log('[Ostium] Signer address:', signerAddress);
 
       // Create USDC contract instance
       const usdcContract = new ethers.Contract(
@@ -396,10 +407,14 @@ export function OstiumConnect({
 
       console.log('[Ostium] Current allowance:', ethers.utils.formatUnits(currentAllowance, 6));
       console.log('[Ostium] Approving USDC...');
+      console.log('[Ostium] Approval amount:', ethers.utils.formatUnits(allowanceAmount, 6), 'USDC');
+      console.log('[Ostium] Spender (OSTIUM_STORAGE):', OSTIUM_STORAGE);
+      console.log('[Ostium] Calling approve()...');
 
-      // Approve USDC
+      // Approve USDC - THIS should trigger MetaMask popup
+      console.log('[Ostium] ⏳ About to call approve() - MetaMask should popup now');
       const tx = await usdcContract.approve(OSTIUM_STORAGE, allowanceAmount);
-      console.log('[Ostium] Approval sent:', tx.hash);
+      console.log('[Ostium] ✅ Approval transaction sent:', tx.hash);
       setTxHash(tx.hash);
 
       // Wait for confirmation
@@ -417,17 +432,28 @@ export function OstiumConnect({
       }, 1000);
 
     } catch (err: any) {
-      console.error('[Ostium] USDC approval error:', err);
+      console.error('[Ostium] ❌ USDC approval error:', err);
+      console.error('[Ostium] Error code:', err.code);
+      console.error('[Ostium] Error message:', err.message);
+      console.error('[Ostium] Error stack:', err.stack);
       
       if (err.code === 4001) {
         setError('Transaction rejected by user');
+        console.log('[Ostium] User rejected transaction');
       } else if (err.code === -32603) {
         setError('Transaction failed. Please try again.');
+      } else if (err.message?.includes('User rejected')) {
+        setError('Transaction rejected by user');
+      } else if (err.message?.includes('user rejected')) {
+        setError('Transaction rejected by user');
       } else {
-        setError(err.message || 'Failed to approve USDC');
+        const errorMsg = err.message || 'Failed to approve USDC';
+        setError(errorMsg);
+        console.error('[Ostium] Unexpected error:', errorMsg);
       }
     } finally {
       setLoading(false);
+      console.log('[Ostium] approveUsdc function completed');
     }
   };
 
