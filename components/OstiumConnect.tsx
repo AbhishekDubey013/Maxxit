@@ -331,6 +331,12 @@ export function OstiumConnect({
   };
 
   const approveUsdc = async () => {
+    console.log('[Ostium] 🔴 approveUsdc CALLED');
+    console.log('[Ostium] Current step:', step);
+    console.log('[Ostium] Loading:', loading);
+    console.log('[Ostium] Authenticated:', authenticated);
+    console.log('[Ostium] User:', user?.wallet?.address);
+    
     setLoading(true);
     setError('');
 
@@ -640,7 +646,10 @@ export function OstiumConnect({
               )}
 
               <button
-                onClick={approveUsdc}
+                onClick={() => {
+                  console.log('[Ostium] 🔵 Button clicked!');
+                  approveUsdc();
+                }}
                 disabled={loading}
                 className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-md font-semibold hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
