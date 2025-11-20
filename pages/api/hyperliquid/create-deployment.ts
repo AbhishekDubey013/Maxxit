@@ -57,20 +57,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
     }
 
-    // Prepare deployment data
-    // Vprime: For MULTI venue agents, enable both Hyperliquid and Ostium
-    // For single-venue agents, only enable that venue
-    const enabledVenues = agent.venue === 'MULTI' 
-      ? ['HYPERLIQUID', 'OSTIUM'] 
-      : ['HYPERLIQUID'];
-
-    const deploymentData = {
-      safe_wallet: userWallet.toLowerCase(),
-      enabled_venues: enabledVenues, // Vprime: Agent Where routing
-      status: 'ACTIVE' as const,
-      sub_active: true,
-    };
-
     // Check if deployment already exists for this agent and user
     const existingDeployment = await prisma.agent_deployments.findFirst({
       where: {
@@ -78,6 +64,25 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         user_wallet: userWallet.toLowerCase(),
       },
     });
+
+    // CRITICAL FIX: Only add Hyperliquid to enabled_venues
+    // Don't auto-add Ostium just because agent venue is MULTI
+    // Ostium gets added when user whitelists it separately
+    let enabledVenues = ['HYPERLIQUID'];
+    
+    if (existingDeployment) {
+      // If deployment exists, append Hyperliquid to existing venues (avoid duplicates)
+      const currentVenues = existingDeployment.enabled_venues || [];
+      enabledVenues = Array.from(new Set([...currentVenues, 'HYPERLIQUID']));
+      console.log('[CreateDeployment] Appending HYPERLIQUID to existing venues:', enabledVenues);
+    }
+
+    const deploymentData = {
+      safe_wallet: userWallet.toLowerCase(),
+      enabled_venues: enabledVenues, // Only the venue being whitelisted
+      status: 'ACTIVE' as const,
+      sub_active: true,
+    };
 
     let deployment;
 
