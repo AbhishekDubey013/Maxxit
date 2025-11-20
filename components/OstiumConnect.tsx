@@ -386,19 +386,31 @@ export function OstiumConnect({
 
       console.log('[Ostium] Checking current USDC allowance...');
       
-      // CRITICAL FIX: Check allowance against TRADING_CONTRACT, not STORAGE
-      // The trading contract is what actually needs approval to pull USDC for trades
-      const currentAllowance = await usdcContract.allowance(
+      // CRITICAL FIX: SDK checks OSTIUM_STORAGE, not OSTIUM_TRADING_CONTRACT
+      // The SDK's __approve method checks allowance for OSTIUM_STORAGE
+      // We need to approve BOTH contracts to be safe, but SDK specifically checks STORAGE
+      const currentAllowanceStorage = await usdcContract.allowance(
         user.wallet.address,
-        OSTIUM_TRADING_CONTRACT  // ✅ Correct spender
+        OSTIUM_STORAGE  // ✅ SDK checks this one
+      );
+      
+      const currentAllowanceTrading = await usdcContract.allowance(
+        user.wallet.address,
+        OSTIUM_TRADING_CONTRACT  // Also check this for completeness
       );
       
       const allowanceAmount = ethers.utils.parseUnits('1000000', 6); // $1M
       
-      console.log('[Ostium] Current allowance to TRADING_CONTRACT:', ethers.utils.formatUnits(currentAllowance, 6), 'USDC');
+      console.log('[Ostium] Current allowance to STORAGE:', ethers.utils.formatUnits(currentAllowanceStorage, 6), 'USDC');
+      console.log('[Ostium] Current allowance to TRADING_CONTRACT:', ethers.utils.formatUnits(currentAllowanceTrading, 6), 'USDC');
       
-      if (currentAllowance.gte(allowanceAmount)) {
-        console.log('[Ostium] ✅ Sufficient allowance already granted to trading contract');
+      // SDK checks STORAGE, but we should approve BOTH to be safe
+      // The working wallet has both approved, so approve both
+      const needsStorageApproval = currentAllowanceStorage.lt(allowanceAmount);
+      const needsTradingApproval = currentAllowanceTrading.lt(allowanceAmount);
+      
+      if (!needsStorageApproval && !needsTradingApproval) {
+        console.log('[Ostium] ✅ Both contracts already approved');
         setUsdcApproved(true);
         setStep('complete');
         setTimeout(() => {
@@ -408,22 +420,90 @@ export function OstiumConnect({
         return;
       }
 
-      console.log('[Ostium] ⚠️  Insufficient allowance - needs approval');
-      console.log('[Ostium] Approving USDC...');
+      console.log('[Ostium] ⚠️  Need to approve USDC...');
+      console.log('[Ostium]   STORAGE approved:', !needsStorageApproval);
+      console.log('[Ostium]   TRADING_CONTRACT approved:', !needsTradingApproval);
       console.log('[Ostium] Approval amount:', ethers.utils.formatUnits(allowanceAmount, 6), 'USDC');
-      console.log('[Ostium] Spender (OSTIUM_TRADING_CONTRACT):', OSTIUM_TRADING_CONTRACT);
-      console.log('[Ostium] Calling approve()...');
 
-      // Approve USDC - THIS should trigger MetaMask popup
-      console.log('[Ostium] ⏳ About to call approve() - MetaMask should popup now');
-      const tx = await usdcContract.approve(OSTIUM_TRADING_CONTRACT, allowanceAmount);  // ✅ Correct spender
-      console.log('[Ostium] ✅ Approval transaction sent:', tx.hash);
-      setTxHash(tx.hash);
+      // Approve STORAGE first (SDK requirement)
+      let lastTxHash = '';
+      if (needsStorageApproval) {
+        console.log('[Ostium] Approving STORAGE (SDK requirement)...');
+        console.log('[Ostium] Spender:', OSTIUM_STORAGE);
+        console.log('[Ostium] ⏳ Triggering MetaMask popup for STORAGE approval...');
+        
+        // CRITICAL: Use provider.request() directly to ensure MetaMask popup
+        // This bypasses any ethers.js caching that might prevent popup
+        const approveData = usdcContract.interface.encodeFunctionData('approve', [
+          OSTIUM_STORAGE,
+          allowanceAmount,
+        ]);
+        
+        // Estimate gas first
+        const gasEstimate = await ethersProvider.estimateGas({
+          to: USDC_TOKEN,
+          from: user.wallet.address,
+          data: approveData,
+        });
+        console.log('[Ostium] Gas estimate:', gasEstimate.toString());
+        
+        // Use provider.request() directly - this ensures MetaMask popup
+        const txHash = await provider.request({
+          method: 'eth_sendTransaction',
+          params: [{
+            from: user.wallet.address,
+            to: USDC_TOKEN,
+            data: approveData,
+            gas: '0x' + gasEstimate.mul(120).div(100).toString(16), // Add 20% buffer
+          }],
+        });
+        
+        console.log('[Ostium] ✅ STORAGE approval transaction sent:', txHash);
+        setTxHash(txHash);
+        
+        // Wait for confirmation
+        const receipt = await ethersProvider.waitForTransaction(txHash);
+        console.log('[Ostium] ✅ STORAGE approval confirmed:', receipt.transactionHash);
+        lastTxHash = receipt.transactionHash;
+      }
 
-      // Wait for confirmation
-      console.log('[Ostium] Waiting for confirmation...');
-      const receipt = await tx.wait();
-      console.log('[Ostium] Confirmed! Block:', receipt.blockNumber);
+      // Also approve TRADING_CONTRACT (for completeness - original code did this)
+      if (needsTradingApproval) {
+        console.log('[Ostium] Approving TRADING_CONTRACT (for completeness)...');
+        console.log('[Ostium] Spender:', OSTIUM_TRADING_CONTRACT);
+        console.log('[Ostium] ⏳ Triggering MetaMask popup for TRADING_CONTRACT approval...');
+        
+        // Use same approach for TRADING_CONTRACT
+        const approveDataTrading = usdcContract.interface.encodeFunctionData('approve', [
+          OSTIUM_TRADING_CONTRACT,
+          allowanceAmount,
+        ]);
+        
+        const gasEstimateTrading = await ethersProvider.estimateGas({
+          to: USDC_TOKEN,
+          from: user.wallet.address,
+          data: approveDataTrading,
+        });
+        console.log('[Ostium] Gas estimate:', gasEstimateTrading.toString());
+        
+        // Use provider.request() directly - this ensures MetaMask popup
+        const txHashTrading = await provider.request({
+          method: 'eth_sendTransaction',
+          params: [{
+            from: user.wallet.address,
+            to: USDC_TOKEN,
+            data: approveDataTrading,
+            gas: '0x' + gasEstimateTrading.mul(120).div(100).toString(16), // Add 20% buffer
+          }],
+        });
+        
+        console.log('[Ostium] ✅ TRADING_CONTRACT approval transaction sent:', txHashTrading);
+        setTxHash(txHashTrading);
+        
+        const receiptTrading = await ethersProvider.waitForTransaction(txHashTrading);
+        console.log('[Ostium] ✅ TRADING_CONTRACT approval confirmed:', receiptTrading.transactionHash);
+        lastTxHash = receiptTrading.transactionHash;
+      }
 
       setUsdcApproved(true);
       setStep('complete');

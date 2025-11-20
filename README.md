@@ -374,7 +374,9 @@ This is a production-ready template. To contribute:
 
 ## 📄 License
 
-MIT License - see LICENSE file for details
+Proprietary Software - All Rights Reserved
+
+This software is proprietary and confidential. Unauthorized copying, modification, distribution, or use is strictly prohibited. See LICENSE file for full terms and conditions.
 
 ## 🏆 Recent Achievements
 

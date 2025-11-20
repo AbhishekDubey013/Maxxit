@@ -167,7 +167,18 @@ export async function monitorOstiumPositions() {
               console.log(`   ✨ Discovered new position: ${ostPosition.side.toUpperCase()} ${ostPosition.market} (Trade ID: ${ostPosition.tradeId})`);
               
               try {
+                // Calculate percentage of balance for discovered position
+                // This ensures consistency with percentage-based sizing (Agent HOW)
+                const balance = await getOstiumBalance(deployment.safe_wallet);
+                const usdcBalance = parseFloat(balance.usdcBalance);
+                const positionSizePercent = usdcBalance > 0 
+                  ? (ostPosition.size / usdcBalance) * 100 
+                  : 5; // Default 5% if balance is 0 (shouldn't happen)
+                
+                console.log(`   📊 Position size: ${ostPosition.size} USDC = ${positionSizePercent.toFixed(2)}% of balance (${usdcBalance.toFixed(2)} USDC)`);
+                
                 // Create a "discovered" signal for this position
+                // Use balance-percentage to match system design (Agent HOW)
                 // Wrapped in try-catch to handle race condition with other workers
                 const discoveredSignal = await prisma.signals.create({
                   data: {
@@ -176,9 +187,10 @@ export async function monitorOstiumPositions() {
                     token_symbol: ostPosition.market,
                     side: ostPosition.side.toUpperCase(),
                     size_model: {
-                      type: 'fixed-usdc',
-                      value: ostPosition.size,
+                      type: 'balance-percentage', // ✅ Fixed: Use percentage-based sizing
+                      value: positionSizePercent, // Calculated percentage
                       leverage: ostPosition.leverage,
+                      reasoning: `Auto-discovered position: ${ostPosition.size} USDC = ${positionSizePercent.toFixed(2)}% of ${usdcBalance.toFixed(2)} USDC balance`,
                     },
                     risk_model: {
                       type: 'trailing-stop',

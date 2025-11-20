@@ -341,11 +341,38 @@ async function generateSignalForAgentAndToken(
           gte: bucket6hStart,
         },
       },
+      include: {
+        positions: {
+          select: {
+            status: true,
+            entry_price: true,
+            qty: true,
+          },
+          take: 1,
+        },
+      },
     });
 
     if (existingSignal) {
-      console.log(`    ⏭️  Signal already exists for ${token} (within 6-hour window)`);
-      return; // Skip creating duplicate signal
+      // Check if the existing signal's position actually succeeded
+      const hasPosition = existingSignal.positions.length > 0;
+      const positionFailed = hasPosition && 
+        existingSignal.positions[0].status === 'CLOSED' &&
+        existingSignal.positions[0].entry_price === 0 &&
+        (existingSignal.positions[0].qty === 0 || existingSignal.positions[0].qty === null);
+      
+      if (positionFailed) {
+        console.log(`    ⚠️  Existing signal for ${token} failed (position closed with 0 values)`);
+        console.log(`    ✅ Allowing new signal to be created (previous execution failed)`);
+        // Continue to create new signal - don't return
+      } else if (!hasPosition && existingSignal.skipped_reason) {
+        console.log(`    ⚠️  Existing signal for ${token} was skipped: ${existingSignal.skipped_reason}`);
+        console.log(`    ✅ Allowing new signal to be created (previous signal was skipped)`);
+        // Continue to create new signal - don't return
+      } else {
+        console.log(`    ⏭️  Signal already exists for ${token} (within 6-hour window)`);
+        return; // Skip creating duplicate signal
+      }
     }
 
     // Create signal (wrapped in try-catch as fallback)
