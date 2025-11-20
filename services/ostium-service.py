@@ -9,11 +9,36 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 from web3 import Web3
 import os
+import sys
 import logging
 from datetime import datetime
 import traceback
 import ssl
 import warnings
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+from cryptography.hazmat.primitives.kdf.scrypt import Scrypt
+from cryptography.hazmat.backends import default_backend
+import base64
+from pathlib import Path
+
+# Load environment variables from project root
+try:
+    from dotenv import load_dotenv
+    # Get project root (parent of services directory)
+    project_root = Path(__file__).parent.parent
+    env_file = project_root / '.env'
+    env_local_file = project_root / '.env.local'
+    
+    # Load .env first, then .env.local (local overrides)
+    if env_file.exists():
+        load_dotenv(env_file)
+        print(f"✅ Loaded .env from {env_file}")
+    else:
+        print(f"⚠️  No .env file found at {env_file}")
+        
+except ImportError:
+    print("⚠️  python-dotenv not installed. Install with: pip install python-dotenv")
+    print("   Environment variables must be set manually")
 
 # Disable SSL warnings for testnet (dev only)
 warnings.filterwarnings('ignore', message='Unverified HTTPS request')
@@ -68,6 +93,115 @@ available_markets_cache = {
     'last_updated': None,
     'ttl': 300  # 5 minutes cache
 }
+
+# Log encryption configuration (safely)
+logger.info("=" * 60)
+logger.info("ENCRYPTION CONFIGURATION CHECK")
+logger.info("=" * 60)
+encryption_key = os.getenv('ENCRYPTION_KEY') or os.getenv('MASTER_ENCRYPTION_KEY')
+platform_key = os.getenv('PLATFORM_MASTER_KEY')
+
+if encryption_key:
+    logger.info(f"✅ ENCRYPTION_KEY/MASTER_ENCRYPTION_KEY: Set")
+    logger.info(f"   Length: {len(encryption_key)} chars")
+    logger.info(f"   First 8 chars: {encryption_key[:8]}...")
+    logger.info(f"   Last 8 chars: ...{encryption_key[-8:]}")
+else:
+    logger.error("❌ ENCRYPTION_KEY/MASTER_ENCRYPTION_KEY: NOT SET")
+
+if platform_key:
+    logger.info(f"✅ PLATFORM_MASTER_KEY: Set")
+    logger.info(f"   Length: {len(platform_key)} chars")
+    logger.info(f"   First 8 chars: {platform_key[:8]}...")
+    logger.info(f"   Last 8 chars: ...{platform_key[-8:]}")
+else:
+    logger.error("❌ PLATFORM_MASTER_KEY: NOT SET")
+logger.info("=" * 60)
+
+def require_encryption_key():
+    """Get and validate the encryption key for decrypting agent private keys"""
+    # Use ENCRYPTION_KEY or MASTER_ENCRYPTION_KEY to match TypeScript
+    key_string = os.getenv('ENCRYPTION_KEY') or os.getenv('MASTER_ENCRYPTION_KEY')
+    if not key_string:
+        raise Exception('ENCRYPTION_KEY or MASTER_ENCRYPTION_KEY not configured')
+    
+    # Derive key using scrypt to match TypeScript's getEncryptionKey()
+    # TypeScript: crypto.scryptSync(ENCRYPTION_KEY, 'salt', 32)
+    kdf = Scrypt(
+        salt=b'salt',  # Must match TypeScript's 'salt'
+        length=32,
+        n=2**14,  # Default scrypt N parameter
+        r=8,      # Default scrypt r parameter
+        p=1,      # Default scrypt p parameter
+        backend=default_backend()
+    )
+    key = kdf.derive(key_string.encode('utf-8'))
+    return key
+
+
+def verify_platform_authorization():
+    """
+    Verify platform authorization before allowing decryption.
+    This ensures only the platform with PLATFORM_MASTER_KEY can decrypt private keys.
+    """
+    key_hex = os.getenv('PLATFORM_MASTER_KEY')
+    if not key_hex:
+        raise Exception('PLATFORM_MASTER_KEY not configured - decryption not authorized')
+    if len(key_hex) != 64:
+        raise Exception('PLATFORM_MASTER_KEY must be a 32-byte hex string (64 chars)')
+    logger.info('[OstiumService] ✅ Platform authorization verified')
+
+
+def decrypt_private_key(cipher_text: str, iv: str, tag: str):
+    """
+    Decrypt private key with AES-256-GCM
+    ⚠️ REQUIRES PLATFORM_MASTER_KEY AUTHORIZATION ⚠️
+    """
+    try:
+        logger.info('[OstiumService] Starting decryption process...')
+        
+        # STEP 1: Verify platform authorization (requires PLATFORM_MASTER_KEY)
+        try:
+            verify_platform_authorization()
+        except Exception as auth_error:
+            logger.error(f'[OstiumService] Authorization failed: {str(auth_error)}')
+            raise Exception(f'Platform authorization failed: {str(auth_error)}')
+        
+        # STEP 2: Get encryption key
+        try:
+            key = require_encryption_key()
+            logger.info(f'[OstiumService] Encryption key loaded (length: {len(key)} bytes)')
+        except Exception as key_error:
+            logger.error(f'[OstiumService] Failed to load encryption key: {str(key_error)}')
+            raise Exception(f'Encryption key error: {str(key_error)}')
+        
+        # STEP 3: Decode hex values (TypeScript stores as hex, not base64)
+        try:
+            cipher_text_bytes = bytes.fromhex(cipher_text)
+            iv_bytes = bytes.fromhex(iv)
+            tag_bytes = bytes.fromhex(tag)
+            logger.info(f'[OstiumService] Decoded - Cipher: {len(cipher_text_bytes)}B, IV: {len(iv_bytes)}B, Tag: {len(tag_bytes)}B')
+        except Exception as decode_error:
+            logger.error(f'[OstiumService] Hex decode failed: {str(decode_error)}')
+            raise Exception(f'Hex decode error: {str(decode_error)}')
+        
+        # STEP 4: AES-256-GCM decryption
+        try:
+            aesgcm = AESGCM(key)
+            # Concatenate ciphertext and tag for AESGCM
+            encrypted_with_tag = cipher_text_bytes + tag_bytes
+            decrypted = aesgcm.decrypt(iv_bytes, encrypted_with_tag, None)
+            logger.info('[OstiumService] ✅ Decryption successful')
+            return decrypted.decode('utf-8')
+        except Exception as decrypt_error:
+            logger.error(f'[OstiumService] AESGCM decrypt failed: {type(decrypt_error).__name__}: {str(decrypt_error)}')
+            raise Exception(f'AES-GCM decryption error: {type(decrypt_error).__name__} - {str(decrypt_error)}')
+        
+    except Exception as e:
+        error_msg = str(e) if str(e) else f'{type(e).__name__} (no message)'
+        logger.error(f'[OstiumService] Decryption failed: {error_msg}')
+        logger.error(traceback.format_exc())
+        raise Exception(f'Failed to decrypt private key: {error_msg}')
 
 
 def get_sdk(private_key: str, use_delegation: bool = False) -> OstiumSDK:
@@ -167,7 +301,7 @@ def health():
         "service": "ostium",
         "network": "testnet" if OSTIUM_TESTNET else "mainnet",
         "timestamp": datetime.utcnow().isoformat(),
-        "version": "v4.0-TESTNET-RESILIENCE",  # Testnet oracle fallback + error handling
+        "version": "v4.1-ENCRYPTION-FIX",  # Fixed encryption compatibility with TypeScript
         "features": {
             "price_feed": True,
             "price_feed_testnet_fallback": True,
@@ -336,7 +470,7 @@ def open_position():
         agent_address = data.get('agentAddress')
         private_key = data.get('privateKey')
         
-        # If agentAddress is provided, look up agent's private key from database
+        # If agentAddress is provided, look up agent's encrypted private key from database
         if agent_address:
             try:
                 # Import here to avoid circular dependency
@@ -351,11 +485,15 @@ def open_position():
                         "error": "DATABASE_URL not configured"
                     }), 500
                 
-                # Query wallet pool for agent's private key
+                # Query user_agent_addresses for agent's encrypted private key
                 conn = psycopg2.connect(database_url)
                 cur = conn.cursor(cursor_factory=RealDictCursor)
                 cur.execute(
-                    "SELECT private_key FROM wallet_pool WHERE LOWER(address) = LOWER(%s)",
+                    """
+                    SELECT ostium_agent_key_encrypted, ostium_agent_key_iv, ostium_agent_key_tag 
+                    FROM user_agent_addresses 
+                    WHERE LOWER(ostium_agent_address) = LOWER(%s)
+                    """,
                     (agent_address,)
                 )
                 wallet = cur.fetchone()
@@ -365,12 +503,29 @@ def open_position():
                 if not wallet:
                     return jsonify({
                         "success": False,
-                        "error": f"Agent address {agent_address} not found in wallet pool"
+                        "error": f"Agent address {agent_address} not found in user_agent_addresses table"
                     }), 404
                 
-                private_key = wallet['private_key']
-                use_delegation = True
-                logger.info(f"Found agent key for {agent_address} in wallet pool")
+                # Decrypt the private key
+                try:
+                    logger.info(f"[Decrypt] Attempting to decrypt key for agent: {agent_address}")
+                    logger.info(f"[Decrypt] Encrypted data lengths - cipher: {len(wallet['ostium_agent_key_encrypted'])}, iv: {len(wallet['ostium_agent_key_iv'])}, tag: {len(wallet['ostium_agent_key_tag'])}")
+                    logger.info(f"[Decrypt] Cipher text preview: {wallet['ostium_agent_key_encrypted'][:20]}...")
+                    
+                    private_key = decrypt_private_key(
+                        wallet['ostium_agent_key_encrypted'],
+                        wallet['ostium_agent_key_iv'],
+                        wallet['ostium_agent_key_tag']
+                    )
+                    use_delegation = True
+                    logger.info(f"✅ Decrypted agent key for {agent_address}")
+                except Exception as decrypt_error:
+                    logger.error(f"❌ Failed to decrypt agent key: {decrypt_error}")
+                    logger.error(f"[Decrypt] This usually means the wallet was encrypted with a different AGENT_WALLET_ENCRYPTION_KEY")
+                    return jsonify({
+                        "success": False,
+                        "error": f"Failed to decrypt agent key: {str(decrypt_error)}"
+                    }), 500
                 
             except Exception as e:
                 logger.error(f"Error fetching agent key: {e}")
@@ -538,7 +693,7 @@ def close_position():
         agent_address = data.get('agentAddress')
         private_key = data.get('privateKey')
         
-        # If agentAddress is provided, look up agent's private key from database
+        # If agentAddress is provided, look up agent's encrypted private key from database
         if agent_address:
             try:
                 import psycopg2
@@ -551,10 +706,15 @@ def close_position():
                         "error": "DATABASE_URL not configured"
                     }), 500
                 
+                # Query user_agent_addresses for agent's encrypted private key
                 conn = psycopg2.connect(database_url)
                 cur = conn.cursor(cursor_factory=RealDictCursor)
                 cur.execute(
-                    "SELECT private_key FROM wallet_pool WHERE LOWER(address) = LOWER(%s)",
+                    """
+                    SELECT ostium_agent_key_encrypted, ostium_agent_key_iv, ostium_agent_key_tag 
+                    FROM user_agent_addresses 
+                    WHERE LOWER(ostium_agent_address) = LOWER(%s)
+                    """,
                     (agent_address,)
                 )
                 wallet = cur.fetchone()
@@ -564,12 +724,29 @@ def close_position():
                 if not wallet:
                     return jsonify({
                         "success": False,
-                        "error": f"Agent address {agent_address} not found in wallet pool"
+                        "error": f"Agent address {agent_address} not found in user_agent_addresses table"
                     }), 404
                 
-                private_key = wallet['private_key']
-                use_delegation = True
-                logger.info(f"Found agent key for {agent_address} in wallet pool")
+                # Decrypt the private key
+                try:
+                    logger.info(f"[Decrypt] Attempting to decrypt key for agent: {agent_address}")
+                    logger.info(f"[Decrypt] Encrypted data lengths - cipher: {len(wallet['ostium_agent_key_encrypted'])}, iv: {len(wallet['ostium_agent_key_iv'])}, tag: {len(wallet['ostium_agent_key_tag'])}")
+                    logger.info(f"[Decrypt] Cipher text preview: {wallet['ostium_agent_key_encrypted'][:20]}...")
+                    
+                    private_key = decrypt_private_key(
+                        wallet['ostium_agent_key_encrypted'],
+                        wallet['ostium_agent_key_iv'],
+                        wallet['ostium_agent_key_tag']
+                    )
+                    use_delegation = True
+                    logger.info(f"✅ Decrypted agent key for {agent_address}")
+                except Exception as decrypt_error:
+                    logger.error(f"❌ Failed to decrypt agent key: {decrypt_error}")
+                    logger.error(f"[Decrypt] This usually means the wallet was encrypted with a different AGENT_WALLET_ENCRYPTION_KEY")
+                    return jsonify({
+                        "success": False,
+                        "error": f"Failed to decrypt agent key: {str(decrypt_error)}"
+                    }), 500
                 
             except Exception as e:
                 logger.error(f"Error fetching agent key: {e}")
