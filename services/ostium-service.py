@@ -277,13 +277,36 @@ def get_positions():
                 pair_info = trade.get('pair', {})
                 market_symbol = f"{pair_info.get('from', 'UNKNOWN')}/{pair_info.get('to', 'USD')}"
                 
+                # Extract unrealized P&L from trade data
+                # SDK may return PnL in different formats - try multiple fields
+                unrealized_pnl = 0.0
+                if 'unrealizedPnl' in trade:
+                    unrealized_pnl = float(trade.get('unrealizedPnl', 0))
+                elif 'pnl' in trade:
+                    # PnL might be in wei or already in USDC - check if it's large (likely wei)
+                    pnl_raw = trade.get('pnl', 0)
+                    if isinstance(pnl_raw, (int, str)):
+                        try:
+                            pnl_int = int(pnl_raw)
+                            # If PnL is in wei (very large number), convert to USDC (6 decimals)
+                            if abs(pnl_int) > 1e12:
+                                unrealized_pnl = float(pnl_int / 1e6)  # Convert from wei to USDC
+                            else:
+                                unrealized_pnl = float(pnl_int)
+                        except (ValueError, TypeError):
+                            unrealized_pnl = float(pnl_raw) if pnl_raw else 0.0
+                    else:
+                        unrealized_pnl = float(pnl_raw) if pnl_raw else 0.0
+                elif 'unrealizedPnlUSD' in trade:
+                    unrealized_pnl = float(trade.get('unrealizedPnlUSD', 0))
+                
                 positions.append({
                     "market": market_symbol,
                     "side": "long" if trade.get('isBuy') else "short",
                     "size": float(int(trade.get('collateral', 0)) / 1e6),  # Collateral in USDC
                     "entryPrice": float(int(trade.get('openPrice', 0)) / 1e18),  # Price
                     "leverage": float(int(trade.get('leverage', 0)) / 100),  # Leverage
-                    "unrealizedPnl": 0.0,  # TODO: Calculate PnL
+                    "unrealizedPnl": unrealized_pnl,  # Use P&L from Ostium SDK
                     "tradeId": trade.get('tradeID', trade.get('index', '0'))
                 })
             except Exception as parse_error:
@@ -897,7 +920,7 @@ def close_position():
         except Exception as sdk_error:
             # Use traceback module (imported at top) - ensure it's available
             import traceback as tb_module
-            from web3.exceptions import ContractCustomError
+            from web3.exceptions import ContractCustomError, Web3RPCError
             
             print(f"[CLOSE] ❌ SDK close_trade FAILED: {sdk_error}")
             print(f"[CLOSE]    Error type: {type(sdk_error)}")
@@ -911,6 +934,28 @@ def close_position():
                 logger.error(tb_module.format_exc())
             except Exception as tb_err:
                 logger.error(f"Could not format traceback: {tb_err}")
+            
+            # Check for different error types
+            error_str = str(sdk_error)
+            error_message = ''
+            
+            # Try to extract error message if it's a Web3RPCError
+            if isinstance(sdk_error, Web3RPCError):
+                try:
+                    if sdk_error.args and len(sdk_error.args) > 0:
+                        error_data = sdk_error.args[0]
+                        if isinstance(error_data, dict):
+                            error_message = error_data.get('message', '')
+                        else:
+                            error_message = str(error_data)
+                except:
+                    error_message = error_str
+            
+            # Check if this is insufficient funds error
+            is_insufficient_funds = False
+            if isinstance(sdk_error, Web3RPCError):
+                if 'insufficient funds' in error_str.lower() or 'insufficient funds' in error_message.lower():
+                    is_insufficient_funds = True
             
             # Check if this is a ContractCustomError with 0xf77a8069 (NoOpenPosition/PositionAlreadyClosed)
             is_position_closed_error = False
@@ -927,10 +972,24 @@ def close_position():
                             break
             else:
                 # For other exceptions, check the string representation
-                error_str = str(sdk_error)
                 if '0xf77a8069' in error_str:
                     is_position_closed_error = True
             
+            # Handle insufficient funds error FIRST (before position closed check)
+            if is_insufficient_funds:
+                logger.error(f"❌ Insufficient ETH for gas on agent address: {agent_address}")
+                logger.error(f"   Agent needs more ETH to pay for transaction gas")
+                logger.error(f"   Error: {error_message or error_str}")
+                return jsonify({
+                    "success": False,
+                    "error": "Insufficient ETH for gas. Agent address needs more ETH to execute the transaction.",
+                    "agentAddress": agent_address,
+                    "errorCode": "INSUFFICIENT_GAS",
+                    "details": error_message or error_str,
+                    "solution": "Fund the agent address with more ETH (at least 0.0001 ETH recommended)"
+                }), 400
+            
+            # Handle position already closed error
             if is_position_closed_error:
                 # This is "NoOpenPosition" or "PositionAlreadyClosed" error
                 logger.info(f"✅ Position already closed or doesn't exist (error code: 0xf77a8069)")
