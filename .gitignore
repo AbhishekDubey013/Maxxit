@@ -12,6 +12,16 @@ node_modules/
 out/
 dist/
 
+venv/
+.venv-hl/
+venv-twitter/
+venv-hyperliquid/
+venv-ostium/
+services/venv/
+services/venv-hyperliquid/
+services/venv-ostium/
+services/venv-twitter/
+
 # Environment variables
 .env
 .env.local

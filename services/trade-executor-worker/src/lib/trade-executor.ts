@@ -3,6 +3,8 @@
  * Routes signals to appropriate venue services (Hyperliquid, Ostium)
  */
 
+import { getPrivateKeyByAddress } from '../../../../lib/deployment-agent-address';
+
 interface ExecutionResult {
   success: boolean;
   txHash?: string;
@@ -60,28 +62,34 @@ async function executeHyperliquidTrade(
       ? JSON.parse(signal.risk_model)
       : signal.risk_model;
 
-    // Get agent private key from wallet_pool database
-    if (!deployment.hyperliquid_agent_address) {
-      throw new Error('No Hyperliquid agent address configured for this deployment');
+    // Get user's Hyperliquid agent address from user_agent_addresses
+    if (!deployment.user_wallet) {
+      throw new Error('No user_wallet found in deployment');
     }
 
     const { prisma } = await import('./prisma-client');
-    const agentWallet = await prisma.wallet_pool.findFirst({
+    
+    // Get user's agent address from user_agent_addresses table
+    const userAgentRecord = await prisma.user_agent_addresses.findUnique({
       where: {
-        address: {
-          equals: deployment.hyperliquid_agent_address,
-          mode: 'insensitive',
-        },
+        user_wallet: deployment.user_wallet.toLowerCase(),
       },
     });
 
-    if (!agentWallet) {
-      throw new Error(`Agent address ${deployment.hyperliquid_agent_address} not found in wallet pool`);
+    if (!userAgentRecord || !userAgentRecord.hyperliquid_agent_address) {
+      throw new Error(`No Hyperliquid agent address found for user ${deployment.user_wallet}`);
+    }
+
+    // Decrypt private key using the existing function from deployment-agent-address.ts
+    const agentPrivateKey = await getPrivateKeyByAddress(userAgentRecord.hyperliquid_agent_address);
+    
+    if (!agentPrivateKey) {
+      throw new Error(`Failed to decrypt private key for agent ${userAgentRecord.hyperliquid_agent_address}`);
     }
 
     // Calculate position size (for now use a fixed small amount for testing)
     // TODO: Calculate based on account balance and sizeModel.value percentage
-    const positionSize = 10; // $10 USD for testing
+    const positionSize = 0.001; // $10 USD for testing
 
     // Call Hyperliquid service /open-position endpoint
     const response = await fetch(`${HYPERLIQUID_SERVICE_URL}/open-position`, {
@@ -90,11 +98,11 @@ async function executeHyperliquidTrade(
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        agentPrivateKey: agentWallet.private_key, // From wallet_pool
+        agentPrivateKey: agentPrivateKey, // Decrypted from user_agent_addresses
         coin: signal.token_symbol,
         isBuy: signal.side === 'LONG',
         size: positionSize,
-        slippage: 0.01, // 1% slippage
+        slippage: 0.05, // 1% slippage
         vaultAddress: deployment.safe_wallet, // User's wallet (agent trading on behalf)
       }),
     });
@@ -137,8 +145,8 @@ async function executeOstiumTrade(
       : signal.risk_model;
 
     // Validate required fields
-    if (!deployment.ostium_agent_address) {
-      throw new Error('No Ostium agent address configured for this deployment. Please set ostium_agent_address in agent_deployments table.');
+    if (!deployment.user_wallet) {
+      throw new Error('No user_wallet found in deployment');
     }
 
     if (!deployment.safe_wallet) {
@@ -149,13 +157,33 @@ async function executeOstiumTrade(
       throw new Error('No token_symbol in signal');
     }
 
+    const { prisma } = await import('./prisma-client');
+    
+    // Get user's Ostium agent address from user_agent_addresses table
+    const userAgentRecord = await prisma.user_agent_addresses.findUnique({
+      where: {
+        user_wallet: deployment.user_wallet.toLowerCase(),
+      },
+    });
+
+    if (!userAgentRecord || !userAgentRecord.ostium_agent_address) {
+      throw new Error(`No Ostium agent address found for user ${deployment.user_wallet}`);
+    }
+
+    // Decrypt private key using the existing function from deployment-agent-address.ts
+    const agentPrivateKey = await getPrivateKeyByAddress(userAgentRecord.ostium_agent_address);
+    
+    if (!agentPrivateKey) {
+      throw new Error(`Failed to decrypt private key for agent ${userAgentRecord.ostium_agent_address}`);
+    }
+
     // Calculate collateral (for now use a fixed small amount for testing)
     // TODO: Calculate based on account balance and sizeModel.value percentage
     const collateral = 1000; // $10 USDC for testing (fixed typo: was 1000)
     const leverage = 3; // 3x leverage default
 
     console.log(`[TradeExecutor] Preparing Ostium request:`);
-    console.log(`[TradeExecutor]    agentAddress: ${deployment.ostium_agent_address}`);
+    console.log(`[TradeExecutor]    agentAddress: ${userAgentRecord.ostium_agent_address}`);
     console.log(`[TradeExecutor]    userAddress: ${deployment.safe_wallet}`);
     console.log(`[TradeExecutor]    market: ${signal.token_symbol}`);
     console.log(`[TradeExecutor]    side: ${signal.side.toLowerCase()}`);
@@ -169,7 +197,7 @@ async function executeOstiumTrade(
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        agentAddress: deployment.ostium_agent_address, // Agent's address (private key looked up in service)
+        agentAddress: userAgentRecord.ostium_agent_address, // Agent's address (private key looked up in service)
         userAddress: deployment.safe_wallet, // User's wallet
         market: signal.token_symbol,
         side: signal.side.toLowerCase(), // "long" or "short"
