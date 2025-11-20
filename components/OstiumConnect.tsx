@@ -447,6 +447,11 @@ export function OstiumConnect({
         });
         console.log('[Ostium] Gas estimate:', gasEstimate.toString());
         
+        // Calculate gas with 20% buffer
+        // BigNumber.toString() doesn't accept parameters in ethers v5, use toHexString() instead
+        const gasWithBuffer = gasEstimate.mul(120).div(100);
+        const gasHex = gasWithBuffer.toHexString(); // toHexString() already includes '0x' prefix
+        
         // Use provider.request() directly - this ensures MetaMask popup
         const txHash = await provider.request({
           method: 'eth_sendTransaction',
@@ -454,7 +459,7 @@ export function OstiumConnect({
             from: user.wallet.address,
             to: USDC_TOKEN,
             data: approveData,
-            gas: '0x' + gasEstimate.mul(120).div(100).toString(16), // Add 20% buffer
+            gas: gasHex, // Use hex string with buffer
           }],
         });
         
@@ -486,6 +491,11 @@ export function OstiumConnect({
         });
         console.log('[Ostium] Gas estimate:', gasEstimateTrading.toString());
         
+        // Calculate gas with 20% buffer
+        // BigNumber.toString() doesn't accept parameters in ethers v5, use toHexString() instead
+        const gasWithBufferTrading = gasEstimateTrading.mul(120).div(100);
+        const gasHexTrading = gasWithBufferTrading.toHexString(); // toHexString() already includes '0x' prefix
+        
         // Use provider.request() directly - this ensures MetaMask popup
         const txHashTrading = await provider.request({
           method: 'eth_sendTransaction',
@@ -493,7 +503,7 @@ export function OstiumConnect({
             from: user.wallet.address,
             to: USDC_TOKEN,
             data: approveDataTrading,
-            gas: '0x' + gasEstimateTrading.mul(120).div(100).toString(16), // Add 20% buffer
+            gas: gasHexTrading, // Use hex string with buffer
           }],
         });
         
