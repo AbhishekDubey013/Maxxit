@@ -1028,6 +1028,20 @@ export class TradeExecutor {
       // Ensure collateral meets minimum requirement
       collateralUSDC = Math.max(collateralUSDC, OSTIUM_MIN_ORDER);
       
+      // CRITICAL: Validate collateralUSDC is valid (not 0, NaN, or negative)
+      if (!collateralUSDC || collateralUSDC <= 0 || isNaN(collateralUSDC)) {
+        console.error('[TradeExecutor] ❌ Invalid collateralUSDC calculated:', {
+          collateralUSDC,
+          usdcBalance,
+          percentageToUse: sizeModel.value || 5,
+          sizeModelType: sizeModel.type,
+        });
+        return {
+          success: false,
+          error: `Invalid position size calculated: $${collateralUSDC}. Please check balance and percentage settings.`,
+        };
+      }
+      
       // Final check: ensure user has enough balance
       if (collateralUSDC > usdcBalance) {
         return {
@@ -1060,8 +1074,36 @@ export class TradeExecutor {
       });
 
       console.log('[TradeExecutor] ✅ Ostium position opened:', result);
+      console.log('[TradeExecutor]    Order ID:', result.orderId);
+      console.log('[TradeExecutor]    Status:', result.status);
+      console.log('[TradeExecutor]    Message:', result.message);
+
+      // Get current market price for entry_price (order is pending, so use current price as estimate)
+      // Position monitor will update with actual entry price once keeper fills the order
+      let entryPrice = 0;
+      try {
+        const priceResponse = await fetch(`${process.env.OSTIUM_SERVICE_URL || 'http://localhost:5002'}/price/${actualTokenSymbol}`);
+        if (priceResponse.ok) {
+          const priceData = await priceResponse.json();
+          if (priceData.success && priceData.price) {
+            entryPrice = parseFloat(priceData.price);
+            console.log('[TradeExecutor]    Current price (estimate):', entryPrice);
+          }
+        }
+      } catch (priceError) {
+        console.warn('[TradeExecutor] Could not fetch current price, using 0 (will be updated by position monitor)');
+      }
+
+      // CRITICAL: Double-check collateralUSDC before creating position
+      // This prevents positions with qty=0 which breaks position monitor logic
+      if (!collateralUSDC || collateralUSDC <= 0 || isNaN(collateralUSDC)) {
+        console.error('[TradeExecutor] ❌ CRITICAL: collateralUSDC is invalid before position creation:', collateralUSDC);
+        throw new Error(`Invalid collateralUSDC: ${collateralUSDC}. Cannot create position with qty=0.`);
+      }
 
       // Create position record
+      // Note: entry_price will be updated by position monitor once keeper fills the order
+      // The order is pending, so we store the orderId and wait for keeper to fill it
       const position = await prisma.positions.create({
         data: {
           deployment_id: ctx.deployment.id,
@@ -1069,9 +1111,10 @@ export class TradeExecutor {
           venue: ctx.signal.venue,
           token_symbol: actualTokenSymbol,
           side: ctx.signal.side,
-          entry_price: result.entryPrice,
-          qty: collateralUSDC,
-          entry_tx_hash: result.txHash || 'OST-' + Date.now(),
+          entry_price: entryPrice, // Will be updated by position monitor when order is filled
+          qty: collateralUSDC, // Collateral amount in USDC (MUST be > 0)
+          entry_tx_hash: result.txHash || result.orderId || 'OST-' + Date.now(),
+          status: 'OPEN', // Explicitly set to OPEN (order is pending but position is open)
           trailing_params: {
             enabled: true,
             trailingPercent: 1, // 1% trailing stop
@@ -1079,6 +1122,18 @@ export class TradeExecutor {
           },
         },
       });
+
+      // Log position creation with validation
+      console.log('[TradeExecutor]    Position created with validated qty:', {
+        positionId: position.id,
+        qty: collateralUSDC,
+        entryPrice,
+        token: actualTokenSymbol,
+      });
+
+      console.log('[TradeExecutor]    Position created in DB:', position.id);
+      console.log('[TradeExecutor]    ⚠️  Order is PENDING - waiting for keeper to fill');
+      console.log('[TradeExecutor]    Position monitor will update entry_price once filled');
 
       return {
         success: true,

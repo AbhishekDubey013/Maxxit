@@ -259,11 +259,15 @@ export async function monitorOstiumPositions() {
 
             // Position closed externally?
             if (!ostPosition) {
-              // CRITICAL: Don't close positions that are pending (have 0 values)
+              // CRITICAL: Don't close positions that are pending (entry_price = 0 means pending)
               // Ostium uses keeper-based orders - they take 1-5 minutes to fill
+              // Note: qty should ALWAYS be > 0 (collateral amount), so we only check entry_price
               const entryPrice = Number(position.entry_price?.toString() || 0);
               const qty = Number(position.qty?.toString() || 0);
-              const isPending = entryPrice === 0 && qty === 0;
+              
+              // Position is pending if entry_price is 0 (order not filled yet)
+              // qty should be > 0 (collateral), but we check it as a safety measure
+              const isPending = entryPrice === 0 && qty > 0;
               
               // Also check if position was created recently (within last 5 minutes)
               const positionAge = Date.now() - position.opened_at.getTime();
