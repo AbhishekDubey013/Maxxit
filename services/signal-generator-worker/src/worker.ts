@@ -356,10 +356,16 @@ async function generateSignalForAgentAndToken(
     if (existingSignal) {
       // Check if the existing signal's position actually succeeded
       const hasPosition = existingSignal.positions.length > 0;
-      const positionFailed = hasPosition && 
-        existingSignal.positions[0].status === 'CLOSED' &&
-        existingSignal.positions[0].entry_price === 0 &&
-        (existingSignal.positions[0].qty === 0 || existingSignal.positions[0].qty === null);
+      
+      let positionFailed = false;
+      if (hasPosition) {
+        const position = existingSignal.positions[0];
+        // Convert Prisma Decimal to number for comparison
+        const entryPrice = position.entry_price ? Number(position.entry_price.toString()) : 0;
+        const qty = position.qty ? Number(position.qty.toString()) : 0;
+        
+        positionFailed = position.status === 'CLOSED' && entryPrice === 0 && qty === 0;
+      }
       
       if (positionFailed) {
         console.log(`    ⚠️  Existing signal for ${token} failed (position closed with 0 values)`);
