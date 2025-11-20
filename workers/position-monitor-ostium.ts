@@ -23,6 +23,35 @@ const LOCK_FILE = path.join(__dirname, '../.position-monitor-ostium.lock');
 const LOCK_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
 
 /**
+ * Map token symbols to CoinGecko IDs for price fallback
+ */
+function getCoinGeckoId(tokenSymbol: string): string | null {
+  const mapping: Record<string, string> = {
+    'BTC': 'bitcoin',
+    'ETH': 'ethereum',
+    'SOL': 'solana',
+    'XRP': 'ripple',
+    'ADA': 'cardano',
+    'HYPE': 'hyperliquid', // May need adjustment
+    'ARB': 'arbitrum',
+    'OP': 'optimism',
+    'MATIC': 'matic-network',
+    'LINK': 'chainlink',
+    'UNI': 'uniswap',
+    'AAVE': 'aave',
+    'AVAX': 'avalanche-2',
+    'DOGE': 'dogecoin',
+    'DOT': 'polkadot',
+    'ATOM': 'cosmos',
+    'NEAR': 'near',
+    'APT': 'aptos',
+    'SUI': 'sui',
+  };
+  
+  return mapping[tokenSymbol.toUpperCase()] || null;
+}
+
+/**
  * Acquire a file-based lock to prevent concurrent monitor instances
  */
 async function acquireLock(): Promise<boolean> {
