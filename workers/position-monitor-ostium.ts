@@ -327,14 +327,47 @@ export async function monitorOstiumPositions() {
               currentPrice = ostPosition.entryPrice; // Fallback to entry price
             }
 
-            // Calculate P&L
-            const positionValue = position.qty * currentPrice;
-            const entryValue = position.qty * position.entry_price;
+            // Get leverage from signal's size_model
+            let leverage = 1; // Default to 1x if not found
+            try {
+              const signal = await prisma.signals.findUnique({
+                where: { id: position.signal_id },
+                select: { size_model: true },
+              });
+              
+              if (signal?.size_model) {
+                const sizeModel = typeof signal.size_model === 'string' 
+                  ? JSON.parse(signal.size_model) 
+                  : signal.size_model;
+                leverage = sizeModel.leverage || 1;
+              }
+            } catch (leverageError) {
+              console.warn(`   ⚠️  Could not get leverage from signal, using 1x`);
+            }
+
+            // Calculate P&L with leverage
+            // qty = collateral (USDC), leverage = multiplier
+            // Position size in USD = qty * leverage
+            // For LONG: P&L = qty * leverage * (currentPrice / entryPrice - 1)
+            // For SHORT: P&L = qty * leverage * (entryPrice / currentPrice - 1)
+            const qtyNum = Number(position.qty.toString());
+            const entryPriceNum = Number(position.entry_price.toString());
             const isLong = position.side === 'LONG' || position.side === 'BUY';
-            const pnlUSD = isLong ? positionValue - entryValue : entryValue - positionValue;
-            const pnlPercent = (pnlUSD / entryValue) * 100;
             
-            console.log(`   📈 P&L: $${pnlUSD.toFixed(2)} (${pnlPercent.toFixed(2)}%)`);
+            let pnlUSD: number;
+            let pnlPercent: number;
+            
+            if (isLong) {
+              // LONG: Profit when price goes up
+              pnlUSD = qtyNum * leverage * (currentPrice / entryPriceNum - 1);
+              pnlPercent = ((currentPrice / entryPriceNum - 1) * 100);
+            } else {
+              // SHORT: Profit when price goes down
+              pnlUSD = qtyNum * leverage * (entryPriceNum / currentPrice - 1);
+              pnlPercent = ((entryPriceNum / currentPrice - 1) * 100);
+            }
+            
+            console.log(`   📈 P&L: $${pnlUSD.toFixed(2)} (${pnlPercent.toFixed(2)}%) | Leverage: ${leverage}x | Collateral: $${qtyNum.toFixed(2)}`);
 
             // Check trailing stop logic
             const trailingParams = position.trailing_params as any;
