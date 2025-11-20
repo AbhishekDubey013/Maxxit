@@ -346,95 +346,53 @@ export async function monitorOstiumPositions() {
             let shouldClose = false;
             let closeReason = '';
 
-            // HARD STOP LOSS: 10%
+            // HARD STOP LOSS: 10% (using P&L percentage from Ostium)
             const HARD_STOP_LOSS = 10;
             
-            if (isLong) {
-              const stopLossPrice = position.entry_price * (1 - HARD_STOP_LOSS / 100);
-              if (currentPrice <= stopLossPrice) {
-                shouldClose = true;
-                closeReason = 'HARD_STOP_LOSS';
-                console.log(`   🔴 HARD STOP LOSS HIT! Stop: $${stopLossPrice.toFixed(4)}`);
-              }
-            } else { // SHORT
-              const stopLossPrice = position.entry_price * (1 + HARD_STOP_LOSS / 100);
-              if (currentPrice >= stopLossPrice) {
-                shouldClose = true;
-                closeReason = 'HARD_STOP_LOSS';
-                console.log(`   🔴 HARD STOP LOSS HIT! Stop: $${stopLossPrice.toFixed(4)}`);
-              }
+            if (pnlPercent <= -HARD_STOP_LOSS) {
+              shouldClose = true;
+              closeReason = 'HARD_STOP_LOSS';
+              console.log(`   🔴 HARD STOP LOSS HIT! P&L: ${pnlPercent.toFixed(2)}% (threshold: -${HARD_STOP_LOSS}%)`);
             }
 
-            // TRAILING STOP LOGIC
+            // TRAILING STOP LOGIC (using P&L percentage from Ostium)
             if (!shouldClose && trailingParams?.enabled) {
               const trailingPercent = trailingParams.trailingPercent || 1;
+              const activationThreshold = 3; // Activate trailing stop after +3% P&L
               
-              if (isLong) {
-                // LONG position: track highest price
-                const activationThreshold = position.entry_price * 1.03; // Activate after +3%
-                const highestPrice = trailingParams.highestPrice || position.entry_price;
-                const newHighest = Math.max(highestPrice, currentPrice);
-                
-                // Update highest price if new high
-                if (newHighest > highestPrice) {
-                  await prisma.positions.update({
-                    where: { id: position.id },
-                    data: {
-                      trailing_params: {
-                        ...trailingParams,
-                        highestPrice: newHighest,
-                      }
+              // Track highest P&L percentage (works for both LONG and SHORT)
+              const highestPnlPercent = trailingParams.highestPnlPercent !== undefined 
+                ? trailingParams.highestPnlPercent 
+                : 0; // Start from 0 (entry)
+              const newHighestPnl = Math.max(highestPnlPercent, pnlPercent);
+              
+              // Update highest P&L if new high
+              if (newHighestPnl > highestPnlPercent) {
+                await prisma.positions.update({
+                  where: { id: position.id },
+                  data: {
+                    trailing_params: {
+                      ...trailingParams,
+                      highestPnlPercent: newHighestPnl,
                     }
-                  });
-                  console.log(`   📈 New high: $${newHighest.toFixed(4)}`);
-                }
-
-                // Check if trailing stop should trigger
-                if (newHighest >= activationThreshold) {
-                  const trailingStopPrice = newHighest * (1 - trailingPercent / 100);
-                  if (currentPrice <= trailingStopPrice) {
-                    shouldClose = true;
-                    closeReason = 'TRAILING_STOP';
-                    console.log(`   🟢 Trailing stop triggered! High: $${newHighest.toFixed(4)}, Stop: $${trailingStopPrice.toFixed(4)}`);
-                  } else {
-                    console.log(`   ✅ Trailing stop active (High: $${newHighest.toFixed(4)}, Stop: $${trailingStopPrice.toFixed(4)})`);
                   }
-                } else {
-                  console.log(`   ⏳ Trailing stop inactive (need +3% for activation, current: ${pnlPercent.toFixed(2)}%)`);
-                }
-              } else { // SHORT
-                // SHORT position: track lowest price
-                const activationThreshold = position.entry_price * 0.97; // Activate after +3%
-                const lowestPrice = trailingParams.lowestPrice || position.entry_price;
-                const newLowest = Math.min(lowestPrice, currentPrice);
-                
-                // Update lowest price if new low
-                if (newLowest < lowestPrice) {
-                  await prisma.positions.update({
-                    where: { id: position.id },
-                    data: {
-                      trailing_params: {
-                        ...trailingParams,
-                        lowestPrice: newLowest,
-                      }
-                    }
-                  });
-                  console.log(`   📉 New low: $${newLowest.toFixed(4)}`);
-                }
+                });
+                console.log(`   📈 New P&L high: ${newHighestPnl.toFixed(2)}%`);
+              }
 
-                // Check if trailing stop should trigger
-                if (newLowest <= activationThreshold) {
-                  const trailingStopPrice = newLowest * (1 + trailingPercent / 100);
-                  if (currentPrice >= trailingStopPrice) {
-                    shouldClose = true;
-                    closeReason = 'TRAILING_STOP';
-                    console.log(`   🟢 Trailing stop triggered! Low: $${newLowest.toFixed(4)}, Stop: $${trailingStopPrice.toFixed(4)}`);
-                  } else {
-                    console.log(`   ✅ Trailing stop active (Low: $${newLowest.toFixed(4)}, Stop: $${trailingStopPrice.toFixed(4)})`);
-                  }
+              // Check if trailing stop should trigger
+              if (newHighestPnl >= activationThreshold) {
+                // Trailing stop triggers if P&L drops by trailingPercent from the high
+                const trailingStopPnl = newHighestPnl - trailingPercent;
+                if (pnlPercent <= trailingStopPnl) {
+                  shouldClose = true;
+                  closeReason = 'TRAILING_STOP';
+                  console.log(`   🟢 Trailing stop triggered! High P&L: ${newHighestPnl.toFixed(2)}%, Current: ${pnlPercent.toFixed(2)}%, Stop: ${trailingStopPnl.toFixed(2)}%`);
                 } else {
-                  console.log(`   ⏳ Trailing stop inactive (need +3% for activation, current: ${pnlPercent.toFixed(2)}%)`);
+                  console.log(`   ✅ Trailing stop active (High P&L: ${newHighestPnl.toFixed(2)}%, Stop: ${trailingStopPnl.toFixed(2)}%, Current: ${pnlPercent.toFixed(2)}%)`);
                 }
+              } else {
+                console.log(`   ⏳ Trailing stop inactive (need +${activationThreshold}% for activation, current: ${pnlPercent.toFixed(2)}%)`);
               }
             }
 
