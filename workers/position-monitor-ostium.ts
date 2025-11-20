@@ -259,7 +259,26 @@ export async function monitorOstiumPositions() {
 
             // Position closed externally?
             if (!ostPosition) {
+              // CRITICAL: Don't close positions that are pending (have 0 values)
+              // Ostium uses keeper-based orders - they take 1-5 minutes to fill
+              const entryPrice = Number(position.entry_price?.toString() || 0);
+              const qty = Number(position.qty?.toString() || 0);
+              const isPending = entryPrice === 0 && qty === 0;
+              
+              // Also check if position was created recently (within last 5 minutes)
+              const positionAge = Date.now() - position.opened_at.getTime();
+              const isRecent = positionAge < 5 * 60 * 1000; // 5 minutes
+              
+              if (isPending && isRecent) {
+                console.log(`   ⏳ Position ${position.token_symbol} ${position.side} is pending (order submitted, waiting for keeper to fill)`);
+                console.log(`      TX: ${position.entry_tx_hash}`);
+                console.log(`      Age: ${Math.round(positionAge / 1000)}s (keeper typically fills within 1-5 minutes)`);
+                console.log(`      ⏭️  Skipping close check - order is still pending`);
+                continue; // Don't close - order is still pending
+              }
+              
               console.log(`   ⚠️  Position ${position.token_symbol} ${position.side} (TX: ${position.entry_tx_hash}) no longer on Ostium - marking as closed`);
+              console.log(`      Age: ${Math.round(positionAge / 1000 / 60)} minutes`);
               
               await prisma.positions.update({
                 where: { id: position.id },
