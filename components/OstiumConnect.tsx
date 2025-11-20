@@ -348,7 +348,7 @@ export function OstiumConnect({
       console.log('[Ostium] Starting USDC approval...');
       console.log('   User:', user.wallet.address);
       console.log('   USDC Token:', USDC_TOKEN);
-      console.log('   Storage:', OSTIUM_STORAGE);
+      console.log('   Trading Contract (spender):', OSTIUM_TRADING_CONTRACT);
 
       // Get provider
       const provider = (window as any).ethereum;
@@ -386,16 +386,19 @@ export function OstiumConnect({
 
       console.log('[Ostium] Checking current USDC allowance...');
       
-      // Check current allowance
+      // CRITICAL FIX: Check allowance against TRADING_CONTRACT, not STORAGE
+      // The trading contract is what actually needs approval to pull USDC for trades
       const currentAllowance = await usdcContract.allowance(
         user.wallet.address,
-        OSTIUM_STORAGE
+        OSTIUM_TRADING_CONTRACT  // ✅ Correct spender
       );
       
       const allowanceAmount = ethers.utils.parseUnits('1000000', 6); // $1M
       
+      console.log('[Ostium] Current allowance to TRADING_CONTRACT:', ethers.utils.formatUnits(currentAllowance, 6), 'USDC');
+      
       if (currentAllowance.gte(allowanceAmount)) {
-        console.log('[Ostium] Sufficient allowance already granted');
+        console.log('[Ostium] ✅ Sufficient allowance already granted to trading contract');
         setUsdcApproved(true);
         setStep('complete');
         setTimeout(() => {
@@ -405,15 +408,15 @@ export function OstiumConnect({
         return;
       }
 
-      console.log('[Ostium] Current allowance:', ethers.utils.formatUnits(currentAllowance, 6));
+      console.log('[Ostium] ⚠️  Insufficient allowance - needs approval');
       console.log('[Ostium] Approving USDC...');
       console.log('[Ostium] Approval amount:', ethers.utils.formatUnits(allowanceAmount, 6), 'USDC');
-      console.log('[Ostium] Spender (OSTIUM_STORAGE):', OSTIUM_STORAGE);
+      console.log('[Ostium] Spender (OSTIUM_TRADING_CONTRACT):', OSTIUM_TRADING_CONTRACT);
       console.log('[Ostium] Calling approve()...');
 
       // Approve USDC - THIS should trigger MetaMask popup
       console.log('[Ostium] ⏳ About to call approve() - MetaMask should popup now');
-      const tx = await usdcContract.approve(OSTIUM_STORAGE, allowanceAmount);
+      const tx = await usdcContract.approve(OSTIUM_TRADING_CONTRACT, allowanceAmount);  // ✅ Correct spender
       console.log('[Ostium] ✅ Approval transaction sent:', tx.hash);
       setTxHash(tx.hash);
 
