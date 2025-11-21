@@ -560,10 +560,20 @@ def open_position():
         # Execute trade
         logger.info(f"📤 Calling perform_trade with params: {trade_params}")
         logger.info(f"   Price: {current_price}")
-        logger.info(f"   SL: NOT INCLUDED (disabled to avoid WrongSL errors)")
-        logger.info(f"   TP: NOT INCLUDED (disabled)")
+        logger.info(f"   SL: {trade_params.get('sl')} (None = disabled)")
+        logger.info(f"   TP: {trade_params.get('tp')} (None = disabled)")
         
-        result = sdk.ostium.perform_trade(trade_params, at_price=current_price)
+        try:
+            result = sdk.ostium.perform_trade(trade_params, at_price=current_price)
+        except Exception as trade_err:
+            error_str = str(trade_err)
+            logger.error(f"❌ perform_trade error: {error_str}")
+            logger.error(f"   Trade params were: {trade_params}")
+            logger.error(f"   Price was: {current_price}")
+            if 'WrongSL' in error_str:
+                logger.error("   ⚠️  WrongSL error - SDK might be adding default SL value")
+                logger.error("   This is an Ostium SDK limitation - cannot disable SL")
+            raise
         
         # Extract order_id and receipt
         order_id = result.get('order_id') if isinstance(result, dict) else None
