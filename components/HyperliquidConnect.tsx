@@ -46,7 +46,8 @@ export function HyperliquidConnect({
   const [error, setError] = useState<string>('');
   const [copied, setCopied] = useState(false);
 
-  const isTestnet = process.env.NEXT_PUBLIC_HYPERLIQUID_TESTNET === 'true';
+  // Default to testnet unless explicitly set to 'false'
+  const isTestnet = process.env.NEXT_PUBLIC_HYPERLIQUID_TESTNET !== 'false';
   const hyperliquidUrl = isTestnet 
     ? 'https://app.hyperliquid-testnet.xyz/API'
     : 'https://app.hyperliquid.xyz/API';
