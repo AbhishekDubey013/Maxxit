@@ -53,6 +53,7 @@ logger = logging.getLogger(__name__)
 # Configuration
 OSTIUM_TESTNET = os.getenv('OSTIUM_TESTNET', 'true').lower() == 'true'
 OSTIUM_RPC_URL = os.getenv('OSTIUM_RPC_URL', 'https://sepolia-rollup.arbitrum.io/rpc')
+OSTIUM_RPC_BACKUP = os.getenv('OSTIUM_RPC_BACKUP', 'https://arbitrum-sepolia-rpc.publicnode.com')  # Backup RPC
 PORT = int(os.getenv('OSTIUM_SERVICE_PORT', '5002'))
 
 logger.info(f"🚀 Ostium Service Starting...")
@@ -70,19 +71,48 @@ available_markets_cache = {
 }
 
 
-def get_sdk(private_key: str, use_delegation: bool = False) -> OstiumSDK:
-    """Get or create SDK instance with caching"""
+def check_rpc_health(rpc_url: str, timeout: int = 3) -> bool:
+    """Check if RPC endpoint is healthy (quick check)"""
+    try:
+        from web3 import Web3
+        w3 = Web3(Web3.HTTPProvider(rpc_url, request_kwargs={'timeout': timeout}))
+        # Try a simple call (get latest block number)
+        block_number = w3.eth.block_number
+        logger.info(f"✅ RPC healthy: {rpc_url} (block: {block_number})")
+        return True
+    except Exception as e:
+        logger.warning(f"❌ RPC unhealthy: {rpc_url} - {str(e)[:100]}")
+        return False
+
+def get_sdk(private_key: str, use_delegation: bool = False, force_new: bool = False) -> OstiumSDK:
+    """Get or create SDK instance with caching and optional RPC health checks"""
     cache_key = f"{private_key[:10]}_{use_delegation}"
     
-    if cache_key not in sdk_cache:
+    # Only check RPC health if forcing new SDK (after errors)
+    rpc_url = OSTIUM_RPC_URL
+    if force_new:
+        logger.info("🔍 Checking RPC health before recreating SDK...")
+        if not check_rpc_health(rpc_url, timeout=3):
+            logger.warning(f"⚠️  Primary RPC unhealthy, trying backup: {OSTIUM_RPC_BACKUP}")
+            if check_rpc_health(OSTIUM_RPC_BACKUP, timeout=3):
+                rpc_url = OSTIUM_RPC_BACKUP
+                logger.info(f"✅ Switching to backup RPC: {rpc_url}")
+                # Clear cache to force new SDK with backup RPC
+                if cache_key in sdk_cache:
+                    del sdk_cache[cache_key]
+            else:
+                logger.error(f"❌ Both RPCs unhealthy, but proceeding anyway (might be temporary)")
+                # Still proceed - might be temporary network issue
+    
+    if cache_key not in sdk_cache or force_new:
         network = 'testnet' if OSTIUM_TESTNET else 'mainnet'
         sdk_cache[cache_key] = OstiumSDK(
             network=network,
             private_key=private_key,
-            rpc_url=OSTIUM_RPC_URL,
+            rpc_url=rpc_url,
             use_delegation=use_delegation  # CRITICAL: Enable delegation mode!
         )
-        logger.info(f"Created new SDK instance (delegation={use_delegation})")
+        logger.info(f"Created SDK instance (delegation={use_delegation}, rpc={rpc_url})")
     
     return sdk_cache[cache_key]
 
@@ -480,12 +510,43 @@ def open_position():
             except:
                 return jsonify({"success": False, "error": "Invalid userAddress format"}), 400
         
-        # Get SDK instance
-        sdk = get_sdk(private_key, use_delegation)
-        
         logger.info(f"Opening {side} position: {position_size} USDC on {market} (leverage: {leverage}x, delegation: {use_delegation})")
         if use_delegation:
             logger.info(f"Trading on behalf of: {user_address}")
+        
+        # Retry logic for SDK operations (handles connection errors during SDK initialization)
+        max_sdk_retries = 3
+        sdk_retry_delay = 2
+        sdk = None
+        
+        for sdk_attempt in range(max_sdk_retries):
+            try:
+                # Get SDK instance (may fail if RPC connection is reset)
+                sdk = get_sdk(private_key, use_delegation, force_new=(sdk_attempt > 0))
+                # Test SDK by getting public address (this makes an RPC call)
+                test_address = sdk.ostium.get_public_address()
+                logger.info(f"✅ SDK initialized successfully (attempt {sdk_attempt + 1})")
+                break
+            except Exception as sdk_init_err:
+                error_str = str(sdk_init_err)
+                is_network_error = any(keyword in error_str.lower() for keyword in [
+                    'connection reset', 'connection aborted', 'connection refused',
+                    'timeout', 'network', 'peer', 'reset by peer', 'errno 104'
+                ])
+                
+                if is_network_error and sdk_attempt < max_sdk_retries - 1:
+                    wait_time = sdk_retry_delay * (sdk_attempt + 1)
+                    logger.warning(f"⚠️  SDK initialization failed (attempt {sdk_attempt + 1}/{max_sdk_retries}): {error_str[:150]}")
+                    logger.info(f"   Retrying SDK creation in {wait_time} seconds...")
+                    import time
+                    time.sleep(wait_time)
+                    continue
+                else:
+                    logger.error(f"❌ SDK initialization failed: {error_str}")
+                    raise
+        
+        if sdk is None:
+            raise Exception("Failed to initialize SDK after retries")
         
         # Try to find market dynamically instead of hardcoding
         # Ostium SDK should handle market availability internally
@@ -584,17 +645,65 @@ def open_position():
             logger.info(f"   SL: {sl_value} (disabled)")
         logger.info(f"   TP: {trade_params.get('tp')} (disabled)")
         
-        try:
-            result = sdk.ostium.perform_trade(trade_params, at_price=current_price)
-        except Exception as trade_err:
-            error_str = str(trade_err)
-            logger.error(f"❌ perform_trade error: {error_str}")
-            logger.error(f"   Trade params were: {trade_params}")
-            logger.error(f"   Price was: {current_price}")
-            if 'WrongSL' in error_str:
-                logger.error("   ⚠️  WrongSL error - SDK might be adding default SL value")
-                logger.error("   This is an Ostium SDK limitation - cannot disable SL")
-            raise
+        # Retry logic for network errors
+        max_retries = 3
+        retry_delay = 2  # seconds
+        last_error = None
+        
+        for attempt in range(max_retries):
+            try:
+                logger.info(f"🔄 Attempting trade (attempt {attempt + 1}/{max_retries})...")
+                result = sdk.ostium.perform_trade(trade_params, at_price=current_price)
+                logger.info(f"✅ Trade succeeded on attempt {attempt + 1}")
+                break  # Success, exit retry loop
+            except Exception as trade_err:
+                error_str = str(trade_err)
+                last_error = trade_err
+                
+                # Check if it's a network/connection error
+                is_network_error = any(keyword in error_str.lower() for keyword in [
+                    'connection reset', 'connection aborted', 'connection refused',
+                    'timeout', 'network', 'peer', 'reset by peer', 'errno 104',
+                    'connection', 'aborted'
+                ])
+                
+                if is_network_error and attempt < max_retries - 1:
+                    wait_time = retry_delay * (attempt + 1)  # Exponential backoff: 2s, 4s, 6s
+                    logger.warning(f"⚠️  Network/connection error (attempt {attempt + 1}/{max_retries})")
+                    logger.warning(f"   Error: {error_str[:200]}")  # Truncate long errors
+                    logger.info(f"   RPC URL: {OSTIUM_RPC_URL}")
+                    
+                    # Recreate SDK instance with fresh connection (might have stale connection)
+                    logger.info("   Recreating SDK instance with fresh connection...")
+                    try:
+                        sdk = get_sdk(private_key, use_delegation, force_new=True)
+                        logger.info("   ✅ New SDK instance created")
+                    except Exception as sdk_err:
+                        logger.warning(f"   ⚠️  Could not recreate SDK: {sdk_err}")
+                    
+                    logger.info(f"   Retrying in {wait_time} seconds...")
+                    import time
+                    time.sleep(wait_time)
+                    continue
+                else:
+                    # Not a network error, or max retries reached
+                    if attempt == max_retries - 1 and is_network_error:
+                        logger.error(f"❌ Network error after {max_retries} attempts")
+                        logger.error(f"   RPC URL: {OSTIUM_RPC_URL}")
+                        logger.error(f"   This might be a temporary RPC issue - try again later")
+                        logger.error(f"   Or check if RPC endpoint is accessible")
+                    else:
+                        logger.error(f"❌ perform_trade error: {error_str}")
+                        logger.error(f"   Trade params were: {trade_params}")
+                        logger.error(f"   Price was: {current_price}")
+                        if 'WrongSL' in error_str:
+                            logger.error("   ⚠️  WrongSL error - SDK might be adding default SL value")
+                            logger.error("   This is an Ostium SDK limitation - cannot disable SL")
+                    raise
+        
+        if last_error and not result:
+            # This shouldn't happen, but just in case
+            raise last_error
         
         # Extract order_id and receipt
         order_id = result.get('order_id') if isinstance(result, dict) else None
