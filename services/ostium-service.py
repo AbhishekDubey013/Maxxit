@@ -536,63 +536,10 @@ def open_position():
             logger.warning(f"Price fetch error for {market}: {e}")
             current_price = 100.0
         
-        # Calculate SL value for Ostium (protocol-level protection)
-        # TP is NOT set - position monitor handles profit-taking with trailing stops
-        # NOTE: Ostium may reject SL if it's too close to entry or invalid
-        # If SL validation fails, we'll disable it (sl=0) and rely on position monitor
-        sl_price = 0  # Default: no stop loss
-        
-        if stop_loss_price:
-            # Explicit SL price provided
-            try:
-                sl_price = int(float(stop_loss_price) * 1e18)  # Convert to wei (18 decimals)
-                # Validate SL is reasonable distance from entry
-                sl_percent_diff = abs((float(stop_loss_price) - current_price) / current_price) if current_price > 0 else 0
-                if sl_percent_diff < 0.05:  # Less than 5% difference
-                    logger.warning(f"⚠️  SL too close to entry price ({sl_percent_diff*100:.1f}%), disabling protocol SL")
-                    sl_price = 0
-                else:
-                    logger.info(f"📉 Protocol Stop-Loss set at: ${stop_loss_price}")
-            except Exception as sl_err:
-                logger.warning(f"⚠️  Invalid stop_loss_price format: {sl_err}, disabling protocol SL")
-                sl_price = 0
-        elif current_price > 0:
-            # Auto-calculate SL based on default 10% risk
-            # Use minimum 5% distance to avoid Ostium validation errors
-            min_sl_percent = 0.05  # 5% minimum
-            
-            if side.lower() == 'long':
-                # LONG: SL below entry (minimum 5% below)
-                sl_percent = max(0.10, min_sl_percent)  # At least 10%, but minimum 5%
-                sl_price_calc = current_price * (1 - sl_percent)
-                sl_price = int(sl_price_calc * 1e18)
-                
-                # Validate it's not too close (Ostium requirement)
-                if sl_price_calc > current_price * 0.95:  # Less than 5% below
-                    logger.warning(f"⚠️  Calculated SL too close to entry (${sl_price_calc:.4f} vs ${current_price:.4f}), disabling protocol SL")
-                    sl_price = 0
-                else:
-                    logger.info(f"📉 Protocol Stop-Loss auto-set: ${sl_price_calc:.4f} ({sl_percent*100:.0f}% below entry)")
-            else:
-                # SHORT: SL above entry (minimum 5% above)
-                sl_percent = max(0.10, min_sl_percent)  # At least 10%, but minimum 5%
-                sl_price_calc = current_price * (1 + sl_percent)
-                sl_price = int(sl_price_calc * 1e18)
-                
-                # Validate it's not too close (Ostium requirement)
-                if sl_price_calc < current_price * 1.05:  # Less than 5% above
-                    logger.warning(f"⚠️  Calculated SL too close to entry (${sl_price_calc:.4f} vs ${current_price:.4f}), disabling protocol SL")
-                    sl_price = 0
-                else:
-                    logger.info(f"📉 Protocol Stop-Loss auto-set: ${sl_price_calc:.4f} ({sl_percent*100:.0f}% above entry)")
-        else:
-            logger.warning("⚠️  Could not set protocol SL - no current price available")
-        
-        # Final validation: If SL is 0 or invalid, disable it
-        if sl_price == 0:
-            logger.info("ℹ️  Protocol Stop-Loss: DISABLED (will rely on position monitor for risk management)")
-        else:
-            logger.info(f"✅ Protocol Stop-Loss: ${sl_price / 1e18:.4f} (in wei: {sl_price})")
+        # DISABLED: Protocol-level stop-loss causes WrongSL() errors
+        # Position monitor handles all risk management via trailing stops
+        sl_price = 0  # Always disabled - rely on position monitor
+        logger.info("ℹ️  Protocol Stop-Loss: DISABLED (position monitor handles risk management)")
         
         # Take-Profit is DISABLED at protocol level
         # Position monitor handles profit-taking with trailing stops for better profit capture
@@ -613,24 +560,7 @@ def open_position():
         
         # Execute trade
         logger.info(f"📤 Calling perform_trade with params: {trade_params}, price: {current_price}")
-        
-        try:
-            result = sdk.ostium.perform_trade(trade_params, at_price=current_price)
-        except Exception as trade_error:
-            error_str = str(trade_error)
-            # If WrongSL error, retry without SL
-            if 'WrongSL' in error_str or 'wrongsl' in error_str.lower():
-                logger.warning(f"⚠️  Ostium rejected SL price: {error_str}")
-                logger.info("🔄 Retrying without protocol-level stop-loss...")
-                
-                # Retry with SL disabled
-                trade_params['sl'] = 0
-                logger.info(f"📤 Retrying perform_trade with SL disabled: {trade_params}")
-                result = sdk.ostium.perform_trade(trade_params, at_price=current_price)
-                logger.info("✅ Trade succeeded without protocol SL (position monitor will handle risk)")
-            else:
-                # Re-raise other errors
-                raise
+        result = sdk.ostium.perform_trade(trade_params, at_price=current_price)
         
         # Extract order_id and receipt
         order_id = result.get('order_id') if isinstance(result, dict) else None

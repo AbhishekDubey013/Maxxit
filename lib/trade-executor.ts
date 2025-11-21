@@ -1068,42 +1068,20 @@ export class TradeExecutor {
         console.warn('[TradeExecutor] Could not fetch current price for SL/TP calculation');
       }
 
-      // Calculate protocol-level stop-loss (downside protection)
-      // Take-profit is NOT set - position monitor handles profit-taking with trailing stops
-      let stopLossPrice: number | undefined;
-
-      if (currentPrice > 0) {
-        const riskModel = ctx.signal.risk_model as any;
-        const stopLossPercent = riskModel?.stopLoss || 0.10; // Default 10%
-        
-        if (ctx.signal.side === 'LONG') {
-          // LONG: SL below entry
-          stopLossPrice = currentPrice * (1 - stopLossPercent);
-        } else {
-          // SHORT: SL above entry
-          stopLossPrice = currentPrice * (1 + stopLossPercent);
-        }
-        
-        console.log('[TradeExecutor] Protocol-level Stop-Loss:', {
-          currentPrice,
-          stopLoss: stopLossPrice.toFixed(2),
-          stopLossPercent: `${(stopLossPercent * 100).toFixed(0)}%`,
-          note: 'Take-profit disabled - trailing stops handle profit-taking',
-        });
-      }
-
+      // DISABLED: Protocol-level stop-loss causes WrongSL() errors
+      // Position monitor handles all risk management via trailing stops
       console.log('[TradeExecutor] Ostium trade:', {
         token: actualTokenSymbol,
         collateral: collateralUSDC,
         leverage,
         side: ctx.signal.side,
         balance: usdcBalance,
-        protocolSL: stopLossPrice ? `$${stopLossPrice.toFixed(2)}` : 'Auto',
+        protocolSL: 'DISABLED (position monitor handles risk)',
         profitStrategy: 'Trailing stops (position monitor)',
       });
 
-      // Open position via delegation with protocol-level stop-loss only
-      // Take-profit is handled by position monitor with trailing stops for better profit capture
+      // Open position via delegation
+      // Risk management handled by position monitor (trailing stops)
       const result = await openOstiumPosition({
         privateKey: agentPrivateKey,
         market: actualTokenSymbol,
@@ -1112,7 +1090,7 @@ export class TradeExecutor {
         leverage,
         useDelegation: true,
         userAddress: userArbitrumWallet,
-        stopLoss: stopLossPrice,  // Protocol-level stop-loss (downside protection)
+        // stopLoss: undefined - Disabled to avoid WrongSL() errors
         // takeProfit: undefined - Let profits run with trailing stops
       });
 
