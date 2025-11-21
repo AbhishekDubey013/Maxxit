@@ -597,14 +597,15 @@ def open_position():
             logger.warning(f"Price fetch error for {market}: {e}")
             current_price = 100.0
         
-        # IMPORTANT: TP/SL cannot be set during position opening due to WrongSL() SDK errors
-        # Instead, we set them AFTER the position opens using update_tp() and update_sl()
-        # This approach avoids SDK validation issues while still providing TP/SL protection
+        # IMPORTANT: Do NOT include sl/tp in trade_params - causes WrongSL() errors
+        # We will set TP/SL AFTER the position opens using update_tp() and update_sl()
+        # This is the recommended approach per SDK documentation
         if stop_loss_percent:
             logger.info(f"ℹ️  Stop-Loss will be set after position opens: {(stop_loss_percent * 100):.1f}%")
         if take_profit_percent:
             logger.info(f"💰 Take-Profit will be set after position opens: {(take_profit_percent * 100):.1f}%")
         
+        # Build trade params WITHOUT sl/tp (they will be set after opening)
         trade_params = {
             'asset_type': asset_index,
             'collateral': position_size,
@@ -612,40 +613,14 @@ def open_position():
             'leverage': leverage,
         }
         
-        # WORKAROUND: Ostium SDK requires SL parameter but rejects sl=0 or sl=None
-        # Set a very wide SL (50% away) to effectively disable it
-        # Position monitor will handle actual risk management
-        if current_price > 0:
-            if side.lower() == 'long':
-                # LONG: Set SL 50% below (very wide, effectively disabled)
-                wide_sl_price = int(current_price * 0.50 * 1e18)  # 50% below
-                trade_params['sl'] = wide_sl_price
-                logger.info(f"📉 Wide SL set: ${current_price * 0.50:.4f} (50% below - effectively disabled)")
-            else:
-                # SHORT: Set SL 50% above (very wide, effectively disabled)
-                wide_sl_price = int(current_price * 1.50 * 1e18)  # 50% above
-                trade_params['sl'] = wide_sl_price
-                logger.info(f"📉 Wide SL set: ${current_price * 1.50:.4f} (50% above - effectively disabled)")
-        else:
-            # Fallback: Set to 0 if no price (might still error, but try)
-            trade_params['sl'] = 0
-        
-        # TP always disabled
-        trade_params['tp'] = 0
-        
+        # Add trader_address for delegated trades
         if use_delegation:
             trade_params['trader_address'] = user_address
         
-        # Execute trade
+        # Execute trade WITHOUT sl/tp parameters
         logger.info(f"📤 Calling perform_trade with params: {trade_params}")
         logger.info(f"   Price: {current_price}")
-        sl_value = trade_params.get('sl', 0)
-        if sl_value:
-            sl_price_usd = sl_value / 1e18 if isinstance(sl_value, int) else 0
-            logger.info(f"   SL: ${sl_price_usd:.4f} (wide SL - effectively disabled, monitor handles risk)")
-        else:
-            logger.info(f"   SL: {sl_value} (disabled)")
-        logger.info(f"   TP: {trade_params.get('tp')} (disabled)")
+        logger.info(f"   SL/TP: Will be set after position opens")
         
         # Retry logic for network errors
         max_retries = 3
@@ -678,7 +653,11 @@ def open_position():
                     # Recreate SDK instance with fresh connection (might have stale connection)
                     logger.info("   Recreating SDK instance with fresh connection...")
                     try:
-                        sdk = get_sdk(private_key, use_delegation, force_new=True)
+                        # Clear cache and create new SDK
+                        cache_key = f"{private_key[:10]}_{use_delegation}"
+                        if cache_key in sdk_cache:
+                            del sdk_cache[cache_key]
+                        sdk = get_sdk(private_key, use_delegation)
                         logger.info("   ✅ New SDK instance created")
                     except Exception as sdk_err:
                         logger.warning(f"   ⚠️  Could not recreate SDK: {sdk_err}")
@@ -698,9 +677,6 @@ def open_position():
                         logger.error(f"❌ perform_trade error: {error_str}")
                         logger.error(f"   Trade params were: {trade_params}")
                         logger.error(f"   Price was: {current_price}")
-                        if 'WrongSL' in error_str:
-                            logger.error("   ⚠️  WrongSL error - SDK might be adding default SL value")
-                            logger.error("   This is an Ostium SDK limitation - cannot disable SL")
                     raise
         
         if last_error and not result:
