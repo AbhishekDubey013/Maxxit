@@ -44,6 +44,7 @@ export interface ClosePositionParams {
   tradeId?: string; // Optional - more precise than market matching
   useDelegation?: boolean;
   userAddress?: string;
+  actualTradeIndex?: number; // Stored trade index from when position was opened (fixes SDK bug)
 }
 
 export interface TransferParams {

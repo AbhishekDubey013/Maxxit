@@ -114,3 +114,4 @@ python3 -c "import secrets; print(secrets.token_hex(32))"
 - ✅ Keep a backup in a secure password manager
 - ✅ Rotate periodically (requires re-encrypting all keys)
 
+

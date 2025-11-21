@@ -228,3 +228,4 @@ See also:
 - `services/signal-generator-worker/RAILWAY_SETUP.md` - Full setup guide
 - `services/signal-generator-worker/DIAGNOSTIC.md` - Detailed troubleshooting
 
+

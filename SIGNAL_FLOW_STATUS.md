@@ -117,3 +117,4 @@ LIMIT 10;
 
 **Next**: Trade executor should pick up the cleared signal in the next 30 seconds and execute it!
 
+

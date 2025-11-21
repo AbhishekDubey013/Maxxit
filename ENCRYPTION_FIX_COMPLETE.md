@@ -145,3 +145,4 @@ ENCRYPTION_KEY=3295f0745260f0420509005dec8580174ef604c8cf7b1e9e2ccd4946d8f082e1
 
 (Same value as Main App, Trade Executor, Position Monitor)
 
+

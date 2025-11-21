@@ -273,6 +273,7 @@ model positions {
   current_price         Decimal?                @db.Decimal(20, 8)
   exit_reason           String?
   status                String                  @default("OPEN")
+  ostium_trade_index    Int?                   // Actual trade index from Ostium (fixes SDK bug)
   billing_events        billing_events[]
   impact_factor_history impact_factor_history[]
   agent_deployments     agent_deployments       @relation(fields: [deployment_id], references: [id], onDelete: Cascade)

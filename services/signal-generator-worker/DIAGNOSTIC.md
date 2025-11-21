@@ -282,3 +282,4 @@ Look for:
 5. ✅ Test health endpoint
 6. ✅ Check database for signals
 
+

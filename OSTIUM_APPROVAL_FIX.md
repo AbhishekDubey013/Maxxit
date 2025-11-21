@@ -166,3 +166,4 @@ Before this fix, users had no way to retry. Now they can.
 **Fix:** Check actual USDC allowance on-chain  
 **Result:** Users can now retry approvals ✅
 
+

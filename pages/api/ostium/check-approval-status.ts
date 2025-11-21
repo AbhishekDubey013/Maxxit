@@ -12,6 +12,7 @@ import { ethers } from 'ethers';
 
 const USDC_ADDRESS = '0xe73B11Fb1e3eeEe8AF2a23079A4410Fe1B370548'; // Arbitrum Sepolia
 const TRADING_CONTRACT = '0x2A9B9c988393f46a2537B0ff11E98c2C15a95afe'; // Ostium Trading
+const STORAGE_CONTRACT = '0x0b9F5243B29938668c9Cfbd7557A389EC7Ef88b8'; // Ostium Storage (SDK checks this!)
 const RPC_URL = 'https://sepolia-rollup.arbitrum.io/rpc';
 
 const USDC_ABI = [
@@ -37,9 +38,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const provider = new ethers.providers.JsonRpcProvider(RPC_URL);
     const usdcContract = new ethers.Contract(USDC_ADDRESS, USDC_ABI, provider);
 
-    // Check USDC allowance
-    const allowance = await usdcContract.allowance(checksummedAddress, TRADING_CONTRACT);
-    const allowanceUsdc = parseFloat(ethers.utils.formatUnits(allowance, 6));
+    // Check USDC allowance - SDK checks STORAGE_CONTRACT, not TRADING_CONTRACT
+    const allowanceStorage = await usdcContract.allowance(checksummedAddress, STORAGE_CONTRACT);
+    const allowanceTrading = await usdcContract.allowance(checksummedAddress, TRADING_CONTRACT);
+    const allowanceUsdc = parseFloat(ethers.utils.formatUnits(allowanceStorage, 6)); // Use STORAGE (SDK requirement)
 
     // Check USDC balance
     const balance = await usdcContract.balanceOf(checksummedAddress);
@@ -54,9 +56,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       userWallet: checksummedAddress,
       usdcBalance: balanceUsdc,
       usdcAllowance: allowanceUsdc,
+      usdcAllowanceStorage: parseFloat(ethers.utils.formatUnits(allowanceStorage, 6)),
+      usdcAllowanceTrading: parseFloat(ethers.utils.formatUnits(allowanceTrading, 6)),
       hasApproval,
       hasSufficientBalance,
       needsApproval: !hasApproval,
+      storageContract: STORAGE_CONTRACT, // SDK checks this
       tradingContract: TRADING_CONTRACT,
     });
   } catch (error: any) {

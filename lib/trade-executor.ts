@@ -1121,6 +1121,17 @@ export class TradeExecutor {
       console.log('[TradeExecutor]    Status:', result.status);
       console.log('[TradeExecutor]    Message:', result.message);
       
+      // Extract actual trade index (fixes SDK bug)
+      const actualTradeIndex = (result as any).actualTradeIndex ?? 
+                               (result as any).result?.actualTradeIndex ?? 
+                               null;
+      
+      if (actualTradeIndex !== null) {
+        console.log('[TradeExecutor]    ✅ Actual trade index stored:', actualTradeIndex);
+      } else {
+        console.warn('[TradeExecutor]    ⚠️  No actual trade index returned (will use index=0 as fallback)');
+      }
+      
       // Use the current price we already fetched for entry_price estimate
       const entryPrice = currentPrice || 0;
       if (entryPrice > 0) {
@@ -1150,6 +1161,7 @@ export class TradeExecutor {
           qty: collateralUSDC, // Collateral amount in USDC (MUST be > 0)
           entry_tx_hash: result.txHash || result.orderId || 'OST-' + Date.now(),
           status: 'OPEN', // Explicitly set to OPEN (order is pending but position is open)
+          ostium_trade_index: actualTradeIndex, // Store actual trade index (fixes SDK bug)
           trailing_params: {
             enabled: true,
             trailingPercent: 1, // 1% trailing stop
@@ -1799,12 +1811,21 @@ export class TradeExecutor {
       console.log('[TradeExecutor] ✅ Position verified on-chain, proceeding with close...');
 
       // Close position via Ostium adapter
+      // Use stored trade index if available (fixes SDK bug where all indices are '0')
+      const storedIndex = position.ostium_trade_index;
+      if (storedIndex !== null && storedIndex !== undefined) {
+        console.log('[TradeExecutor] ✅ Using stored trade index:', storedIndex);
+      } else {
+        console.warn('[TradeExecutor] ⚠️  No stored trade index - will use index=0 (may close wrong position if multiple exist)');
+      }
+      
       const result = await closeOstiumPosition({
         agentAddress: agentAddress, // Use agentAddress instead of privateKey (service will look up key)
         market: position.token_symbol,
         tradeId: position.entry_tx_hash, // Use tradeId for precise matching
         useDelegation: true,
         userAddress: userArbitrumAddress,
+        actualTradeIndex: storedIndex, // Pass stored index (fixes SDK bug)
       });
 
       if (!result.success) {

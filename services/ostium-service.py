@@ -591,6 +591,121 @@ def open_position():
         # For now, return the order_id
         logger.info(f"✅ Order submitted: {order_id} (waiting for keeper to fill)")
         
+        # CRITICAL: Get actual trade index after opening
+        # The SDK returns index='0' for all, so we need to query storage contract
+        actual_trade_index = None
+        
+        try:
+            logger.info(f"🔍 Querying storage contract to get actual trade index...")
+            
+            # Wait a moment for transaction to be mined
+            import time
+            time.sleep(2)
+            
+            # Get Web3 instance
+            w3 = sdk.w3
+            
+            # TradingStorage contract address
+            storage_address = Web3.to_checksum_address("0x0B9f5243B29938668c9Cfbd7557A389EC7Ef88b8")
+            
+            # Storage contract ABI (minimal - just what we need)
+            storage_abi = [
+                {
+                    "inputs": [
+                        {"name": "trader", "type": "address"},
+                        {"name": "pairIndex", "type": "uint256"},
+                        {"name": "index", "type": "uint256"}
+                    ],
+                    "name": "openTrades",
+                    "outputs": [
+                        {
+                            "components": [
+                                {"name": "trader", "type": "address"},
+                                {"name": "pairIndex", "type": "uint256"},
+                                {"name": "index", "type": "uint256"},
+                                {"name": "positionSizeAsset", "type": "uint256"},
+                                {"name": "openPrice", "type": "uint256"},
+                                {"name": "buy", "type": "bool"},
+                                {"name": "leverage", "type": "uint256"},
+                                {"name": "tp", "type": "uint256"},
+                                {"name": "sl", "type": "uint256"}
+                            ],
+                            "name": "",
+                            "type": "tuple"
+                        }
+                    ],
+                    "stateMutability": "view",
+                    "type": "function"
+                },
+                {
+                    "inputs": [
+                        {"name": "trader", "type": "address"},
+                        {"name": "pairIndex", "type": "uint256"}
+                    ],
+                    "name": "openTradesCount",
+                    "outputs": [{"name": "", "type": "uint256"}],
+                    "stateMutability": "view",
+                    "type": "function"
+                }
+            ]
+            
+            storage_contract = w3.eth.contract(address=storage_address, abi=storage_abi)
+            
+            # Try querying with user address (for delegated trades)
+            if use_delegation and user_address:
+                checksummed_user = Web3.to_checksum_address(user_address)
+            else:
+                checksummed_user = sdk.ostium.get_public_address()
+            
+            # Get count of trades for this pair
+            try:
+                count = storage_contract.functions.openTradesCount(checksummed_user, asset_index).call()
+                logger.info(f"📊 Storage shows {count} open trades for pair {asset_index}")
+                
+                # The new trade should be at index = count - 1 (0-indexed)
+                # But we need to verify by matching openPrice
+                target_open_price_wei = int(current_price * 1e18)
+                
+                # Query each trade to find the one matching our openPrice
+                for i in range(count):
+                    try:
+                        trade = storage_contract.functions.openTrades(checksummed_user, asset_index, i).call()
+                        stored_open_price = trade[4]  # openPrice is at index 4
+                        stored_index = trade[2]  # index is at index 2
+                        
+                        # Match by openPrice (within 0.1% tolerance)
+                        price_diff = abs(stored_open_price - target_open_price_wei)
+                        if price_diff < (target_open_price_wei // 1000):  # 0.1% tolerance
+                            actual_trade_index = stored_index
+                            logger.info(f"✅ Found matching trade! Actual index = {actual_trade_index}")
+                            logger.info(f"   Query index: {i}, Stored index: {stored_index}, Price: ${current_price}")
+                            break
+                    except Exception as query_err:
+                        logger.warning(f"   Could not query trade at index {i}: {query_err}")
+                        continue
+                
+                if actual_trade_index is None:
+                    # Fallback: Use count - 1 as the index (newest trade)
+                    logger.warning(f"⚠️  Could not match by price, using count-1 as index")
+                    actual_trade_index = count - 1 if count > 0 else 0
+                    
+            except Exception as count_err:
+                logger.warning(f"⚠️  Could not query trade count: {count_err}")
+                logger.warning(f"   This might be a delegation issue - will use fallback")
+                # Fallback: Assume it's the first position (index 0)
+                actual_trade_index = 0
+                
+        except Exception as index_err:
+            logger.error(f"❌ Error getting trade index: {index_err}")
+            logger.error(f"   Will use fallback index=0")
+            actual_trade_index = 0
+        
+        if actual_trade_index is not None:
+            logger.info(f"💾 Storing actual trade index: {actual_trade_index}")
+        else:
+            logger.warning(f"⚠️  Could not determine actual index, using 0 as fallback")
+            actual_trade_index = 0
+        
         # Convert Web3 AttributeDict to regular dict for JSON serialization
         tx_hash = ''
         if receipt:
@@ -606,11 +721,13 @@ def open_position():
             "txHash": str(tx_hash) if tx_hash else '',  # Alias for compatibility
             "status": "pending",
             "message": "Order created, waiting for keeper to fill position",
+            "actualTradeIndex": actual_trade_index,  # NEW: Store the actual index!
             "result": {
                 "market": market,
                 "side": side,
                 "collateral": position_size,
                 "leverage": leverage,
+                "actualTradeIndex": actual_trade_index,  # Also in result
             }
         })
     
@@ -807,11 +924,43 @@ def close_position():
                 "closePnl": 0
             })
         
-        # IMPORTANT: SDK returns index='0' for all positions
-        # This works ONLY if there's ONE position per market per user
-        # Multiple positions per market are not currently supported
-        trade_index = 0  # Always use 0 (first position for this market)
-        logger.info(f"Using trade_index=0 (assumes ONE position per market per user)")
+        # CRITICAL FIX: Use stored trade index if available
+        # Check if actualTradeIndex was provided in request (from database)
+        stored_trade_index = data.get('actualTradeIndex')
+        
+        # Also try to get from database if tradeId is provided
+        if not stored_trade_index and trade_id:
+            try:
+                conn = psycopg2.connect(database_url)
+                cur = conn.cursor(cursor_factory=RealDictCursor)
+                cur.execute(
+                    """
+                    SELECT ostium_trade_index FROM positions 
+                    WHERE entry_tx_hash = %s 
+                    AND venue = 'OSTIUM'
+                    AND status = 'OPEN'
+                    LIMIT 1
+                    """,
+                    (str(trade_id),)
+                )
+                db_position = cur.fetchone()
+                cur.close()
+                conn.close()
+                
+                if db_position and db_position.get('ostium_trade_index') is not None:
+                    stored_trade_index = db_position['ostium_trade_index']
+                    logger.info(f"📦 Found stored trade index in DB: {stored_trade_index}")
+            except Exception as db_err:
+                logger.warning(f"Could not query DB for stored index: {db_err}")
+        
+        # Use stored index if available, otherwise fallback to 0
+        if stored_trade_index is not None:
+            trade_index = int(stored_trade_index)
+            logger.info(f"✅ Using STORED trade index: {trade_index} (from database/request)")
+        else:
+            trade_index = 0
+            logger.warning(f"⚠️  No stored index found, using index=0 (may close wrong position!)")
+            logger.warning(f"   This works ONLY if there's ONE position per market per user")
         
         # Look up pair_index from venue_markets table using token symbol
         try:
