@@ -538,12 +538,8 @@ def open_position():
         
         # DISABLED: Protocol-level stop-loss causes WrongSL() errors
         # Position monitor handles all risk management via trailing stops
-        sl_price = 0  # Always disabled - rely on position monitor
+        # Do NOT include 'sl' or 'tp' parameters - Ostium rejects sl=0
         logger.info("ℹ️  Protocol Stop-Loss: DISABLED (position monitor handles risk management)")
-        
-        # Take-Profit is DISABLED at protocol level
-        # Position monitor handles profit-taking with trailing stops for better profit capture
-        tp_price = 0  # 0 = disabled (let profits run)
         logger.info(f"💰 Take-Profit: DISABLED (position monitor will handle with trailing stops)")
         
         trade_params = {
@@ -551,15 +547,22 @@ def open_position():
             'collateral': position_size,
             'direction': side.lower() == 'long',
             'leverage': leverage,
-            'tp': tp_price,  # Disabled - trailing stops handle profit-taking
-            'sl': sl_price,  # Protocol-level stop-loss for downside protection
         }
+        
+        # Explicitly set sl and tp to None (not 0, not omitted)
+        # Some SDKs require None instead of omitting the parameter
+        trade_params['sl'] = None
+        trade_params['tp'] = None
         
         if use_delegation:
             trade_params['trader_address'] = user_address
         
         # Execute trade
-        logger.info(f"📤 Calling perform_trade with params: {trade_params}, price: {current_price}")
+        logger.info(f"📤 Calling perform_trade with params: {trade_params}")
+        logger.info(f"   Price: {current_price}")
+        logger.info(f"   SL: NOT INCLUDED (disabled to avoid WrongSL errors)")
+        logger.info(f"   TP: NOT INCLUDED (disabled)")
+        
         result = sdk.ostium.perform_trade(trade_params, at_price=current_price)
         
         # Extract order_id and receipt
