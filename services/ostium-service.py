@@ -807,10 +807,11 @@ def close_position():
                 "closePnl": 0
             })
         
-        # CRITICAL FIX: SDK returns index='0' for all positions (bug)
-        # We need to query the smart contract directly to get the correct trade index
-        trade_index_from_sdk = trade_to_close.get('index')
-        logger.warning(f"⚠️  SDK returned index: {trade_index_from_sdk} (often incorrect - all positions show '0')")
+        # IMPORTANT: SDK returns index='0' for all positions
+        # This works ONLY if there's ONE position per market per user
+        # Multiple positions per market are not currently supported
+        trade_index = 0  # Always use 0 (first position for this market)
+        logger.info(f"Using trade_index=0 (assumes ONE position per market per user)")
         
         # Look up pair_index from venue_markets table using token symbol
         try:
@@ -853,101 +854,13 @@ def close_position():
             else:
                 pair_index = None
         
-        # Query on-chain contract to find correct trade index for this specific tradeID
-        # The SDK's get_open_trades() returns incorrect indices (all '0')
-        correct_trade_index = None
+        # Use index=0 (works when there's only ONE position per market per user)
+        # LIMITATION: Multiple positions per market per user are not currently supported
+        trade_index = 0
         target_trade_id = trade_to_close.get('tradeID')
-        
-        try:
-            logger.info(f"🔍 Querying on-chain to find correct trade index for tradeID {target_trade_id}")
-            
-            # Get Web3 instance from SDK
-            w3 = sdk.w3
-            
-            # Ostium Trading contract address (testnet)
-            trading_contract_address = Web3.to_checksum_address("0x2A9B9c988393f46a2537B0ff11E98c2C15a95afe")
-            
-            # Minimal ABI for getTrades function
-            trading_abi = [
-                {
-                    "inputs": [
-                        {"name": "_trader", "type": "address"},
-                        {"name": "_pairIndex", "type": "uint256"}
-                    ],
-                    "name": "getTrades",
-                    "outputs": [
-                        {
-                            "components": [
-                                {"name": "trader", "type": "address"},
-                                {"name": "pairIndex", "type": "uint256"},
-                                {"name": "index", "type": "uint256"},
-                                {"name": "positionSizeAsset", "type": "uint256"},
-                                {"name": "openPrice", "type": "uint256"},
-                                {"name": "buy", "type": "bool"},
-                                {"name": "leverage", "type": "uint256"},
-                                {"name": "tp", "type": "uint256"},
-                                {"name": "sl", "type": "uint256"}
-                            ],
-                            "name": "",
-                            "type": "tuple[]"
-                        }
-                    ],
-                    "stateMutability": "view",
-                    "type": "function"
-                }
-            ]
-            
-            trading_contract = w3.eth.contract(address=trading_contract_address, abi=trading_abi)
-            
-            # Query all trades for this user and pair
-            on_chain_trades = trading_contract.functions.getTrades(
-                Web3.to_checksum_address(address_to_check),
-                pair_index
-            ).call()
-            
-            logger.info(f"📊 Found {len(on_chain_trades)} on-chain trades for pair {pair_index}")
-            
-            # Match by openPrice and collateral to find the correct trade
-            target_open_price = int(trade_to_close.get('openPrice', 0))
-            target_collateral = int(trade_to_close.get('collateral', 0))
-            
-            for idx, on_chain_trade in enumerate(on_chain_trades):
-                on_chain_open_price = on_chain_trade[4]  # openPrice field
-                on_chain_index = on_chain_trade[2]  # index field
-                
-                logger.info(f"  Trade {idx}: on-chain index={on_chain_index}, openPrice={on_chain_open_price}")
-                
-                # Match by openPrice (unique enough for most cases)
-                if on_chain_open_price == target_open_price:
-                    correct_trade_index = on_chain_index
-                    logger.info(f"✅ Matched! Correct trade_index = {correct_trade_index}")
-                    break
-            
-            if correct_trade_index is None:
-                logger.error(f"❌ Could not find matching trade on-chain for tradeID {target_trade_id}")
-                logger.error(f"   Target openPrice: {target_open_price}")
-                # Fallback to SDK index (likely wrong, but try anyway)
-                correct_trade_index = int(trade_index_from_sdk) if trade_index_from_sdk is not None else 0
-                logger.warning(f"⚠️  Falling back to SDK index: {correct_trade_index}")
-        
-        except Exception as query_error:
-            logger.error(f"❌ Error querying on-chain trades: {query_error}")
-            logger.error(traceback.format_exc())
-            # Fallback to SDK index
-            correct_trade_index = int(trade_index_from_sdk) if trade_index_from_sdk is not None else 0
-            logger.warning(f"⚠️  Falling back to SDK index: {correct_trade_index}")
-        
-        trade_index = correct_trade_index
-        logger.info(f"🎯 Using trade_index: {trade_index} for {market} (pair_index: {pair_index})")
+        logger.info(f"🎯 Closing tradeID {target_trade_id} for {market} using index=0")
         
         # Validate required fields
-        if trade_index is None:
-            logger.error(f"Missing trade index")
-            return jsonify({
-                "success": False,
-                "error": "Trade index not found"
-            }), 400
-        
         if pair_index is None:
             logger.error(f"Missing pairIndex. Pair object: {pair_info}")
             return jsonify({
