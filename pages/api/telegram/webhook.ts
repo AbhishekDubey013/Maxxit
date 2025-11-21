@@ -356,7 +356,7 @@ async function executeTrade(chatId: number, tradeId: string) {
         size_model: sizeModel,
         risk_model: {
           stopLoss: 0.10, // 10% stop loss
-          takeProfit: 0.5, // 5% take profit
+          takeProfit: 0.05, // 5% take profit
           leverage: 3, // Default leverage for perpetuals
         },
         source_tweets: [`telegram_manual_${trade.id}_${Date.now()}`],
