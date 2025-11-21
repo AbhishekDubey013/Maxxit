@@ -42,12 +42,10 @@ export async function executeTradesForSignals() {
             agent_deployments: {
               where: { 
                 status: 'ACTIVE',
-                OR: [
-                  { module_enabled: true }, // For SPOT/GMX signals
-                  { hyperliquid_agent_address: { not: null } }, // For HYPERLIQUID signals
-                ]
+                sub_active: true,
               },
-              take: 1,
+              // Note: Venue-specific filtering (module_enabled, agent addresses) 
+              // is handled in the API endpoint, not here
             },
           },
         },

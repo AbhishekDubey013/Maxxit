@@ -200,6 +200,104 @@ export async function monitorOstiumPositions() {
                   },
                 });
 
+                // Try to get actual trade index from storage contract
+                let actualTradeIndex: number | null = null;
+                
+                try {
+                  // Query storage contract to get real index
+                  // This fixes the SDK bug where all indices are '0'
+                  const { ethers } = require('ethers');
+                  const provider = new ethers.providers.JsonRpcProvider(
+                    process.env.OSTIUM_RPC_URL || 'https://sepolia-rollup.arbitrum.io/rpc'
+                  );
+                  
+                  const STORAGE_CONTRACT = '0x0B9f5243B29938668c9Cfbd7557A389EC7Ef88b8';
+                  const STORAGE_ABI = [
+                    {
+                      "inputs": [
+                        {"name": "trader", "type": "address"},
+                        {"name": "pairIndex", "type": "uint256"},
+                        {"name": "index", "type": "uint256"}
+                      ],
+                      "name": "openTrades",
+                      "outputs": [{
+                        "components": [
+                          {"name": "trader", "type": "address"},
+                          {"name": "pairIndex", "type": "uint256"},
+                          {"name": "index", "type": "uint256"},
+                          {"name": "positionSizeAsset", "type": "uint256"},
+                          {"name": "openPrice", "type": "uint256"},
+                          {"name": "buy", "type": "bool"},
+                          {"name": "leverage", "type": "uint256"},
+                          {"name": "tp", "type": "uint256"},
+                          {"name": "sl", "type": "uint256"}
+                        ],
+                        "name": "",
+                        "type": "tuple"
+                      }],
+                      "stateMutability": "view",
+                      "type": "function"
+                    },
+                    {
+                      "inputs": [
+                        {"name": "trader", "type": "address"},
+                        {"name": "pairIndex", "type": "uint256"}
+                      ],
+                      "name": "openTradesCount",
+                      "outputs": [{"name": "", "type": "uint256"}],
+                      "stateMutability": "view",
+                      "type": "function"
+                    }
+                  ];
+                  
+                  const storageContract = new ethers.Contract(STORAGE_CONTRACT, STORAGE_ABI, provider);
+                  const userAddress = ethers.utils.getAddress(deployment.user_wallet);
+                  
+                  // Get pair index from market
+                  const pairIndex = await getPairIndexForMarket(ostPosition.market);
+                  
+                  if (pairIndex) {
+                    const count = await storageContract.openTradesCount(userAddress, pairIndex);
+                    const targetPrice = Math.floor(ostPosition.entryPrice * 1e18);
+                    
+                    // Search for matching trade
+                    for (let i = 0; i < count; i++) {
+                      try {
+                        const trade = await storageContract.openTrades(userAddress, pairIndex, i);
+                        const storedPrice = trade[4].toString(); // openPrice
+                        const storedIndex = trade[2].toString(); // index
+                        
+                        // Match by price (within 0.1% tolerance)
+                        if (Math.abs(parseInt(storedPrice) - targetPrice) < (targetPrice / 1000)) {
+                          actualTradeIndex = parseInt(storedIndex);
+                          console.log(`   ✅ Found actual trade index: ${actualTradeIndex}`);
+                          break;
+                        }
+                      } catch (e) {
+                        // Continue searching
+                      }
+                    }
+                  }
+                } catch (indexError: any) {
+                  console.log(`   ⚠️  Could not get trade index: ${indexError.message}`);
+                  console.log(`   Will use index=0 as fallback`);
+                }
+                
+                // Helper function to get pair index
+                async function getPairIndexForMarket(market: string): Promise<number | null> {
+                  try {
+                    const marketSymbol = market.replace('/USD', '').replace('/USDT', '');
+                    const response = await fetch(`${process.env.OSTIUM_SERVICE_URL || 'http://localhost:5002'}/markets`);
+                    const data = await response.json();
+                    if (data.success && data.markets) {
+                      return data.markets[marketSymbol.toUpperCase()] || null;
+                    }
+                  } catch (e) {
+                    // Ignore
+                  }
+                  return null;
+                }
+
                 // Create position record
                 await prisma.positions.create({
                   data: {
@@ -211,6 +309,7 @@ export async function monitorOstiumPositions() {
                     entry_price: ostPosition.entryPrice,
                     qty: ostPosition.size,
                     entry_tx_hash: ostPosition.tradeId || 'OST-DISCOVERED-' + Date.now(),
+                    ostium_trade_index: actualTradeIndex, // Store actual index if found
                     trailing_params: {
                       enabled: true,
                       trailingPercent: 1, // 1% trailing stop

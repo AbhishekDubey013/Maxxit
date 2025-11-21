@@ -52,26 +52,51 @@ export default async function handler(
     // Find ACTIVE deployments for this agent
     // For SPOT/GMX signals: require module_enabled = true
     // For HYPERLIQUID signals: require hyperliquid_agent_address set (uses agent wallet, not Safe module)
-    const deployments = await prisma.agent_deployments.findMany({
+    // For OSTIUM signals: require ostium_agent_address set (uses agent wallet, not Safe module)
+    let deployments = await prisma.agent_deployments.findMany({
       where: {
         agent_id: signal.agent_id,
         status: 'ACTIVE',
         sub_active: true,
-        OR: [
-          { module_enabled: true }, // For SPOT/GMX signals (need Safe module)
-          ...(signal.venue === 'HYPERLIQUID' ? [{ hyperliquid_agent_address: { not: null } }] : []), // For HYPERLIQUID signals (need agent wallet)
-        ]
       },
     });
 
-    console.log(`[TRADE] Found ${allDeployments.length} total active deployments, ${deployments.length} ready for execution (module enabled or Hyperliquid)`);
+    // Filter deployments based on venue requirements
+    if (signal.venue === 'HYPERLIQUID' || signal.venue === 'OSTIUM') {
+      // For HYPERLIQUID and OSTIUM, check user_agent_addresses table
+      const userWallets = deployments.map(d => d.user_wallet);
+      
+      // Get user agent addresses for these wallets
+      const userAgentAddresses = await prisma.user_agent_addresses.findMany({
+        where: {
+          user_wallet: { in: userWallets },
+          ...(signal.venue === 'HYPERLIQUID' 
+            ? { hyperliquid_agent_address: { not: null } }
+            : { ostium_agent_address: { not: null } }
+          ),
+        },
+        select: { user_wallet: true },
+      });
+
+      const validUserWallets = new Set(userAgentAddresses.map(u => u.user_wallet));
+      
+      // Filter deployments to only those with valid agent addresses
+      deployments = deployments.filter(d => validUserWallets.has(d.user_wallet));
+    } else {
+      // For SPOT/GMX, require module_enabled = true
+      deployments = deployments.filter(d => d.module_enabled === true);
+    }
+
+    console.log(`[TRADE] Found ${allDeployments.length} total active deployments, ${deployments.length} ready for execution (venue: ${signal.venue})`);
 
     if (deployments.length === 0) {
       let message: string;
       if (allDeployments.length === 0) {
         message = 'No active deployments found for this agent';
       } else if (signal.venue === 'HYPERLIQUID') {
-        message = `${allDeployments.length} active deployments found for Hyperliquid signal, but none are properly configured.`;
+        message = `${allDeployments.length} active deployments found for Hyperliquid signal, but none have a Hyperliquid agent address configured.`;
+      } else if (signal.venue === 'OSTIUM') {
+        message = `${allDeployments.length} active deployments found for Ostium signal, but none have an Ostium agent address configured.`;
       } else {
         message = `${allDeployments.length} active deployments found, but module is not enabled on any. Users must enable the trading module on their Safe first.`;
       }
