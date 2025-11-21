@@ -538,24 +538,61 @@ def open_position():
         
         # Calculate SL value for Ostium (protocol-level protection)
         # TP is NOT set - position monitor handles profit-taking with trailing stops
-        sl_price = 0  # 0 = no stop loss
+        # NOTE: Ostium may reject SL if it's too close to entry or invalid
+        # If SL validation fails, we'll disable it (sl=0) and rely on position monitor
+        sl_price = 0  # Default: no stop loss
         
         if stop_loss_price:
             # Explicit SL price provided
-            sl_price = int(float(stop_loss_price) * 1e18)  # Convert to wei (18 decimals)
-            logger.info(f"📉 Protocol Stop-Loss set at: ${stop_loss_price}")
+            try:
+                sl_price = int(float(stop_loss_price) * 1e18)  # Convert to wei (18 decimals)
+                # Validate SL is reasonable distance from entry
+                sl_percent_diff = abs((float(stop_loss_price) - current_price) / current_price) if current_price > 0 else 0
+                if sl_percent_diff < 0.05:  # Less than 5% difference
+                    logger.warning(f"⚠️  SL too close to entry price ({sl_percent_diff*100:.1f}%), disabling protocol SL")
+                    sl_price = 0
+                else:
+                    logger.info(f"📉 Protocol Stop-Loss set at: ${stop_loss_price}")
+            except Exception as sl_err:
+                logger.warning(f"⚠️  Invalid stop_loss_price format: {sl_err}, disabling protocol SL")
+                sl_price = 0
         elif current_price > 0:
             # Auto-calculate SL based on default 10% risk
+            # Use minimum 5% distance to avoid Ostium validation errors
+            min_sl_percent = 0.05  # 5% minimum
+            
             if side.lower() == 'long':
-                # LONG: SL below entry
-                sl_price = int(current_price * 0.90 * 1e18)  # -10%
-                logger.info(f"📉 Protocol Stop-Loss auto-set: ${current_price * 0.90:.2f} (-10%)")
+                # LONG: SL below entry (minimum 5% below)
+                sl_percent = max(0.10, min_sl_percent)  # At least 10%, but minimum 5%
+                sl_price_calc = current_price * (1 - sl_percent)
+                sl_price = int(sl_price_calc * 1e18)
+                
+                # Validate it's not too close (Ostium requirement)
+                if sl_price_calc > current_price * 0.95:  # Less than 5% below
+                    logger.warning(f"⚠️  Calculated SL too close to entry (${sl_price_calc:.4f} vs ${current_price:.4f}), disabling protocol SL")
+                    sl_price = 0
+                else:
+                    logger.info(f"📉 Protocol Stop-Loss auto-set: ${sl_price_calc:.4f} ({sl_percent*100:.0f}% below entry)")
             else:
-                # SHORT: SL above entry
-                sl_price = int(current_price * 1.10 * 1e18)  # +10%
-                logger.info(f"📉 Protocol Stop-Loss auto-set: ${current_price * 1.10:.2f} (+10%)")
+                # SHORT: SL above entry (minimum 5% above)
+                sl_percent = max(0.10, min_sl_percent)  # At least 10%, but minimum 5%
+                sl_price_calc = current_price * (1 + sl_percent)
+                sl_price = int(sl_price_calc * 1e18)
+                
+                # Validate it's not too close (Ostium requirement)
+                if sl_price_calc < current_price * 1.05:  # Less than 5% above
+                    logger.warning(f"⚠️  Calculated SL too close to entry (${sl_price_calc:.4f} vs ${current_price:.4f}), disabling protocol SL")
+                    sl_price = 0
+                else:
+                    logger.info(f"📉 Protocol Stop-Loss auto-set: ${sl_price_calc:.4f} ({sl_percent*100:.0f}% above entry)")
         else:
             logger.warning("⚠️  Could not set protocol SL - no current price available")
+        
+        # Final validation: If SL is 0 or invalid, disable it
+        if sl_price == 0:
+            logger.info("ℹ️  Protocol Stop-Loss: DISABLED (will rely on position monitor for risk management)")
+        else:
+            logger.info(f"✅ Protocol Stop-Loss: ${sl_price / 1e18:.4f} (in wei: {sl_price})")
         
         # Take-Profit is DISABLED at protocol level
         # Position monitor handles profit-taking with trailing stops for better profit capture
@@ -576,7 +613,24 @@ def open_position():
         
         # Execute trade
         logger.info(f"📤 Calling perform_trade with params: {trade_params}, price: {current_price}")
-        result = sdk.ostium.perform_trade(trade_params, at_price=current_price)
+        
+        try:
+            result = sdk.ostium.perform_trade(trade_params, at_price=current_price)
+        except Exception as trade_error:
+            error_str = str(trade_error)
+            # If WrongSL error, retry without SL
+            if 'WrongSL' in error_str or 'wrongsl' in error_str.lower():
+                logger.warning(f"⚠️  Ostium rejected SL price: {error_str}")
+                logger.info("🔄 Retrying without protocol-level stop-loss...")
+                
+                # Retry with SL disabled
+                trade_params['sl'] = 0
+                logger.info(f"📤 Retrying perform_trade with SL disabled: {trade_params}")
+                result = sdk.ostium.perform_trade(trade_params, at_price=current_price)
+                logger.info("✅ Trade succeeded without protocol SL (position monitor will handle risk)")
+            else:
+                # Re-raise other errors
+                raise
         
         # Extract order_id and receipt
         order_id = result.get('order_id') if isinstance(result, dict) else None
@@ -593,14 +647,17 @@ def open_position():
         
         # CRITICAL: Get actual trade index after opening
         # The SDK returns index='0' for all, so we need to query storage contract
+        # NOTE: Order is pending (keeper will fill in 1-5 min), so we can't get index yet
+        # The position monitor will update the index once the order is filled
         actual_trade_index = None
         
+        # Try to get index immediately (might fail if order not filled yet)
         try:
-            logger.info(f"🔍 Querying storage contract to get actual trade index...")
+            logger.info(f"🔍 Attempting to get trade index (order may not be filled yet)...")
             
             # Wait a moment for transaction to be mined
             import time
-            time.sleep(2)
+            time.sleep(3)  # Give it a bit more time
             
             # Get Web3 instance
             w3 = sdk.w3
@@ -684,27 +741,30 @@ def open_position():
                         logger.warning(f"   Could not query trade at index {i}: {query_err}")
                         continue
                 
-                if actual_trade_index is None:
-                    # Fallback: Use count - 1 as the index (newest trade)
-                    logger.warning(f"⚠️  Could not match by price, using count-1 as index")
-                    actual_trade_index = count - 1 if count > 0 else 0
+            if actual_trade_index is None:
+                # Fallback: Use count - 1 as the index (newest trade)
+                logger.warning(f"⚠️  Could not match by price, using count-1 as index")
+                actual_trade_index = count - 1 if count > 0 else 0
                     
             except Exception as count_err:
                 logger.warning(f"⚠️  Could not query trade count: {count_err}")
-                logger.warning(f"   This might be a delegation issue - will use fallback")
-                # Fallback: Assume it's the first position (index 0)
-                actual_trade_index = 0
+                logger.warning(f"   This might be a delegation issue or order not filled yet")
+                logger.warning(f"   Position monitor will update index once order is filled")
+                # Don't set index yet - position monitor will update it
+                actual_trade_index = None
                 
         except Exception as index_err:
-            logger.error(f"❌ Error getting trade index: {index_err}")
-            logger.error(f"   Will use fallback index=0")
-            actual_trade_index = 0
+            logger.warning(f"⚠️  Error getting trade index: {index_err}")
+            logger.warning(f"   Order may not be filled yet (keeper takes 1-5 minutes)")
+            logger.warning(f"   Position monitor will update index once order is filled")
+            # Don't set index yet - position monitor will update it
+            actual_trade_index = None
         
         if actual_trade_index is not None:
             logger.info(f"💾 Storing actual trade index: {actual_trade_index}")
         else:
-            logger.warning(f"⚠️  Could not determine actual index, using 0 as fallback")
-            actual_trade_index = 0
+            logger.info(f"ℹ️  Index not available yet (order pending or delegation issue)")
+            logger.info(f"   Position monitor will update index once position is discovered")
         
         # Convert Web3 AttributeDict to regular dict for JSON serialization
         tx_hash = ''
