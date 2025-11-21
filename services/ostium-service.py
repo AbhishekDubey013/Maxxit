@@ -535,39 +535,39 @@ def open_position():
             logger.warning(f"Price fetch error for {market}: {e}")
             current_price = 100.0
         
-        # Calculate SL/TP values for Ostium
-        # Ostium expects SL/TP as price levels (not percentages)
+        # Calculate SL value for Ostium (protocol-level protection)
+        # TP is NOT set - position monitor handles profit-taking with trailing stops
         sl_price = 0  # 0 = no stop loss
-        tp_price = 0  # 0 = no take profit
         
         if stop_loss_price:
+            # Explicit SL price provided
             sl_price = int(float(stop_loss_price) * 1e18)  # Convert to wei (18 decimals)
-            logger.info(f"📉 Stop Loss set at: ${stop_loss_price}")
-        
-        if take_profit_price:
-            tp_price = int(float(take_profit_price) * 1e18)  # Convert to wei (18 decimals)
-            logger.info(f"📈 Take Profit set at: ${take_profit_price}")
-        
-        # If no explicit prices provided, calculate from percentages (default: 10% SL, 20% TP)
-        if not stop_loss_price and not take_profit_price:
+            logger.info(f"📉 Protocol Stop-Loss set at: ${stop_loss_price}")
+        elif current_price > 0:
+            # Auto-calculate SL based on default 10% risk
             if side.lower() == 'long':
-                # LONG: SL below entry, TP above entry
+                # LONG: SL below entry
                 sl_price = int(current_price * 0.90 * 1e18)  # -10%
-                tp_price = int(current_price * 1.20 * 1e18)  # +20%
+                logger.info(f"📉 Protocol Stop-Loss auto-set: ${current_price * 0.90:.2f} (-10%)")
             else:
-                # SHORT: SL above entry, TP below entry
+                # SHORT: SL above entry
                 sl_price = int(current_price * 1.10 * 1e18)  # +10%
-                tp_price = int(current_price * 0.80 * 1e18)  # -20%
-            
-            logger.info(f"📊 Auto-calculated SL/TP: SL=${current_price * (0.90 if side.lower() == 'long' else 1.10):.2f}, TP=${current_price * (1.20 if side.lower() == 'long' else 0.80):.2f}")
+                logger.info(f"📉 Protocol Stop-Loss auto-set: ${current_price * 1.10:.2f} (+10%)")
+        else:
+            logger.warning("⚠️  Could not set protocol SL - no current price available")
+        
+        # Take-Profit is DISABLED at protocol level
+        # Position monitor handles profit-taking with trailing stops for better profit capture
+        tp_price = 0  # 0 = disabled (let profits run)
+        logger.info(f"💰 Take-Profit: DISABLED (position monitor will handle with trailing stops)")
         
         trade_params = {
             'asset_type': asset_index,
             'collateral': position_size,
             'direction': side.lower() == 'long',
             'leverage': leverage,
-            'tp': tp_price,  # Protocol-level take profit
-            'sl': sl_price,  # Protocol-level stop loss
+            'tp': tp_price,  # Disabled - trailing stops handle profit-taking
+            'sl': sl_price,  # Protocol-level stop-loss for downside protection
         }
         
         if use_delegation:

@@ -1068,31 +1068,27 @@ export class TradeExecutor {
         console.warn('[TradeExecutor] Could not fetch current price for SL/TP calculation');
       }
 
-      // Calculate protocol-level stop-loss and take-profit
+      // Calculate protocol-level stop-loss (downside protection)
+      // Take-profit is NOT set - position monitor handles profit-taking with trailing stops
       let stopLossPrice: number | undefined;
-      let takeProfitPrice: number | undefined;
 
       if (currentPrice > 0) {
         const riskModel = ctx.signal.risk_model as any;
         const stopLossPercent = riskModel?.stopLoss || 0.10; // Default 10%
-        const takeProfitPercent = riskModel?.takeProfit || 0.20; // Default 20%
         
         if (ctx.signal.side === 'LONG') {
-          // LONG: SL below entry, TP above entry
+          // LONG: SL below entry
           stopLossPrice = currentPrice * (1 - stopLossPercent);
-          takeProfitPrice = currentPrice * (1 + takeProfitPercent);
         } else {
-          // SHORT: SL above entry, TP below entry
+          // SHORT: SL above entry
           stopLossPrice = currentPrice * (1 + stopLossPercent);
-          takeProfitPrice = currentPrice * (1 - takeProfitPercent);
         }
         
-        console.log('[TradeExecutor] Protocol-level SL/TP:', {
+        console.log('[TradeExecutor] Protocol-level Stop-Loss:', {
           currentPrice,
           stopLoss: stopLossPrice.toFixed(2),
-          takeProfit: takeProfitPrice.toFixed(2),
           stopLossPercent: `${(stopLossPercent * 100).toFixed(0)}%`,
-          takeProfitPercent: `${(takeProfitPercent * 100).toFixed(0)}%`,
+          note: 'Take-profit disabled - trailing stops handle profit-taking',
         });
       }
 
@@ -1103,10 +1099,11 @@ export class TradeExecutor {
         side: ctx.signal.side,
         balance: usdcBalance,
         protocolSL: stopLossPrice ? `$${stopLossPrice.toFixed(2)}` : 'Auto',
-        protocolTP: takeProfitPrice ? `$${takeProfitPrice.toFixed(2)}` : 'Auto',
+        profitStrategy: 'Trailing stops (position monitor)',
       });
 
-      // Open position via delegation with protocol-level SL/TP
+      // Open position via delegation with protocol-level stop-loss only
+      // Take-profit is handled by position monitor with trailing stops for better profit capture
       const result = await openOstiumPosition({
         privateKey: agentPrivateKey,
         market: actualTokenSymbol,
@@ -1115,8 +1112,8 @@ export class TradeExecutor {
         leverage,
         useDelegation: true,
         userAddress: userArbitrumWallet,
-        stopLoss: stopLossPrice,      // Protocol-level stop-loss
-        takeProfit: takeProfitPrice,  // Protocol-level take-profit
+        stopLoss: stopLossPrice,  // Protocol-level stop-loss (downside protection)
+        // takeProfit: undefined - Let profits run with trailing stops
       });
 
       console.log('[TradeExecutor] ✅ Ostium position opened:', result);

@@ -1,16 +1,30 @@
-# Ostium Protocol-Level Stop-Loss & Take-Profit
+# Ostium Protocol-Level Stop-Loss
 
 ## Overview
 
-Ostium supports **on-chain stop-loss and take-profit orders** that execute directly via smart contracts, independent of our monitoring service. This provides a more reliable and decentralized risk management system.
+Ostium supports **on-chain stop-loss orders** that execute directly via smart contracts, independent of our monitoring service. This provides a more reliable and decentralized risk management system for downside protection.
+
+## Strategy
+
+We use a **hybrid approach** for optimal risk management:
+
+| Risk Type | Implementation | Reason |
+|-----------|---------------|---------|
+| **Downside Protection** | Protocol-level SL | Guaranteed protection even if service is offline |
+| **Profit Taking** | Service-level Trailing Stops | Dynamic profit capture - lets winners run |
+
+### Why Not Protocol-Level Take-Profit?
+
+❌ **Fixed TP limits upside:** If you set TP at +20%, you miss out if price goes +50%
+✅ **Trailing stops are better:** Dynamically follow price higher, capture more profit
 
 ## How It Works
 
-When opening a position on Ostium, you can specify:
-- **Stop-Loss (SL):** Price level where the position automatically closes to limit losses
-- **Take-Profit (TP):** Price level where the position automatically closes to lock in profits
+When opening a position on Ostium:
+- **Stop-Loss (SL):** Set at protocol level - guaranteed downside protection
+- **Take-Profit (TP):** Disabled - position monitor handles with trailing stops
 
-These orders are:
+The stop-loss order is:
 - ✅ **Stored on-chain** in Ostium smart contracts
 - ✅ **Executed by keepers** independent of our service
 - ✅ **Guaranteed execution** (if the price reaches the level)
@@ -44,37 +58,33 @@ Even if our entire backend goes offline, your stop-loss will still trigger on Os
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                  BEFORE: Service-Level                       │
+│              HYBRID APPROACH (OPTIMAL)                       │
 └─────────────────────────────────────────────────────────────┘
 
-User → Open Position → Ostium
+User → Open Position (with protocol SL) → Ostium
                     ↓
-         Position Monitor (polls every 30s)
-                    ↓
-         Check P&L vs Stop-Loss
-                    ↓
-         If triggered → Close Position → Ostium
+         ┌──────────┴──────────┐
+         │                     │
+    ✅ DOWNSIDE          💰 UPSIDE
+    Protocol SL          Trailing Stops
+         │                     │
+    On-chain keeper      Position Monitor
+    Auto-closes          (30s polling)
+    at -10%              Follows price up
+         │                     │
+         └─────────────────────┘
+              Position Closed
 
-❌ Requires service uptime
-❌ 30-60s delay
-❌ Additional gas costs
 
+DOWNSIDE PROTECTION (Protocol-Level SL):
+✅ Executes even if service is offline
+✅ Instant execution on-chain
+✅ Guaranteed at -10% loss
 
-┌─────────────────────────────────────────────────────────────┐
-│                   AFTER: Protocol-Level                      │
-└─────────────────────────────────────────────────────────────┘
-
-User → Open Position (with SL/TP) → Ostium Smart Contract
-                                          ↓
-                              [Stored on-chain]
-                                          ↓
-                              Price reaches SL/TP
-                                          ↓
-                              Keeper auto-closes
-                                          
-✅ No service dependency
-✅ Instant execution
-✅ Lower gas costs
+PROFIT TAKING (Service-Level Trailing):
+✅ Lets profits run beyond fixed %
+✅ Dynamically follows price higher
+✅ Captures bigger wins (+30%, +50%, +100%+)
 ```
 
 ### Code Changes
@@ -83,25 +93,26 @@ User → Open Position (with SL/TP) → Ostium Smart Contract
 **File:** `services/ostium-service.py`
 
 ```python
-# Calculate SL/TP values for Ostium
-# Ostium expects SL/TP as price levels in wei (18 decimals)
+# Calculate SL value for Ostium (protocol-level protection)
+# TP is NOT set - position monitor handles profit-taking with trailing stops
 
 if side.lower() == 'long':
-    # LONG: SL below entry, TP above entry
+    # LONG: SL below entry
     sl_price = int(current_price * 0.90 * 1e18)  # -10%
-    tp_price = int(current_price * 1.20 * 1e18)  # +20%
 else:
-    # SHORT: SL above entry, TP below entry
+    # SHORT: SL above entry
     sl_price = int(current_price * 1.10 * 1e18)  # +10%
-    tp_price = int(current_price * 0.80 * 1e18)  # -20%
+
+# Take-Profit is DISABLED at protocol level
+tp_price = 0  # 0 = disabled (let profits run)
 
 trade_params = {
     'asset_type': asset_index,
     'collateral': position_size,
     'direction': side.lower() == 'long',
     'leverage': leverage,
-    'tp': tp_price,  # Protocol-level take profit
-    'sl': sl_price,  # Protocol-level stop loss
+    'tp': tp_price,  # Disabled - trailing stops handle profit-taking
+    'sl': sl_price,  # Protocol-level stop-loss for downside protection
 }
 ```
 
@@ -109,20 +120,18 @@ trade_params = {
 **File:** `lib/trade-executor.ts`
 
 ```typescript
-// Calculate protocol-level stop-loss and take-profit
+// Calculate protocol-level stop-loss (downside protection only)
 const riskModel = ctx.signal.risk_model as any;
 const stopLossPercent = riskModel?.stopLoss || 0.10; // Default 10%
-const takeProfitPercent = riskModel?.takeProfit || 0.20; // Default 20%
 
 if (ctx.signal.side === 'LONG') {
     stopLossPrice = currentPrice * (1 - stopLossPercent);
-    takeProfitPrice = currentPrice * (1 + takeProfitPercent);
 } else {
     stopLossPrice = currentPrice * (1 + stopLossPercent);
-    takeProfitPrice = currentPrice * (1 - takeProfitPercent);
 }
 
-// Open position with protocol-level SL/TP
+// Open position with protocol-level stop-loss only
+// Take-profit handled by position monitor with trailing stops
 const result = await openOstiumPosition({
     privateKey: agentPrivateKey,
     market: actualTokenSymbol,
@@ -131,8 +140,8 @@ const result = await openOstiumPosition({
     leverage,
     useDelegation: true,
     userAddress: userArbitrumWallet,
-    stopLoss: stopLossPrice,      // Protocol-level
-    takeProfit: takeProfitPrice,  // Protocol-level
+    stopLoss: stopLossPrice,  // Protocol-level downside protection
+    // takeProfit: undefined - Let profits run with trailing stops
 });
 ```
 
@@ -159,75 +168,122 @@ export interface OpenPositionParams {
 
 ```typescript
 // Current BTC price: $90,000
-// Risk model: 10% SL, 20% TP
+// Risk model: 10% SL, 1% trailing stop
 
 openOstiumPosition({
     market: 'BTC',
     size: 100,              // $100 USDC collateral
     side: 'long',
     leverage: 5,            // 5x leverage
-    stopLoss: 81000,        // $81k (-10%)
-    takeProfit: 108000,     // $108k (+20%)
+    stopLoss: 81000,        // $81k (-10%) - PROTOCOL LEVEL
+    // No takeProfit - handled by trailing stops
 })
 
 // Position size: $500 ($100 * 5x)
+// 
+// DOWNSIDE (Protocol):
 // If BTC drops to $81k → Auto-closes with -$50 loss (-10%)
-// If BTC rises to $108k → Auto-closes with +$100 profit (+20%)
+//   ✅ Executes even if service is offline
+//
+// UPSIDE (Trailing Stops):
+// If BTC rises to $100k → Trailing stop activates
+// If BTC rises to $110k → Trailing follows (+22% profit locked)
+// If BTC rises to $120k → Trailing follows (+33% profit locked)
+//   💰 Lets profits run much higher than fixed +20% TP
 ```
 
 ### Example 2: ETH Short Position
 
 ```typescript
 // Current ETH price: $3,000
-// Risk model: 10% SL, 20% TP
+// Risk model: 10% SL, 1% trailing stop
 
 openOstiumPosition({
     market: 'ETH',
     size: 200,              // $200 USDC collateral
     side: 'short',
     leverage: 3,            // 3x leverage
-    stopLoss: 3300,         // $3.3k (+10%)
-    takeProfit: 2400,       // $2.4k (-20%)
+    stopLoss: 3300,         // $3.3k (+10%) - PROTOCOL LEVEL
+    // No takeProfit - handled by trailing stops
 })
 
 // Position size: $600 ($200 * 3x)
+//
+// DOWNSIDE (Protocol):
 // If ETH rises to $3.3k → Auto-closes with -$60 loss (-10%)
-// If ETH drops to $2.4k → Auto-closes with +$120 profit (+20%)
+//   ✅ Executes even if service is offline
+//
+// UPSIDE (Trailing Stops):
+// If ETH drops to $2,700 → Trailing stop activates
+// If ETH drops to $2,400 → Trailing follows (+20% profit locked)
+// If ETH drops to $2,100 → Trailing follows (+30% profit locked)
+//   💰 Lets profits run much higher than fixed +20% TP
 ```
 
 ## Default Parameters
 
-If no explicit SL/TP prices are provided, the system auto-calculates:
+### Protocol-Level Stop-Loss
 
-| Position | Stop-Loss | Take-Profit |
-|----------|-----------|-------------|
-| LONG     | -10%      | +20%        |
-| SHORT    | +10%      | -20%        |
+If no explicit SL price is provided, the system auto-calculates:
 
-These can be customized in the `risk_model` of each signal:
+| Position | Stop-Loss (Protocol) | Take-Profit (Service) |
+|----------|---------------------|----------------------|
+| LONG     | Entry - 10%         | Trailing stop (+3% activation, 1% trail) |
+| SHORT    | Entry + 10%         | Trailing stop (+3% activation, 1% trail) |
+
+### Risk Model Configuration
+
+Customize in the `risk_model` of each signal:
 
 ```json
 {
-  "stopLoss": 0.10,      // 10%
-  "takeProfit": 0.20,    // 20%
-  "trailingPercent": 1   // 1% (for service-level backup)
+  "stopLoss": 0.10,         // 10% - used for protocol-level SL
+  "takeProfit": 0.20,       // Ignored for protocol (used for trailing stop guidance)
+  "trailingPercent": 1      // 1% - service-level trailing stop
 }
 ```
 
+**Why This Hybrid Approach?**
+- **Protocol SL:** Guaranteed downside protection (works offline)
+- **Service Trailing:** Captures bigger profits (adapts to price movement)
+
 ## Position Monitor Role
 
-With protocol-level SL/TP enabled, the position monitor now serves as:
+With protocol-level stop-loss enabled, the position monitor has these responsibilities:
 
-### ✅ Primary Functions
-1. **Position Discovery** - Auto-create DB records for new positions
-2. **Price Updates** - Track current prices and P&L
-3. **Status Sync** - Mark positions as closed when SL/TP triggers
-4. **Metrics Updates** - Update agent APR and performance stats
+### ✅ Critical Functions
+1. **Trailing Stops** - Dynamic profit-taking that follows price movement
+   - Activates at +3% profit
+   - Trails price by 1% (lets profits run)
+   - Captures bigger wins than fixed take-profit
+   
+2. **Position Discovery** - Auto-create DB records for new positions
 
-### ⚠️ Backup Functions (Optional)
-1. **Trailing Stops** - More advanced logic than protocol supports
+3. **Price & P&L Updates** - Track current prices and unrealized profit
+
+4. **Status Sync** - Mark positions as closed when protocol SL triggers
+
+5. **Metrics Updates** - Update agent APR and performance stats
+
+### 🛡️ Safety Functions
+1. **Hard Stop-Loss Backup** - Additional safety net at -15%
+   - Only triggers if protocol SL fails (extremely rare)
+   
 2. **Emergency Closes** - Manual intervention when needed
-3. **Hard Stop-Loss** - Additional safety net at -15%
+
+### Why Service-Level Trailing Stops?
+
+**Protocol-level take-profit is fixed:**
+- Set TP at $100k → Closes at $100k even if price goes to $150k
+- Misses potential for bigger wins
+
+**Service-level trailing stops are dynamic:**
+- Price hits $100k → Trailing activates, locks in $97k
+- Price hits $120k → Trailing follows, locks in $117k  
+- Price hits $150k → Trailing follows, locks in $147k
+- Price drops to $148k → Closes with $145k profit (not $100k!)
+
+💡 **Result:** Captures 45% more profit than fixed TP in this example
 
 ## Monitoring & Verification
 
