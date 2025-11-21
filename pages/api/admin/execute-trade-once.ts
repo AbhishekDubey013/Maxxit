@@ -65,6 +65,7 @@ export default async function handler(
     if (signal.venue === 'HYPERLIQUID' || signal.venue === 'OSTIUM') {
       // For HYPERLIQUID and OSTIUM, check user_agent_addresses table
       const userWallets = deployments.map(d => d.user_wallet);
+      console.log(`[TRADE] Checking ${userWallets.length} user wallets for ${signal.venue} agent addresses:`, userWallets);
       
       // Get user agent addresses for these wallets
       const userAgentAddresses = await prisma.user_agent_addresses.findMany({
@@ -78,13 +79,19 @@ export default async function handler(
         select: { user_wallet: true },
       });
 
+      console.log(`[TRADE] Found ${userAgentAddresses.length} users with ${signal.venue} agent addresses configured`);
       const validUserWallets = new Set(userAgentAddresses.map(u => u.user_wallet));
       
       // Filter deployments to only those with valid agent addresses
       deployments = deployments.filter(d => validUserWallets.has(d.user_wallet));
+      console.log(`[TRADE] Filtered to ${deployments.length} deployments with valid agent addresses`);
+      deployments.forEach(d => {
+        console.log(`[TRADE]   - Deployment ${d.id.substring(0, 8)}... User: ${d.user_wallet}`);
+      });
     } else {
       // For SPOT/GMX, require module_enabled = true
       deployments = deployments.filter(d => d.module_enabled === true);
+      console.log(`[TRADE] Filtered to ${deployments.length} deployments with module enabled`);
     }
 
     console.log(`[TRADE] Found ${allDeployments.length} total active deployments, ${deployments.length} ready for execution (venue: ${signal.venue})`);
@@ -133,7 +140,7 @@ export default async function handler(
     const executor = new TradeExecutor();
 
     for (const deployment of deployments) {
-      // Check for duplicate position (same deployment + signal)
+      // Check for duplicate position (same deployment + signal) - ATOMIC CHECK
       const existing = await prisma.positions.findUnique({
         where: {
           deployment_id_signal_id: {
@@ -144,12 +151,12 @@ export default async function handler(
       });
 
       if (existing) {
-        console.log(`[TRADE] Position already exists for deployment ${deployment.id}`);
+        console.log(`[TRADE] ⏭️  Position already exists for deployment ${deployment.id.substring(0, 8)}... (User: ${deployment.user_wallet})`);
         continue;
       }
 
       // Execute REAL on-chain trade via TradeExecutor for SPECIFIC deployment
-      console.log(`[TRADE] Executing real trade for deployment ${deployment.id} (Safe: ${deployment.safe_wallet})`);
+      console.log(`[TRADE] 🚀 Executing trade for deployment ${deployment.id.substring(0, 8)}... (User: ${deployment.user_wallet})`);
       const result = await executor.executeSignalForDeployment(signal.id, deployment.id);
 
       if (result.success && result.positionId) {
