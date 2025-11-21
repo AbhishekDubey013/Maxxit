@@ -456,9 +456,9 @@ def open_position():
         leverage = float(data.get('leverage', 10))
         user_address = data.get('userAddress')
         
-        # Protocol-level stop-loss and take-profit (optional)
-        stop_loss_price = data.get('stopLoss')  # Price level for SL
-        take_profit_price = data.get('takeProfit')  # Price level for TP
+        # Protocol-level stop-loss and take-profit percentages (from signal's risk_model)
+        stop_loss_percent = data.get('stopLossPercent')  # e.g., 0.05 for 5%
+        take_profit_percent = data.get('takeProfitPercent')  # e.g., 0.15 for 15%
         
         # Validation
         if not all([private_key, market, position_size]):
@@ -536,11 +536,13 @@ def open_position():
             logger.warning(f"Price fetch error for {market}: {e}")
             current_price = 100.0
         
-        # DISABLED: Protocol-level stop-loss causes WrongSL() errors
-        # Position monitor handles all risk management via trailing stops
-        # Do NOT include 'sl' or 'tp' parameters - Ostium rejects sl=0
-        logger.info("ℹ️  Protocol Stop-Loss: DISABLED (position monitor handles risk management)")
-        logger.info(f"💰 Take-Profit: DISABLED (position monitor will handle with trailing stops)")
+        # IMPORTANT: TP/SL cannot be set during position opening due to WrongSL() SDK errors
+        # Instead, we set them AFTER the position opens using update_tp() and update_sl()
+        # This approach avoids SDK validation issues while still providing TP/SL protection
+        if stop_loss_percent:
+            logger.info(f"ℹ️  Stop-Loss will be set after position opens: {(stop_loss_percent * 100):.1f}%")
+        if take_profit_percent:
+            logger.info(f"💰 Take-Profit will be set after position opens: {(take_profit_percent * 100):.1f}%")
         
         trade_params = {
             'asset_type': asset_index,
@@ -605,123 +607,64 @@ def open_position():
         if not order_id:
             raise Exception("No order_id returned from SDK - trade may have failed")
         
-        # TODO: Track order until filled
-        # For now, return the order_id
         logger.info(f"✅ Order submitted: {order_id} (waiting for keeper to fill)")
         
-        # CRITICAL: Get actual trade index after opening
-        # The SDK returns index='0' for all, so we need to query storage contract
-        # NOTE: Order is pending (keeper will fill in 1-5 min), so we can't get index yet
-        # The position monitor will update the index once the order is filled
+        # CRITICAL: Get actual trade index using subgraph API (cleaner approach)
+        # NOTE: Order is pending (keeper will fill in 1-5 min), so we need to wait
         actual_trade_index = None
         
-        # Try to get index immediately (might fail if order not filled yet)
         try:
-            logger.info(f"🔍 Attempting to get trade index (order may not be filled yet)...")
+            logger.info(f"🔍 Attempting to get trade index via subgraph API...")
             
-            # Wait a moment for transaction to be mined
+            # Wait for the transaction to be confirmed and trade to be filled
             import time
-            time.sleep(3)  # Give it a bit more time
+            time.sleep(10)  # Wait 10 seconds for keeper to fill the order
             
-            # Get Web3 instance
-            w3 = sdk.w3
-            
-            # TradingStorage contract address
-            storage_address = Web3.to_checksum_address("0x0B9f5243B29938668c9Cfbd7557A389EC7Ef88b8")
-            
-            # Storage contract ABI (minimal - just what we need)
-            storage_abi = [
-                {
-                    "inputs": [
-                        {"name": "trader", "type": "address"},
-                        {"name": "pairIndex", "type": "uint256"},
-                        {"name": "index", "type": "uint256"}
-                    ],
-                    "name": "openTrades",
-                    "outputs": [
-                        {
-                            "components": [
-                                {"name": "trader", "type": "address"},
-                                {"name": "pairIndex", "type": "uint256"},
-                                {"name": "index", "type": "uint256"},
-                                {"name": "positionSizeAsset", "type": "uint256"},
-                                {"name": "openPrice", "type": "uint256"},
-                                {"name": "buy", "type": "bool"},
-                                {"name": "leverage", "type": "uint256"},
-                                {"name": "tp", "type": "uint256"},
-                                {"name": "sl", "type": "uint256"}
-                            ],
-                            "name": "",
-                            "type": "tuple"
-                        }
-                    ],
-                    "stateMutability": "view",
-                    "type": "function"
-                },
-                {
-                    "inputs": [
-                        {"name": "trader", "type": "address"},
-                        {"name": "pairIndex", "type": "uint256"}
-                    ],
-                    "name": "openTradesCount",
-                    "outputs": [{"name": "", "type": "uint256"}],
-                    "stateMutability": "view",
-                    "type": "function"
-                }
-            ]
-            
-            storage_contract = w3.eth.contract(address=storage_address, abi=storage_abi)
-            
-            # Try querying with user address (for delegated trades)
+            # Get trader address
             if use_delegation and user_address:
-                checksummed_user = Web3.to_checksum_address(user_address)
+                trader_address = Web3.to_checksum_address(user_address)
             else:
-                checksummed_user = sdk.ostium.get_public_address()
+                trader_address = sdk.ostium.get_public_address()
             
-            # Get count of trades for this pair
-            try:
-                count = storage_contract.functions.openTradesCount(checksummed_user, asset_index).call()
-                logger.info(f"📊 Storage shows {count} open trades for pair {asset_index}")
+            logger.info(f"📊 Querying subgraph for trades by {trader_address}...")
+            
+            # Use subgraph API to get open trades (async method)
+            import asyncio
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            open_trades = loop.run_until_complete(sdk.subgraph.get_open_trades(trader_address))
+            loop.close()
+            
+            logger.info(f"📊 Found {len(open_trades)} open trades")
+            
+            if len(open_trades) > 0:
+                # Get the most recently opened trade (last in the list)
+                newly_opened_trade = open_trades[-1]
                 
-                # The new trade should be at index = count - 1 (0-indexed)
-                # But we need to verify by matching openPrice
-                target_open_price_wei = int(current_price * 1e18)
+                # Extract trade index and pair id
+                actual_trade_index = newly_opened_trade.get('index')
+                trade_pair_id = newly_opened_trade.get('pair', {}).get('id')
                 
-                # Query each trade to find the one matching our openPrice
-                for i in range(count):
-                    try:
-                        trade = storage_contract.functions.openTrades(checksummed_user, asset_index, i).call()
-                        stored_open_price = trade[4]  # openPrice is at index 4
-                        stored_index = trade[2]  # index is at index 2
-                        
-                        # Match by openPrice (within 0.1% tolerance)
-                        price_diff = abs(stored_open_price - target_open_price_wei)
-                        if price_diff < (target_open_price_wei // 1000):  # 0.1% tolerance
-                            actual_trade_index = stored_index
-                            logger.info(f"✅ Found matching trade! Actual index = {actual_trade_index}")
-                            logger.info(f"   Query index: {i}, Stored index: {stored_index}, Price: ${current_price}")
-                            break
-                    except Exception as query_err:
-                        logger.warning(f"   Could not query trade at index {i}: {query_err}")
-                        continue
+                logger.info(f"✅ Found newly opened trade!")
+                logger.info(f"   Trade Index: {actual_trade_index}")
+                logger.info(f"   Pair ID: {trade_pair_id}")
+                logger.info(f"   Entry Price: {newly_opened_trade.get('openPrice')}")
                 
-            if actual_trade_index is None:
-                # Fallback: Use count - 1 as the index (newest trade)
-                logger.warning(f"⚠️  Could not match by price, using count-1 as index")
-                actual_trade_index = count - 1 if count > 0 else 0
-                    
-            except Exception as count_err:
-                logger.warning(f"⚠️  Could not query trade count: {count_err}")
-                logger.warning(f"   This might be a delegation issue or order not filled yet")
-                logger.warning(f"   Position monitor will update index once order is filled")
-                # Don't set index yet - position monitor will update it
+                # Verify it's the correct pair
+                if trade_pair_id != str(asset_index):
+                    logger.warning(f"⚠️  Pair mismatch! Expected {asset_index}, got {trade_pair_id}")
+                    logger.warning(f"   Using the trade index anyway (might be correct)")
+            else:
+                logger.warning(f"⚠️  No open trades found yet - order may not be filled")
+                logger.warning(f"   Position monitor will set TP/SL once trade is filled")
                 actual_trade_index = None
                 
         except Exception as index_err:
-            logger.warning(f"⚠️  Error getting trade index: {index_err}")
+            logger.warning(f"⚠️  Error getting trade index via subgraph: {index_err}")
             logger.warning(f"   Order may not be filled yet (keeper takes 1-5 minutes)")
             logger.warning(f"   Position monitor will update index once order is filled")
-            # Don't set index yet - position monitor will update it
+            import traceback
+            logger.warning(traceback.format_exc())
             actual_trade_index = None
         
         if actual_trade_index is not None:
@@ -729,6 +672,90 @@ def open_position():
         else:
             logger.info(f"ℹ️  Index not available yet (order pending or delegation issue)")
             logger.info(f"   Position monitor will update index once position is discovered")
+        
+        # Set TP/SL if percentages were provided
+        tp_sl_set_success = False
+        tp_sl_error = None
+        
+        if (stop_loss_percent or take_profit_percent) and actual_trade_index is not None and current_price > 0:
+            logger.info(f"🎯 Setting TP/SL on position...")
+            logger.info(f"   Trade Index: {actual_trade_index}")
+            logger.info(f"   Pair Index: {asset_index}")
+            logger.info(f"   Entry Price: ${current_price:.4f}")
+            
+            try:
+                # Set Take Profit
+                if take_profit_percent:
+                    if side.lower() == 'long':
+                        # LONG: TP above entry price
+                        tp_price = current_price * (1 + take_profit_percent)
+                    else:
+                        # SHORT: TP below entry price
+                        tp_price = current_price * (1 - take_profit_percent)
+                    
+                    logger.info(f"💰 Setting Take-Profit: ${tp_price:.4f} ({(take_profit_percent * 100):.1f}%)")
+                    
+                    # Call SDK update_tp - pass trader_address for delegated trades
+                    if use_delegation and user_address:
+                        checksummed_user = Web3.to_checksum_address(user_address)
+                        sdk.ostium.update_tp(
+                            pair_id=asset_index,
+                            index=actual_trade_index,
+                            new_tp=tp_price,
+                            trader_address=checksummed_user
+                        )
+                    else:
+                        sdk.ostium.update_tp(
+                            pair_id=asset_index,
+                            index=actual_trade_index,
+                            new_tp=tp_price
+                        )
+                    
+                    logger.info(f"   ✅ Take-Profit set successfully")
+                
+                # Set Stop Loss
+                if stop_loss_percent:
+                    if side.lower() == 'long':
+                        # LONG: SL below entry price
+                        sl_price = current_price * (1 - stop_loss_percent)
+                    else:
+                        # SHORT: SL above entry price
+                        sl_price = current_price * (1 + stop_loss_percent)
+                    
+                    logger.info(f"📉 Setting Stop-Loss: ${sl_price:.4f} ({(stop_loss_percent * 100):.1f}%)")
+                    
+                    # Call SDK update_sl - pass trader_address for delegated trades
+                    if use_delegation and user_address:
+                        checksummed_user = Web3.to_checksum_address(user_address)
+                        sdk.ostium.update_sl(
+                            pair_id=asset_index,
+                            index=actual_trade_index,
+                            new_sl=sl_price,
+                            trader_address=checksummed_user
+                        )
+                    else:
+                        sdk.ostium.update_sl(
+                            pair_id=asset_index,
+                            index=actual_trade_index,
+                            new_sl=sl_price
+                        )
+                    
+                    logger.info(f"   ✅ Stop-Loss set successfully")
+                
+                tp_sl_set_success = True
+                logger.info(f"✅ TP/SL configured successfully on position")
+                
+            except Exception as tp_sl_error_ex:
+                tp_sl_error = str(tp_sl_error_ex)
+                logger.error(f"⚠️  Failed to set TP/SL: {tp_sl_error}")
+                logger.error(f"   Position opened successfully, but TP/SL not set")
+                logger.error(f"   You may need to set them manually or via position monitor")
+                # Don't fail the entire trade - position is already open
+        elif stop_loss_percent or take_profit_percent:
+            logger.warning(f"⚠️  TP/SL percentages provided but cannot be set:")
+            logger.warning(f"   - Trade index available: {actual_trade_index is not None}")
+            logger.warning(f"   - Current price available: {current_price > 0}")
+            logger.warning(f"   Position monitor can set TP/SL once trade is filled")
         
         # Convert Web3 AttributeDict to regular dict for JSON serialization
         tx_hash = ''
@@ -746,12 +773,15 @@ def open_position():
             "status": "pending",
             "message": "Order created, waiting for keeper to fill position",
             "actualTradeIndex": actual_trade_index,  # NEW: Store the actual index!
+            "tpSlSet": tp_sl_set_success,
+            "tpSlError": tp_sl_error,
             "result": {
                 "market": market,
                 "side": side,
                 "collateral": position_size,
                 "leverage": leverage,
                 "actualTradeIndex": actual_trade_index,  # Also in result
+                "tpSlConfigured": tp_sl_set_success,
             }
         })
     

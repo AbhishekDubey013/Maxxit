@@ -269,6 +269,17 @@ async function executeOstiumTrade(
     console.log(`[TradeExecutor]    collateral: ${collateralUSDC.toFixed(2)} USDC (${sizeModel.value || 5}% of $${usdcBalance.toFixed(2)} balance)`);
     console.log(`[TradeExecutor]    leverage: ${leverage}x`);
 
+    // Extract TP/SL from riskModel if available
+    const stopLossPercent = riskModel?.stopLoss || riskModel?.stop_loss_percent;
+    const takeProfitPercent = riskModel?.takeProfit || riskModel?.take_profit_percent;
+    
+    if (stopLossPercent) {
+      console.log(`[TradeExecutor]    stopLoss: ${(stopLossPercent * 100).toFixed(2)}%`);
+    }
+    if (takeProfitPercent) {
+      console.log(`[TradeExecutor]    takeProfit: ${(takeProfitPercent * 100).toFixed(2)}%`);
+    }
+
     // Call Ostium service /open-position endpoint
     const response = await fetch(`${OSTIUM_SERVICE_URL}/open-position`, {
       method: 'POST',
@@ -282,6 +293,8 @@ async function executeOstiumTrade(
         side: signal.side.toLowerCase(), // "long" or "short"
         collateral: collateralUSDC, // Use calculated percentage-based collateral
         leverage: leverage,
+        stopLossPercent: stopLossPercent, // Pass SL percentage to service
+        takeProfitPercent: takeProfitPercent, // Pass TP percentage to service
       }),
     });
 

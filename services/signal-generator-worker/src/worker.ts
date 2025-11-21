@@ -414,7 +414,11 @@ async function generateSignalForAgentAndToken(
             value: positionSizePercent, // Dynamic from LunarCrush!
             impactFactor: tweet.ct_accounts?.impact_factor || 0,
           },
-          risk_model: {}, // Empty - risk management is hardcoded in position monitor
+          risk_model: {
+            stopLoss: 0.10, // 10% stop loss (default)
+            takeProfit: 0.5, // 5% take profit
+            leverage: 3, // Default leverage for perpetuals
+          },
           source_tweets: [tweet.tweet_id || tweet.message_id],
           lunarcrush_score: lunarcrushScore,
           lunarcrush_reasoning: lunarcrushReasoning,
