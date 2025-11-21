@@ -416,7 +416,7 @@ async function generateSignalForAgentAndToken(
           },
           risk_model: {
             stopLoss: 0.10, // 10% stop loss (default)
-            takeProfit: 0.5, // 5% take profit
+            takeProfit: 0.05, // 5% take profit
             leverage: 3, // Default leverage for perpetuals
           },
           source_tweets: [tweet.tweet_id || tweet.message_id],

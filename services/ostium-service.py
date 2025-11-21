@@ -569,13 +569,19 @@ def open_position():
         
         # Get current market price (needed for SL/TP calculation)
         try:
-            # Fetch real-time price from Ostium price feed
+            # Fetch real-time price from Ostium price feed (async method)
             dummy_key = '0x' + '1' * 64
             network = 'testnet' if OSTIUM_TESTNET else 'mainnet'
             price_sdk = OstiumSDK(network=network, private_key=dummy_key, rpc_url=OSTIUM_RPC_URL)
             
             try:
-                price_result = price_sdk.price.get_price(market.upper(), 'USD')
+                # get_price is async - need to await it properly
+                import asyncio
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                price_result = loop.run_until_complete(price_sdk.price.get_price(market.upper(), 'USD'))
+                loop.close()
+                
                 if isinstance(price_result, tuple) and len(price_result) >= 1:
                     current_price = float(price_result[0])
                     logger.info(f"✅ Current {market} price from Ostium: ${current_price}")
@@ -590,6 +596,7 @@ def open_position():
                     'SOL': 200.0,
                     'HYPE': 40.0,
                     'XRP': 2.5,
+                    'ADA': 1.0,
                 }
                 current_price = price_defaults.get(market.upper(), 100.0)
                 logger.info(f"Using fallback price for {market}: ${current_price}")
@@ -780,21 +787,13 @@ def open_position():
                     
                     logger.info(f"💰 Setting Take-Profit: ${tp_price:.4f} ({(take_profit_percent * 100):.1f}%)")
                     
-                    # Call SDK update_tp - pass trader_address for delegated trades
+                    # Call SDK update_tp - use positional arguments (NOT keyword arguments)
+                    # Signature: update_tp(pair_id, index, new_tp, trader_address=None)
                     if use_delegation and user_address:
                         checksummed_user = Web3.to_checksum_address(user_address)
-                        sdk.ostium.update_tp(
-                            pair_id=asset_index,
-                            index=actual_trade_index,
-                            new_tp=tp_price,
-                            trader_address=checksummed_user
-                        )
+                        sdk.ostium.update_tp(asset_index, actual_trade_index, tp_price, checksummed_user)
                     else:
-                        sdk.ostium.update_tp(
-                            pair_id=asset_index,
-                            index=actual_trade_index,
-                            new_tp=tp_price
-                        )
+                        sdk.ostium.update_tp(asset_index, actual_trade_index, tp_price)
                     
                     logger.info(f"   ✅ Take-Profit set successfully")
                 
@@ -809,21 +808,13 @@ def open_position():
                     
                     logger.info(f"📉 Setting Stop-Loss: ${sl_price:.4f} ({(stop_loss_percent * 100):.1f}%)")
                     
-                    # Call SDK update_sl - pass trader_address for delegated trades
+                    # Call SDK update_sl - use positional arguments (NOT keyword arguments)
+                    # Signature: update_sl(pair_id, index, new_sl, trader_address=None)
                     if use_delegation and user_address:
                         checksummed_user = Web3.to_checksum_address(user_address)
-                        sdk.ostium.update_sl(
-                            pair_id=asset_index,
-                            index=actual_trade_index,
-                            new_sl=sl_price,
-                            trader_address=checksummed_user
-                        )
+                        sdk.ostium.update_sl(asset_index, actual_trade_index, sl_price, checksummed_user)
                     else:
-                        sdk.ostium.update_sl(
-                            pair_id=asset_index,
-                            index=actual_trade_index,
-                            new_sl=sl_price
-                        )
+                        sdk.ostium.update_sl(asset_index, actual_trade_index, sl_price)
                     
                     logger.info(f"   ✅ Stop-Loss set successfully")
                 
