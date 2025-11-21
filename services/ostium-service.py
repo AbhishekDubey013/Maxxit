@@ -549,10 +549,26 @@ def open_position():
             'leverage': leverage,
         }
         
-        # Explicitly set sl and tp to None (not 0, not omitted)
-        # Some SDKs require None instead of omitting the parameter
-        trade_params['sl'] = None
-        trade_params['tp'] = None
+        # WORKAROUND: Ostium SDK requires SL parameter but rejects sl=0 or sl=None
+        # Set a very wide SL (50% away) to effectively disable it
+        # Position monitor will handle actual risk management
+        if current_price > 0:
+            if side.lower() == 'long':
+                # LONG: Set SL 50% below (very wide, effectively disabled)
+                wide_sl_price = int(current_price * 0.50 * 1e18)  # 50% below
+                trade_params['sl'] = wide_sl_price
+                logger.info(f"📉 Wide SL set: ${current_price * 0.50:.4f} (50% below - effectively disabled)")
+            else:
+                # SHORT: Set SL 50% above (very wide, effectively disabled)
+                wide_sl_price = int(current_price * 1.50 * 1e18)  # 50% above
+                trade_params['sl'] = wide_sl_price
+                logger.info(f"📉 Wide SL set: ${current_price * 1.50:.4f} (50% above - effectively disabled)")
+        else:
+            # Fallback: Set to 0 if no price (might still error, but try)
+            trade_params['sl'] = 0
+        
+        # TP always disabled
+        trade_params['tp'] = 0
         
         if use_delegation:
             trade_params['trader_address'] = user_address
@@ -560,8 +576,13 @@ def open_position():
         # Execute trade
         logger.info(f"📤 Calling perform_trade with params: {trade_params}")
         logger.info(f"   Price: {current_price}")
-        logger.info(f"   SL: {trade_params.get('sl')} (None = disabled)")
-        logger.info(f"   TP: {trade_params.get('tp')} (None = disabled)")
+        sl_value = trade_params.get('sl', 0)
+        if sl_value:
+            sl_price_usd = sl_value / 1e18 if isinstance(sl_value, int) else 0
+            logger.info(f"   SL: ${sl_price_usd:.4f} (wide SL - effectively disabled, monitor handles risk)")
+        else:
+            logger.info(f"   SL: {sl_value} (disabled)")
+        logger.info(f"   TP: {trade_params.get('tp')} (disabled)")
         
         try:
             result = sdk.ostium.perform_trade(trade_params, at_price=current_price)
