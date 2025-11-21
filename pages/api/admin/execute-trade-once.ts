@@ -96,6 +96,24 @@ export default async function handler(
 
     console.log(`[TRADE] Found ${allDeployments.length} total active deployments, ${deployments.length} ready for execution (venue: ${signal.venue})`);
 
+    // Check for existing positions for this signal (to see if some deployments already have positions)
+    const existingPositions = await prisma.positions.findMany({
+      where: {
+        signal_id: signal.id,
+      },
+      select: {
+        deployment_id: true,
+        status: true,
+      },
+    });
+
+    if (existingPositions.length > 0) {
+      console.log(`[TRADE] ⚠️  Found ${existingPositions.length} existing positions for this signal:`);
+      existingPositions.forEach(p => {
+        console.log(`[TRADE]   - Deployment ${p.deployment_id.substring(0, 8)}... Status: ${p.status}`);
+      });
+    }
+
     if (deployments.length === 0) {
       let message: string;
       if (allDeployments.length === 0) {
