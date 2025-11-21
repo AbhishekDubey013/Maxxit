@@ -157,60 +157,89 @@ export default async function handler(
     const errors = [];
     const executor = new TradeExecutor();
 
-    for (const deployment of deployments) {
-      // Check for duplicate position (same deployment + signal) - ATOMIC CHECK
-      const existing = await prisma.positions.findUnique({
-        where: {
-          deployment_id_signal_id: {
-            deployment_id: deployment.id,
-            signal_id: signal.id,
+    console.log(`[TRADE] 🔄 Processing ${deployments.length} deployments...`);
+    
+    for (let i = 0; i < deployments.length; i++) {
+      const deployment = deployments[i];
+      console.log(`[TRADE] 📍 Processing deployment ${i + 1}/${deployments.length}: ${deployment.id.substring(0, 8)}... (User: ${deployment.user_wallet})`);
+      
+      try {
+        // Check for duplicate position (same deployment + signal) - ATOMIC CHECK
+        const existing = await prisma.positions.findUnique({
+          where: {
+            deployment_id_signal_id: {
+              deployment_id: deployment.id,
+              signal_id: signal.id,
+            },
           },
-        },
-      });
-
-      if (existing) {
-        console.log(`[TRADE] ⏭️  Position already exists for deployment ${deployment.id.substring(0, 8)}... (User: ${deployment.user_wallet})`);
-        continue;
-      }
-
-      // Execute REAL on-chain trade via TradeExecutor for SPECIFIC deployment
-      console.log(`[TRADE] 🚀 Executing trade for deployment ${deployment.id.substring(0, 8)}... (User: ${deployment.user_wallet})`);
-      const result = await executor.executeSignalForDeployment(signal.id, deployment.id);
-
-      if (result.success && result.positionId) {
-        console.log(`[TRADE] ✅ Trade executed on-chain! Position: ${result.positionId}, TX: ${result.txHash}`);
-        
-        // Get the created position
-        const position = await prisma.positions.findUnique({
-          where: { id: result.positionId }
         });
-        
-        if (position) {
-          positionsCreated.push(position);
+
+        if (existing) {
+          console.log(`[TRADE] ⏭️  Position already exists for deployment ${deployment.id.substring(0, 8)}... (User: ${deployment.user_wallet})`);
+          continue;
         }
-      } else {
-        const errorMsg = result.error || result.reason || 'Unknown error';
-        console.error(`[TRADE] ❌ Trade execution failed for deployment ${deployment.id}:`, errorMsg);
-        console.error(`[TRADE] Full result:`, JSON.stringify(result, null, 2));
+
+        // Execute REAL on-chain trade via TradeExecutor for SPECIFIC deployment
+        console.log(`[TRADE] 🚀 Executing trade for deployment ${deployment.id.substring(0, 8)}... (User: ${deployment.user_wallet})`);
+        const result = await executor.executeSignalForDeployment(signal.id, deployment.id);
+
+        if (result.success && result.positionId) {
+          console.log(`[TRADE] ✅ Trade executed on-chain! Position: ${result.positionId}, TX: ${result.txHash}`);
+          
+          // Get the created position
+          const position = await prisma.positions.findUnique({
+            where: { id: result.positionId }
+          });
+          
+          if (position) {
+            positionsCreated.push(position);
+          }
+        } else {
+          const errorMsg = result.error || result.reason || 'Unknown error';
+          console.error(`[TRADE] ❌ Trade execution failed for deployment ${deployment.id}:`, errorMsg);
+          console.error(`[TRADE] Full result:`, JSON.stringify(result, null, 2));
+          errors.push({
+            deploymentId: deployment.id,
+            error: errorMsg,
+            reason: result.reason,
+            summary: result.executionSummary,
+          });
+        }
+      } catch (loopError: any) {
+        console.error(`[TRADE] ❌ Exception processing deployment ${deployment.id}:`, loopError);
         errors.push({
           deploymentId: deployment.id,
-          error: errorMsg,
-          reason: result.reason,
-          summary: result.executionSummary,
+          error: loopError.message || 'Unexpected error in deployment loop',
+          reason: 'Exception caught',
         });
       }
     }
+    
+    console.log(`[TRADE] ✅ Finished processing all deployments. Success: ${positionsCreated.length}, Errors: ${errors.length}`);
 
     // Return detailed response with errors
     const success = positionsCreated.length > 0;
+    const totalDeployments = deployments.length;
+    const successfulDeployments = positionsCreated.length;
+    const failedDeployments = errors.length;
+    
     return res.status(success ? 200 : 400).json({
       success,
       message: success 
-        ? `Trade execution completed. ${positionsCreated.length} positions created.`
-        : `Trade execution failed. ${errors.length} errors occurred.`,
+        ? `Trade execution completed. ${successfulDeployments}/${totalDeployments} deployments succeeded.`
+        : `Trade execution failed. ${failedDeployments}/${totalDeployments} deployments failed.`,
       positionsCreated: positionsCreated.length,
+      totalDeployments,
+      successfulDeployments,
+      failedDeployments,
       positions: positionsCreated,
       errors: errors.length > 0 ? errors : undefined,
+      deploymentSummary: {
+        total: totalDeployments,
+        successful: successfulDeployments,
+        failed: failedDeployments,
+        skipped: totalDeployments - successfulDeployments - failedDeployments,
+      },
     });
   } catch (error: any) {
     console.error('[ADMIN] Trade execution error:', error.message);

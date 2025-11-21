@@ -121,13 +121,22 @@ export async function executeTradesForSignals() {
           // Log full API response for debugging
           console.log(`[TradeWorker] 📋 API Response for signal ${signal.id}:`);
           console.log(`[TradeWorker]    Success: ${result.success}`);
+          console.log(`[TradeWorker]    Total Deployments: ${result.totalDeployments || 'unknown'}`);
+          console.log(`[TradeWorker]    Successful: ${result.successfulDeployments || result.positionsCreated || 0}`);
+          console.log(`[TradeWorker]    Failed: ${result.failedDeployments || result.errors?.length || 0}`);
           console.log(`[TradeWorker]    Positions Created: ${result.positionsCreated || 0}`);
-          console.log(`[TradeWorker]    Errors: ${result.errors?.length || 0}`);
+          
+          if (result.deploymentSummary) {
+            console.log(`[TradeWorker]    📊 Summary: ${result.deploymentSummary.successful}/${result.deploymentSummary.total} succeeded, ${result.deploymentSummary.failed} failed, ${result.deploymentSummary.skipped} skipped`);
+          }
           
           if (result.errors && result.errors.length > 0) {
             console.log(`[TradeWorker]    ⚠️  Deployment Errors:`);
             result.errors.forEach((err: any) => {
               console.log(`[TradeWorker]      - ${err.deploymentId?.substring(0, 8) || 'unknown'}: ${err.error}`);
+              if (err.reason) {
+                console.log(`[TradeWorker]        Reason: ${err.reason}`);
+              }
             });
           }
           
