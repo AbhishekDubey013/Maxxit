@@ -327,26 +327,38 @@ export async function monitorOstiumPositions() {
               currentPrice = ostPosition.entryPrice; // Fallback to entry price
             }
 
-            // Use unrealized P&L directly from Ostium SDK (more accurate than manual calculation)
-            const pnlUSD = ostPosition.unrealizedPnl || 0;
-            
-            // Calculate P&L percentage for display
-            const qtyNum = Number(position.qty.toString());
+            // Calculate unrealized P&L manually
+            // Ostium SDK doesn't provide unrealizedPnl reliably, so we calculate it ourselves
+            const collateral = Number(position.qty.toString()); // qty is collateral in USDC
+            const leverage = ostPosition.leverage || 1;
             const entryPriceNum = Number(position.entry_price.toString());
-            const entryValue = qtyNum * (ostPosition.leverage || 1); // Position size = collateral * leverage
-            const pnlPercent = entryValue > 0 ? (pnlUSD / entryValue) * 100 : 0;
-            
-            // Determine position side (needed for trailing stop logic)
             const isLong = position.side === 'LONG' || position.side === 'BUY';
             
-            console.log(`   📈 P&L: $${pnlUSD.toFixed(2)} (${pnlPercent.toFixed(2)}%) | From Ostium SDK`);
+            // Position size in token units = collateral * leverage / entry price
+            const positionSizeInTokens = (collateral * leverage) / entryPriceNum;
+            
+            // P&L in USD = position size in tokens * (current price - entry price)
+            // For LONG: profit when price goes up
+            // For SHORT: profit when price goes down (but Ostium handles this internally with isBuy flag)
+            let pnlUSD = 0;
+            if (isLong) {
+              pnlUSD = positionSizeInTokens * (currentPrice - entryPriceNum);
+            } else {
+              // For SHORT: profit when price goes down
+              pnlUSD = positionSizeInTokens * (entryPriceNum - currentPrice);
+            }
+            
+            // P&L percentage relative to collateral
+            const pnlPercent = collateral > 0 ? (pnlUSD / collateral) * 100 : 0;
+            
+            console.log(`   📈 P&L: $${pnlUSD.toFixed(2)} (${pnlPercent.toFixed(2)}%) | Collateral: $${collateral.toFixed(2)}, Leverage: ${leverage}x`);
 
             // Check trailing stop logic
             const trailingParams = position.trailing_params as any;
             let shouldClose = false;
             let closeReason = '';
 
-            // HARD STOP LOSS: 10% (using P&L percentage from Ostium)
+            // HARD STOP LOSS: 10% (using calculated P&L percentage)
             const HARD_STOP_LOSS = 10;
             
             if (pnlPercent <= -HARD_STOP_LOSS) {
@@ -355,7 +367,7 @@ export async function monitorOstiumPositions() {
               console.log(`   🔴 HARD STOP LOSS HIT! P&L: ${pnlPercent.toFixed(2)}% (threshold: -${HARD_STOP_LOSS}%)`);
             }
 
-            // TRAILING STOP LOGIC (using P&L percentage from Ostium)
+            // TRAILING STOP LOGIC (using calculated P&L percentage)
             if (!shouldClose && trailingParams?.enabled) {
               const trailingPercent = trailingParams.trailingPercent || 1;
               const activationThreshold = 3; // Activate trailing stop after +3% P&L
