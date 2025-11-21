@@ -327,25 +327,39 @@ export async function monitorOstiumPositions() {
               currentPrice = ostPosition.entryPrice; // Fallback to entry price
             }
 
-            // Calculate unrealized P&L manually
-            // Ostium SDK doesn't provide unrealizedPnl reliably, so we calculate it ourselves
+            // Calculate unrealized P&L using actual position size from Ostium
+            // Use tradeNotional (actual position size) and factor in fees
             const collateral = Number(position.qty.toString()); // qty is collateral in USDC
             const leverage = ostPosition.leverage || 1;
             const entryPriceNum = Number(position.entry_price.toString());
             const isLong = position.side === 'LONG' || position.side === 'BUY';
             
-            // Position size in token units = collateral * leverage / entry price
-            const positionSizeInTokens = (collateral * leverage) / entryPriceNum;
+            // Use actual position size from Ostium if available, otherwise calculate it
+            let positionSizeInTokens: number;
+            if ((ostPosition as any).positionSize && (ostPosition as any).positionSize > 0) {
+              // Use actual position size from Ostium SDK (more accurate)
+              positionSizeInTokens = (ostPosition as any).positionSize;
+              console.log(`   📊 Using actual position size: ${positionSizeInTokens.toFixed(6)} tokens`);
+            } else {
+              // Fallback: Calculate position size from collateral and leverage
+              positionSizeInTokens = (collateral * leverage) / entryPriceNum;
+              console.log(`   📊 Calculated position size: ${positionSizeInTokens.toFixed(6)} tokens (fallback)`);
+            }
             
-            // P&L in USD = position size in tokens * (current price - entry price)
-            // For LONG: profit when price goes up
-            // For SHORT: profit when price goes down (but Ostium handles this internally with isBuy flag)
+            // P&L from price movement
             let pnlUSD = 0;
             if (isLong) {
               pnlUSD = positionSizeInTokens * (currentPrice - entryPriceNum);
             } else {
               // For SHORT: profit when price goes down
               pnlUSD = positionSizeInTokens * (entryPriceNum - currentPrice);
+            }
+            
+            // Factor in funding and rollover fees if available
+            const totalFees = (ostPosition as any).totalFees || 0;
+            if (totalFees !== 0) {
+              pnlUSD += totalFees;
+              console.log(`   💸 Fees (funding + rollover): $${totalFees.toFixed(4)}`);
             }
             
             // P&L percentage relative to collateral

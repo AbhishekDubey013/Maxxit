@@ -277,37 +277,38 @@ def get_positions():
                 pair_info = trade.get('pair', {})
                 market_symbol = f"{pair_info.get('from', 'UNKNOWN')}/{pair_info.get('to', 'USD')}"
                 
-                # Extract unrealized P&L from trade data
-                # SDK may return PnL in different formats - try multiple fields
+                # Ostium SDK doesn't return PnL directly - we need to calculate it
+                # Extract key fields for manual PnL calculation
+                collateral_usdc = float(int(trade.get('collateral', 0)) / 1e6)  # Collateral in USDC
+                entry_price_usd = float(int(trade.get('openPrice', 0)) / 1e18)  # Entry price
+                leverage = float(int(trade.get('leverage', 0)) / 100)  # Leverage
+                trade_notional_wei = int(trade.get('tradeNotional', 0))  # Position size in wei
+                position_size = float(trade_notional_wei / 1e18) if trade_notional_wei > 0 else 0.0  # Position size in tokens
+                
+                # Extract fees (funding + rollover) - these are in wei (18 decimals)
+                funding_wei = int(trade.get('funding', 0))
+                rollover_wei = int(trade.get('rollover', 0))
+                total_fees_usd = float((funding_wei + rollover_wei) / 1e18)
+                
+                # Get current price from price feed to calculate unrealized PnL
+                # Note: We'll need to fetch current price separately
+                # For now, return 0 and let the position monitor calculate it
                 unrealized_pnl = 0.0
-                if 'unrealizedPnl' in trade:
-                    unrealized_pnl = float(trade.get('unrealizedPnl', 0))
-                elif 'pnl' in trade:
-                    # PnL might be in wei or already in USDC - check if it's large (likely wei)
-                    pnl_raw = trade.get('pnl', 0)
-                    if isinstance(pnl_raw, (int, str)):
-                        try:
-                            pnl_int = int(pnl_raw)
-                            # If PnL is in wei (very large number), convert to USDC (6 decimals)
-                            if abs(pnl_int) > 1e12:
-                                unrealized_pnl = float(pnl_int / 1e6)  # Convert from wei to USDC
-                            else:
-                                unrealized_pnl = float(pnl_int)
-                        except (ValueError, TypeError):
-                            unrealized_pnl = float(pnl_raw) if pnl_raw else 0.0
-                    else:
-                        unrealized_pnl = float(pnl_raw) if pnl_raw else 0.0
-                elif 'unrealizedPnlUSD' in trade:
-                    unrealized_pnl = float(trade.get('unrealizedPnlUSD', 0))
                 
                 positions.append({
                     "market": market_symbol,
                     "side": "long" if trade.get('isBuy') else "short",
-                    "size": float(int(trade.get('collateral', 0)) / 1e6),  # Collateral in USDC
-                    "entryPrice": float(int(trade.get('openPrice', 0)) / 1e18),  # Price
-                    "leverage": float(int(trade.get('leverage', 0)) / 100),  # Leverage
-                    "unrealizedPnl": unrealized_pnl,  # Use P&L from Ostium SDK
-                    "tradeId": trade.get('tradeID', trade.get('index', '0'))
+                    "size": collateral_usdc,  # Collateral in USDC
+                    "entryPrice": entry_price_usd,
+                    "leverage": leverage,
+                    "unrealizedPnl": unrealized_pnl,  # Will be calculated by position monitor
+                    "tradeId": trade.get('tradeID', trade.get('index', '0')),
+                    # New fields for accurate PnL calculation
+                    "tradeNotional": trade_notional_wei,  # Position size in wei
+                    "positionSize": position_size,  # Position size in tokens (human-readable)
+                    "funding": funding_wei,  # Funding fees in wei
+                    "rollover": rollover_wei,  # Rollover fees in wei
+                    "totalFees": total_fees_usd,  # Total fees in USD
                 })
             except Exception as parse_error:
                 logger.error(f"Error parsing trade: {parse_error}")
