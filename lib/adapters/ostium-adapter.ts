@@ -33,6 +33,8 @@ export interface OpenPositionParams {
   leverage?: number;
   useDelegation?: boolean;
   userAddress?: string;
+  stopLoss?: number;     // Stop-loss price level (protocol-level)
+  takeProfit?: number;   // Take-profit price level (protocol-level)
 }
 
 export interface ClosePositionParams {
@@ -120,7 +122,15 @@ export async function openOstiumPosition(params: OpenPositionParams) {
       throw new Error(data.error || 'Failed to open position');
     }
 
-    return data.result;
+    // Return full response including orderId, txHash, and result
+    return {
+      ...data.result,
+      orderId: data.orderId,
+      tradeId: data.tradeId,
+      txHash: data.txHash || data.transactionHash,
+      status: data.status,
+      message: data.message,
+    };
   } catch (error: any) {
     console.error('[Ostium] Open position failed:', error.message);
     throw error;

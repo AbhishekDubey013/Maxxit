@@ -1054,15 +1054,59 @@ export class TradeExecutor {
       // Note: Ostium uses position size directly (not coin size like HL)
       const positionSizeUSD = collateralUSDC * leverage;
 
+      // Get current price for SL/TP calculation
+      let currentPrice = 0;
+      try {
+        const priceResponse = await fetch(`${process.env.OSTIUM_SERVICE_URL || 'http://localhost:5002'}/price/${actualTokenSymbol}`);
+        if (priceResponse.ok) {
+          const priceData = await priceResponse.json();
+          if (priceData.success && priceData.price) {
+            currentPrice = parseFloat(priceData.price);
+          }
+        }
+      } catch (priceError) {
+        console.warn('[TradeExecutor] Could not fetch current price for SL/TP calculation');
+      }
+
+      // Calculate protocol-level stop-loss and take-profit
+      let stopLossPrice: number | undefined;
+      let takeProfitPrice: number | undefined;
+
+      if (currentPrice > 0) {
+        const riskModel = ctx.signal.risk_model as any;
+        const stopLossPercent = riskModel?.stopLoss || 0.10; // Default 10%
+        const takeProfitPercent = riskModel?.takeProfit || 0.20; // Default 20%
+        
+        if (ctx.signal.side === 'LONG') {
+          // LONG: SL below entry, TP above entry
+          stopLossPrice = currentPrice * (1 - stopLossPercent);
+          takeProfitPrice = currentPrice * (1 + takeProfitPercent);
+        } else {
+          // SHORT: SL above entry, TP below entry
+          stopLossPrice = currentPrice * (1 + stopLossPercent);
+          takeProfitPrice = currentPrice * (1 - takeProfitPercent);
+        }
+        
+        console.log('[TradeExecutor] Protocol-level SL/TP:', {
+          currentPrice,
+          stopLoss: stopLossPrice.toFixed(2),
+          takeProfit: takeProfitPrice.toFixed(2),
+          stopLossPercent: `${(stopLossPercent * 100).toFixed(0)}%`,
+          takeProfitPercent: `${(takeProfitPercent * 100).toFixed(0)}%`,
+        });
+      }
+
       console.log('[TradeExecutor] Ostium trade:', {
         token: actualTokenSymbol,
         collateral: collateralUSDC,
         leverage,
         side: ctx.signal.side,
         balance: usdcBalance,
+        protocolSL: stopLossPrice ? `$${stopLossPrice.toFixed(2)}` : 'Auto',
+        protocolTP: takeProfitPrice ? `$${takeProfitPrice.toFixed(2)}` : 'Auto',
       });
 
-      // Open position via delegation
+      // Open position via delegation with protocol-level SL/TP
       const result = await openOstiumPosition({
         privateKey: agentPrivateKey,
         market: actualTokenSymbol,
@@ -1071,27 +1115,21 @@ export class TradeExecutor {
         leverage,
         useDelegation: true,
         userAddress: userArbitrumWallet,
+        stopLoss: stopLossPrice,      // Protocol-level stop-loss
+        takeProfit: takeProfitPrice,  // Protocol-level take-profit
       });
 
       console.log('[TradeExecutor] ✅ Ostium position opened:', result);
       console.log('[TradeExecutor]    Order ID:', result.orderId);
       console.log('[TradeExecutor]    Status:', result.status);
       console.log('[TradeExecutor]    Message:', result.message);
-
-      // Get current market price for entry_price (order is pending, so use current price as estimate)
-      // Position monitor will update with actual entry price once keeper fills the order
-      let entryPrice = 0;
-      try {
-        const priceResponse = await fetch(`${process.env.OSTIUM_SERVICE_URL || 'http://localhost:5002'}/price/${actualTokenSymbol}`);
-        if (priceResponse.ok) {
-          const priceData = await priceResponse.json();
-          if (priceData.success && priceData.price) {
-            entryPrice = parseFloat(priceData.price);
-            console.log('[TradeExecutor]    Current price (estimate):', entryPrice);
-          }
-        }
-      } catch (priceError) {
-        console.warn('[TradeExecutor] Could not fetch current price, using 0 (will be updated by position monitor)');
+      
+      // Use the current price we already fetched for entry_price estimate
+      const entryPrice = currentPrice || 0;
+      if (entryPrice > 0) {
+        console.log('[TradeExecutor]    Current price (estimate):', entryPrice);
+      } else {
+        console.warn('[TradeExecutor]    Entry price will be updated by position monitor once keeper fills order');
       }
 
       // CRITICAL: Double-check collateralUSDC before creating position

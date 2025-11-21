@@ -455,6 +455,10 @@ def open_position():
         leverage = float(data.get('leverage', 10))
         user_address = data.get('userAddress')
         
+        # Protocol-level stop-loss and take-profit (optional)
+        stop_loss_price = data.get('stopLoss')  # Price level for SL
+        take_profit_price = data.get('takeProfit')  # Price level for TP
+        
         # Validation
         if not all([private_key, market, position_size]):
             return jsonify({
@@ -501,32 +505,73 @@ def open_position():
         
         logger.info(f"✅ Market validated: {market_name} (index: {asset_index})")
         
+        # Get current market price (needed for SL/TP calculation)
+        try:
+            # Fetch real-time price from Ostium price feed
+            dummy_key = '0x' + '1' * 64
+            network = 'testnet' if OSTIUM_TESTNET else 'mainnet'
+            price_sdk = OstiumSDK(network=network, private_key=dummy_key, rpc_url=OSTIUM_RPC_URL)
+            
+            try:
+                price_result = price_sdk.price.get_price(market.upper(), 'USD')
+                if isinstance(price_result, tuple) and len(price_result) >= 1:
+                    current_price = float(price_result[0])
+                    logger.info(f"✅ Current {market} price from Ostium: ${current_price}")
+                else:
+                    raise Exception("Invalid price format")
+            except Exception as price_error:
+                logger.warning(f"Could not fetch Ostium price for {market}: {price_error}")
+                # Fallback to defaults
+                price_defaults = {
+                    'BTC': 90000.0,
+                    'ETH': 3000.0,
+                    'SOL': 200.0,
+                    'HYPE': 40.0,
+                    'XRP': 2.5,
+                }
+                current_price = price_defaults.get(market.upper(), 100.0)
+                logger.info(f"Using fallback price for {market}: ${current_price}")
+        except Exception as e:
+            logger.warning(f"Price fetch error for {market}: {e}")
+            current_price = 100.0
+        
+        # Calculate SL/TP values for Ostium
+        # Ostium expects SL/TP as price levels (not percentages)
+        sl_price = 0  # 0 = no stop loss
+        tp_price = 0  # 0 = no take profit
+        
+        if stop_loss_price:
+            sl_price = int(float(stop_loss_price) * 1e18)  # Convert to wei (18 decimals)
+            logger.info(f"📉 Stop Loss set at: ${stop_loss_price}")
+        
+        if take_profit_price:
+            tp_price = int(float(take_profit_price) * 1e18)  # Convert to wei (18 decimals)
+            logger.info(f"📈 Take Profit set at: ${take_profit_price}")
+        
+        # If no explicit prices provided, calculate from percentages (default: 10% SL, 20% TP)
+        if not stop_loss_price and not take_profit_price:
+            if side.lower() == 'long':
+                # LONG: SL below entry, TP above entry
+                sl_price = int(current_price * 0.90 * 1e18)  # -10%
+                tp_price = int(current_price * 1.20 * 1e18)  # +20%
+            else:
+                # SHORT: SL above entry, TP below entry
+                sl_price = int(current_price * 1.10 * 1e18)  # +10%
+                tp_price = int(current_price * 0.80 * 1e18)  # -20%
+            
+            logger.info(f"📊 Auto-calculated SL/TP: SL=${current_price * (0.90 if side.lower() == 'long' else 1.10):.2f}, TP=${current_price * (1.20 if side.lower() == 'long' else 0.80):.2f}")
+        
         trade_params = {
             'asset_type': asset_index,
             'collateral': position_size,
             'direction': side.lower() == 'long',
             'leverage': leverage,
-            'tp': 0,
-            'sl': 0,
+            'tp': tp_price,  # Protocol-level take profit
+            'sl': sl_price,  # Protocol-level stop loss
         }
         
         if use_delegation:
             trade_params['trader_address'] = user_address
-        
-        # Try to get current price from a price oracle or default
-        # For testnet, use reasonable defaults
-        try:
-            # TODO: Integrate with price oracle (CoinGecko, Chainlink, etc.)
-            price_defaults = {
-                'BTC': 90000.0,
-                'ETH': 3000.0,
-                'SOL': 200.0,
-            }
-            current_price = price_defaults.get(market.upper(), 100.0)
-            logger.info(f"Using reference price for {market}: ${current_price}")
-        except Exception as e:
-            logger.warning(f"Could not fetch price for {market}, using default: {e}")
-            current_price = 100.0
         
         # Execute trade
         logger.info(f"📤 Calling perform_trade with params: {trade_params}, price: {current_price}")
