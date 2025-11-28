@@ -592,32 +592,50 @@ def open_position():
         
         logger.info(f"✅ Market validated: {market_name} (index: {asset_index})")
         
+        current_price = None
+        try:
+            # Use SDK to get real-time price from Ostium price feed
+            import asyncio
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            price_result = loop.run_until_complete(sdk.price.get_price(market.upper(), 'USD'))
+            loop.close()
+            
+            # SDK returns tuple: (price, isMarketOpen) or just price
+            if isinstance(price_result, tuple) and len(price_result) >= 1:
+                current_price = float(price_result[0])
+                logger.info(f"✅ Got price from Ostium SDK for {market}: ${current_price}")
+            elif isinstance(price_result, (int, float)):
+                current_price = float(price_result)
+                logger.info(f"✅ Got price from Ostium SDK for {market}: ${current_price}")
+            else:
+                logger.warning(f"Unexpected price format from SDK: {price_result}")
+        except Exception as sdk_price_error:
+            logger.warning(f"Could not fetch price from SDK for {market}: {sdk_price_error}")
+        
+        HARD_STOP_LOSS_PERCENT = 10
+        is_long = side.lower() == 'long'
+        
+        if is_long:
+            # LONG: SL is 10% below entry price
+            stop_loss_price = current_price * (1 - HARD_STOP_LOSS_PERCENT / 100)
+        else:
+            # SHORT: SL is 10% above entry price
+            stop_loss_price = current_price * (1 + HARD_STOP_LOSS_PERCENT / 100)
+        
+        logger.info(f"Setting protocol-level SL at ${stop_loss_price:.2f} (10% stop loss)")
+        
         trade_params = {
             'asset_type': asset_index,
             'collateral': position_size,
-            'direction': side.lower() == 'long',
+            'direction': is_long,
             'leverage': leverage,
             'tp': 0,
-            'sl': 0,
+            'sl': stop_loss_price,
         }
         
         if use_delegation:
             trade_params['trader_address'] = user_address
-        
-        # Try to get current price from a price oracle or default
-        # For testnet, use reasonable defaults
-        try:
-            # TODO: Integrate with price oracle (CoinGecko, Chainlink, etc.)
-            price_defaults = {
-                'BTC': 90000.0,
-                'ETH': 3000.0,
-                'SOL': 200.0,
-            }
-            current_price = price_defaults.get(market.upper(), 100.0)
-            logger.info(f"Using reference price for {market}: ${current_price}")
-        except Exception as e:
-            logger.warning(f"Could not fetch price for {market}, using default: {e}")
-            current_price = 100.0
         
         # Execute trade
         logger.info(f"📤 Calling perform_trade with params: {trade_params}, price: {current_price}")
