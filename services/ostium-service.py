@@ -486,9 +486,8 @@ def open_position():
         leverage = float(data.get('leverage', 10))
         user_address = data.get('userAddress')
         
-        # Protocol-level stop-loss and take-profit percentages (from signal's risk_model)
-        stop_loss_percent = data.get('stopLossPercent')  # e.g., 0.05 for 5%
-        take_profit_percent = data.get('takeProfitPercent')  # e.g., 0.15 for 15%
+        # Protocol-level stop-loss percentage (from signal's risk_model or default to 10%)
+        stop_loss_percent = data.get('stopLossPercent', 0.10)  # Default 10% hard stop loss
         
         # Validation
         if not all([private_key, market, position_size]):
@@ -605,14 +604,12 @@ def open_position():
             current_price = 100.0
         
         # IMPORTANT: Do NOT include sl/tp in trade_params - causes WrongSL() errors
-        # We will set TP/SL AFTER the position opens using update_tp() and update_sl()
-        # This is the recommended approach per SDK documentation
-        if stop_loss_percent:
-            logger.info(f"ℹ️  Stop-Loss will be set after position opens: {(stop_loss_percent * 100):.1f}%")
-        if take_profit_percent:
-            logger.info(f"💰 Take-Profit will be set after position opens: {(take_profit_percent * 100):.1f}%")
+        # We will set SL AFTER the position opens using update_sl()
+        # TP will NOT be set - monitoring service handles trailing stops via trailing stop logic
+        logger.info(f"ℹ️  Stop-Loss will be set after position opens: {(stop_loss_percent * 100):.1f}%")
+        logger.info(f"💰 TP will NOT be set - monitoring service handles trailing stops")
         
-        # Build trade params WITHOUT sl/tp (they will be set after opening)
+        # Build trade params WITHOUT sl/tp (SL will be set after opening, TP stays disabled)
         trade_params = {
             'asset_type': asset_index,
             'collateral': position_size,
@@ -624,10 +621,11 @@ def open_position():
         if use_delegation:
             trade_params['trader_address'] = user_address
         
-        # Execute trade WITHOUT sl/tp parameters
+        # Execute trade WITHOUT sl/tp parameters (SL will be set after opening)
         logger.info(f"📤 Calling perform_trade with params: {trade_params}")
         logger.info(f"   Price: {current_price}")
-        logger.info(f"   SL/TP: Will be set after position opens")
+        logger.info(f"   SL: Will be set after position opens")
+        logger.info(f"   TP: NOT set - monitoring service handles trailing stops")
         
         # Retry logic for network errors
         max_retries = 3
@@ -765,73 +763,51 @@ def open_position():
             logger.info(f"ℹ️  Index not available yet (order pending or delegation issue)")
             logger.info(f"   Position monitor will update index once position is discovered")
         
-        # Set TP/SL if percentages were provided
-        tp_sl_set_success = False
-        tp_sl_error = None
+        # Set SL after position opens (TP is NOT set - monitoring service handles it)
+        sl_set_success = False
+        sl_error = None
         
-        if (stop_loss_percent or take_profit_percent) and actual_trade_index is not None and current_price > 0:
-            logger.info(f"🎯 Setting TP/SL on position...")
+        if stop_loss_percent and actual_trade_index is not None and current_price > 0:
+            logger.info(f"🎯 Setting SL on position...")
             logger.info(f"   Trade Index: {actual_trade_index}")
             logger.info(f"   Pair Index: {asset_index}")
             logger.info(f"   Entry Price: ${current_price:.4f}")
             
             try:
-                # Set Take Profit
-                if take_profit_percent:
-                    if side.lower() == 'long':
-                        # LONG: TP above entry price
-                        tp_price = current_price * (1 + take_profit_percent)
-                    else:
-                        # SHORT: TP below entry price
-                        tp_price = current_price * (1 - take_profit_percent)
-                    
-                    logger.info(f"💰 Setting Take-Profit: ${tp_price:.4f} ({(take_profit_percent * 100):.1f}%)")
-                    
-                    # Call SDK update_tp - use positional arguments (NOT keyword arguments)
-                    # Signature: update_tp(pair_id, index, new_tp, trader_address=None)
-                    if use_delegation and user_address:
-                        checksummed_user = Web3.to_checksum_address(user_address)
-                        sdk.ostium.update_tp(asset_index, actual_trade_index, tp_price, checksummed_user)
-                    else:
-                        sdk.ostium.update_tp(asset_index, actual_trade_index, tp_price)
-                    
-                    logger.info(f"   ✅ Take-Profit set successfully")
+                # Calculate SL price
+                is_long = side.lower() == 'long'
+                if is_long:
+                    # LONG: SL below entry price
+                    sl_price = current_price * (1 - stop_loss_percent)
+                else:
+                    # SHORT: SL above entry price
+                    sl_price = current_price * (1 + stop_loss_percent)
                 
-                # Set Stop Loss
-                if stop_loss_percent:
-                    if side.lower() == 'long':
-                        # LONG: SL below entry price
-                        sl_price = current_price * (1 - stop_loss_percent)
-                    else:
-                        # SHORT: SL above entry price
-                        sl_price = current_price * (1 + stop_loss_percent)
-                    
-                    logger.info(f"📉 Setting Stop-Loss: ${sl_price:.4f} ({(stop_loss_percent * 100):.1f}%)")
-                    
-                    # Call SDK update_sl - use positional arguments (NOT keyword arguments)
-                    # Signature: update_sl(pair_id, index, new_sl, trader_address=None)
-                    if use_delegation and user_address:
-                        checksummed_user = Web3.to_checksum_address(user_address)
-                        sdk.ostium.update_sl(asset_index, actual_trade_index, sl_price, checksummed_user)
-                    else:
-                        sdk.ostium.update_sl(asset_index, actual_trade_index, sl_price)
-                    
-                    logger.info(f"   ✅ Stop-Loss set successfully")
+                logger.info(f"📉 Setting Stop-Loss: ${sl_price:.4f} ({(stop_loss_percent * 100):.1f}%)")
                 
-                tp_sl_set_success = True
-                logger.info(f"✅ TP/SL configured successfully on position")
+                # Call SDK update_sl
+                # Signature: update_sl(pair_id, index, new_sl, trader_address=None)
+                if use_delegation and user_address:
+                    checksummed_user = Web3.to_checksum_address(user_address)
+                    sdk.ostium.update_sl(asset_index, actual_trade_index, sl_price, checksummed_user)
+                else:
+                    sdk.ostium.update_sl(asset_index, actual_trade_index, sl_price)
                 
-            except Exception as tp_sl_error_ex:
-                tp_sl_error = str(tp_sl_error_ex)
-                logger.error(f"⚠️  Failed to set TP/SL: {tp_sl_error}")
-                logger.error(f"   Position opened successfully, but TP/SL not set")
-                logger.error(f"   You may need to set them manually or via position monitor")
-                # Don't fail the entire trade - position is already open
-        elif stop_loss_percent or take_profit_percent:
-            logger.warning(f"⚠️  TP/SL percentages provided but cannot be set:")
+                logger.info(f"   ✅ Stop-Loss set successfully")
+                sl_set_success = True
+                logger.info(f"✅ SL configured successfully on position")
+                logger.info(f"✅ TP NOT set - monitoring service handles trailing stops")
+                
+            except Exception as sl_error_ex:
+                sl_error = str(sl_error_ex)
+                logger.error(f"⚠️  Failed to set SL: {sl_error}")
+                logger.error(f"   Position opened successfully, but SL not set")
+                logger.error(f"   You may need to set it manually or via position monitor")
+        elif stop_loss_percent:
+            logger.warning(f"⚠️  SL percentage provided but cannot be set:")
             logger.warning(f"   - Trade index available: {actual_trade_index is not None}")
             logger.warning(f"   - Current price available: {current_price > 0}")
-            logger.warning(f"   Position monitor can set TP/SL once trade is filled")
+            logger.warning(f"   Position monitor can set SL once trade is filled")
         
         # Convert Web3 AttributeDict to regular dict for JSON serialization
         tx_hash = ''
@@ -848,16 +824,17 @@ def open_position():
             "txHash": str(tx_hash) if tx_hash else '',  # Alias for compatibility
             "status": "pending",
             "message": "Order created, waiting for keeper to fill position",
-            "actualTradeIndex": actual_trade_index,  # NEW: Store the actual index!
-            "tpSlSet": tp_sl_set_success,
-            "tpSlError": tp_sl_error,
+            "actualTradeIndex": actual_trade_index,
+            "slSet": sl_set_success,
+            "slError": sl_error,
             "result": {
                 "market": market,
                 "side": side,
                 "collateral": position_size,
                 "leverage": leverage,
-                "actualTradeIndex": actual_trade_index,  # Also in result
-                "tpSlConfigured": tp_sl_set_success,
+                "actualTradeIndex": actual_trade_index,
+                "slConfigured": sl_set_success,
+                "tpConfigured": False,
             }
         })
     
