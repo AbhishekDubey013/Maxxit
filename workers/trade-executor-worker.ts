@@ -42,12 +42,10 @@ export async function executeTradesForSignals() {
             agent_deployments: {
               where: { 
                 status: 'ACTIVE',
-                OR: [
-                  { module_enabled: true }, // For SPOT/GMX signals
-                  { hyperliquid_agent_address: { not: null } }, // For HYPERLIQUID signals
-                ]
+                sub_active: true,
               },
-              take: 1,
+              // Note: Venue-specific filtering (module_enabled, agent addresses) 
+              // is handled in the API endpoint, not here
             },
           },
         },
@@ -119,6 +117,29 @@ export async function executeTradesForSignals() {
 
         if (response.ok) {
           const result = await response.json();
+          
+          // Log full API response for debugging
+          console.log(`[TradeWorker] 📋 API Response for signal ${signal.id}:`);
+          console.log(`[TradeWorker]    Success: ${result.success}`);
+          console.log(`[TradeWorker]    Total Deployments: ${result.totalDeployments || 'unknown'}`);
+          console.log(`[TradeWorker]    Successful: ${result.successfulDeployments || result.positionsCreated || 0}`);
+          console.log(`[TradeWorker]    Failed: ${result.failedDeployments || result.errors?.length || 0}`);
+          console.log(`[TradeWorker]    Positions Created: ${result.positionsCreated || 0}`);
+          
+          if (result.deploymentSummary) {
+            console.log(`[TradeWorker]    📊 Summary: ${result.deploymentSummary.successful}/${result.deploymentSummary.total} succeeded, ${result.deploymentSummary.failed} failed, ${result.deploymentSummary.skipped} skipped`);
+          }
+          
+          if (result.errors && result.errors.length > 0) {
+            console.log(`[TradeWorker]    ⚠️  Deployment Errors:`);
+            result.errors.forEach((err: any) => {
+              console.log(`[TradeWorker]      - ${err.deploymentId?.substring(0, 8) || 'unknown'}: ${err.error}`);
+              if (err.reason) {
+                console.log(`[TradeWorker]        Reason: ${err.reason}`);
+              }
+            });
+          }
+          
           if (result.success && result.positionsCreated > 0) {
             successCount++;
             console.log(`[TradeWorker] ✅ Signal ${signal.id} executed successfully`);
@@ -126,6 +147,12 @@ export async function executeTradesForSignals() {
             if (result.positions && result.positions[0]) {
               console.log(`[TradeWorker]    TX Hash: ${result.positions[0].entryTxHash}`);
               console.log(`[TradeWorker]    Arbiscan: https://arbiscan.io/tx/${result.positions[0].entryTxHash}`);
+            }
+            
+            // Warn if not all deployments got trades
+            const totalDeployments = signal.agents?.agent_deployments?.length || 0;
+            if (result.positionsCreated < totalDeployments) {
+              console.log(`[TradeWorker]    ⚠️  WARNING: Only ${result.positionsCreated}/${totalDeployments} deployments got trades!`);
             }
           } else {
             failureCount++;

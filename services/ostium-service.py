@@ -53,6 +53,7 @@ logger = logging.getLogger(__name__)
 # Configuration
 OSTIUM_TESTNET = os.getenv('OSTIUM_TESTNET', 'true').lower() == 'true'
 OSTIUM_RPC_URL = os.getenv('OSTIUM_RPC_URL', 'https://sepolia-rollup.arbitrum.io/rpc')
+OSTIUM_RPC_BACKUP = os.getenv('OSTIUM_RPC_BACKUP', 'https://arbitrum-sepolia-rpc.publicnode.com')  # Backup RPC
 PORT = int(os.getenv('OSTIUM_SERVICE_PORT', '5002'))
 
 logger.info(f"🚀 Ostium Service Starting...")
@@ -70,19 +71,48 @@ available_markets_cache = {
 }
 
 
-def get_sdk(private_key: str, use_delegation: bool = False) -> OstiumSDK:
-    """Get or create SDK instance with caching"""
+def check_rpc_health(rpc_url: str, timeout: int = 3) -> bool:
+    """Check if RPC endpoint is healthy (quick check)"""
+    try:
+        from web3 import Web3
+        w3 = Web3(Web3.HTTPProvider(rpc_url, request_kwargs={'timeout': timeout}))
+        # Try a simple call (get latest block number)
+        block_number = w3.eth.block_number
+        logger.info(f"✅ RPC healthy: {rpc_url} (block: {block_number})")
+        return True
+    except Exception as e:
+        logger.warning(f"❌ RPC unhealthy: {rpc_url} - {str(e)[:100]}")
+        return False
+
+def get_sdk(private_key: str, use_delegation: bool = False, force_new: bool = False) -> OstiumSDK:
+    """Get or create SDK instance with caching and optional RPC health checks"""
     cache_key = f"{private_key[:10]}_{use_delegation}"
     
-    if cache_key not in sdk_cache:
+    # Only check RPC health if forcing new SDK (after errors)
+    rpc_url = OSTIUM_RPC_URL
+    if force_new:
+        logger.info("🔍 Checking RPC health before recreating SDK...")
+        if not check_rpc_health(rpc_url, timeout=3):
+            logger.warning(f"⚠️  Primary RPC unhealthy, trying backup: {OSTIUM_RPC_BACKUP}")
+            if check_rpc_health(OSTIUM_RPC_BACKUP, timeout=3):
+                rpc_url = OSTIUM_RPC_BACKUP
+                logger.info(f"✅ Switching to backup RPC: {rpc_url}")
+                # Clear cache to force new SDK with backup RPC
+                if cache_key in sdk_cache:
+                    del sdk_cache[cache_key]
+            else:
+                logger.error(f"❌ Both RPCs unhealthy, but proceeding anyway (might be temporary)")
+                # Still proceed - might be temporary network issue
+    
+    if cache_key not in sdk_cache or force_new:
         network = 'testnet' if OSTIUM_TESTNET else 'mainnet'
         sdk_cache[cache_key] = OstiumSDK(
             network=network,
             private_key=private_key,
-            rpc_url=OSTIUM_RPC_URL,
+            rpc_url=rpc_url,
             use_delegation=use_delegation  # CRITICAL: Enable delegation mode!
         )
-        logger.info(f"Created new SDK instance (delegation={use_delegation})")
+        logger.info(f"Created SDK instance (delegation={use_delegation}, rpc={rpc_url})")
     
     return sdk_cache[cache_key]
 
@@ -456,9 +486,8 @@ def open_position():
         leverage = float(data.get('leverage', 10))
         user_address = data.get('userAddress')
         
-        # Protocol-level stop-loss and take-profit (optional)
-        stop_loss_price = data.get('stopLoss')  # Price level for SL
-        take_profit_price = data.get('takeProfit')  # Price level for TP
+        # Protocol-level stop-loss percentage (from signal's risk_model or default to 10%)
+        stop_loss_percent = data.get('stopLossPercent', 0.10)  # Default 10% hard stop loss
         
         # Validation
         if not all([private_key, market, position_size]):
@@ -480,12 +509,43 @@ def open_position():
             except:
                 return jsonify({"success": False, "error": "Invalid userAddress format"}), 400
         
-        # Get SDK instance
-        sdk = get_sdk(private_key, use_delegation)
-        
         logger.info(f"Opening {side} position: {position_size} USDC on {market} (leverage: {leverage}x, delegation: {use_delegation})")
         if use_delegation:
             logger.info(f"Trading on behalf of: {user_address}")
+        
+        # Retry logic for SDK operations (handles connection errors during SDK initialization)
+        max_sdk_retries = 3
+        sdk_retry_delay = 2
+        sdk = None
+        
+        for sdk_attempt in range(max_sdk_retries):
+            try:
+                # Get SDK instance (may fail if RPC connection is reset)
+                sdk = get_sdk(private_key, use_delegation, force_new=(sdk_attempt > 0))
+                # Test SDK by getting public address (this makes an RPC call)
+                test_address = sdk.ostium.get_public_address()
+                logger.info(f"✅ SDK initialized successfully (attempt {sdk_attempt + 1})")
+                break
+            except Exception as sdk_init_err:
+                error_str = str(sdk_init_err)
+                is_network_error = any(keyword in error_str.lower() for keyword in [
+                    'connection reset', 'connection aborted', 'connection refused',
+                    'timeout', 'network', 'peer', 'reset by peer', 'errno 104'
+                ])
+                
+                if is_network_error and sdk_attempt < max_sdk_retries - 1:
+                    wait_time = sdk_retry_delay * (sdk_attempt + 1)
+                    logger.warning(f"⚠️  SDK initialization failed (attempt {sdk_attempt + 1}/{max_sdk_retries}): {error_str[:150]}")
+                    logger.info(f"   Retrying SDK creation in {wait_time} seconds...")
+                    import time
+                    time.sleep(wait_time)
+                    continue
+                else:
+                    logger.error(f"❌ SDK initialization failed: {error_str}")
+                    raise
+        
+        if sdk is None:
+            raise Exception("Failed to initialize SDK after retries")
         
         # Try to find market dynamically instead of hardcoding
         # Ostium SDK should handle market availability internally
@@ -508,13 +568,19 @@ def open_position():
         
         # Get current market price (needed for SL/TP calculation)
         try:
-            # Fetch real-time price from Ostium price feed
+            # Fetch real-time price from Ostium price feed (async method)
             dummy_key = '0x' + '1' * 64
             network = 'testnet' if OSTIUM_TESTNET else 'mainnet'
             price_sdk = OstiumSDK(network=network, private_key=dummy_key, rpc_url=OSTIUM_RPC_URL)
             
             try:
-                price_result = price_sdk.price.get_price(market.upper(), 'USD')
+                # get_price is async - need to await it properly
+                import asyncio
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                price_result = loop.run_until_complete(price_sdk.price.get_price(market.upper(), 'USD'))
+                loop.close()
+                
                 if isinstance(price_result, tuple) and len(price_result) >= 1:
                     current_price = float(price_result[0])
                     logger.info(f"✅ Current {market} price from Ostium: ${current_price}")
@@ -529,6 +595,7 @@ def open_position():
                     'SOL': 200.0,
                     'HYPE': 40.0,
                     'XRP': 2.5,
+                    'ADA': 1.0,
                 }
                 current_price = price_defaults.get(market.upper(), 100.0)
                 logger.info(f"Using fallback price for {market}: ${current_price}")
@@ -536,12 +603,13 @@ def open_position():
             logger.warning(f"Price fetch error for {market}: {e}")
             current_price = 100.0
         
-        # DISABLED: Protocol-level stop-loss causes WrongSL() errors
-        # Position monitor handles all risk management via trailing stops
-        # Do NOT include 'sl' or 'tp' parameters - Ostium rejects sl=0
-        logger.info("ℹ️  Protocol Stop-Loss: DISABLED (position monitor handles risk management)")
-        logger.info(f"💰 Take-Profit: DISABLED (position monitor will handle with trailing stops)")
+        # IMPORTANT: Do NOT include sl/tp in trade_params - causes WrongSL() errors
+        # We will set SL AFTER the position opens using update_sl()
+        # TP will NOT be set - monitoring service handles trailing stops via trailing stop logic
+        logger.info(f"ℹ️  Stop-Loss will be set after position opens: {(stop_loss_percent * 100):.1f}%")
+        logger.info(f"💰 TP will NOT be set - monitoring service handles trailing stops")
         
+        # Build trade params WITHOUT sl/tp (SL will be set after opening, TP stays disabled)
         trade_params = {
             'asset_type': asset_index,
             'collateral': position_size,
@@ -549,52 +617,76 @@ def open_position():
             'leverage': leverage,
         }
         
-        # WORKAROUND: Ostium SDK requires SL parameter but rejects sl=0 or sl=None
-        # Set a very wide SL (50% away) to effectively disable it
-        # Position monitor will handle actual risk management
-        if current_price > 0:
-            if side.lower() == 'long':
-                # LONG: Set SL 50% below (very wide, effectively disabled)
-                wide_sl_price = int(current_price * 0.50 * 1e18)  # 50% below
-                trade_params['sl'] = wide_sl_price
-                logger.info(f"📉 Wide SL set: ${current_price * 0.50:.4f} (50% below - effectively disabled)")
-            else:
-                # SHORT: Set SL 50% above (very wide, effectively disabled)
-                wide_sl_price = int(current_price * 1.50 * 1e18)  # 50% above
-                trade_params['sl'] = wide_sl_price
-                logger.info(f"📉 Wide SL set: ${current_price * 1.50:.4f} (50% above - effectively disabled)")
-        else:
-            # Fallback: Set to 0 if no price (might still error, but try)
-            trade_params['sl'] = 0
-        
-        # TP always disabled
-        trade_params['tp'] = 0
-        
+        # Add trader_address for delegated trades
         if use_delegation:
             trade_params['trader_address'] = user_address
         
-        # Execute trade
+        # Execute trade WITHOUT sl/tp parameters (SL will be set after opening)
         logger.info(f"📤 Calling perform_trade with params: {trade_params}")
         logger.info(f"   Price: {current_price}")
-        sl_value = trade_params.get('sl', 0)
-        if sl_value:
-            sl_price_usd = sl_value / 1e18 if isinstance(sl_value, int) else 0
-            logger.info(f"   SL: ${sl_price_usd:.4f} (wide SL - effectively disabled, monitor handles risk)")
-        else:
-            logger.info(f"   SL: {sl_value} (disabled)")
-        logger.info(f"   TP: {trade_params.get('tp')} (disabled)")
+        logger.info(f"   SL: Will be set after position opens")
+        logger.info(f"   TP: NOT set - monitoring service handles trailing stops")
         
-        try:
-            result = sdk.ostium.perform_trade(trade_params, at_price=current_price)
-        except Exception as trade_err:
-            error_str = str(trade_err)
-            logger.error(f"❌ perform_trade error: {error_str}")
-            logger.error(f"   Trade params were: {trade_params}")
-            logger.error(f"   Price was: {current_price}")
-            if 'WrongSL' in error_str:
-                logger.error("   ⚠️  WrongSL error - SDK might be adding default SL value")
-                logger.error("   This is an Ostium SDK limitation - cannot disable SL")
-            raise
+        # Retry logic for network errors
+        max_retries = 3
+        retry_delay = 2  # seconds
+        last_error = None
+        
+        for attempt in range(max_retries):
+            try:
+                logger.info(f"🔄 Attempting trade (attempt {attempt + 1}/{max_retries})...")
+                result = sdk.ostium.perform_trade(trade_params, at_price=current_price)
+                logger.info(f"✅ Trade succeeded on attempt {attempt + 1}")
+                break  # Success, exit retry loop
+            except Exception as trade_err:
+                error_str = str(trade_err)
+                last_error = trade_err
+                
+                # Check if it's a network/connection error
+                is_network_error = any(keyword in error_str.lower() for keyword in [
+                    'connection reset', 'connection aborted', 'connection refused',
+                    'timeout', 'network', 'peer', 'reset by peer', 'errno 104',
+                    'connection', 'aborted'
+                ])
+                
+                if is_network_error and attempt < max_retries - 1:
+                    wait_time = retry_delay * (attempt + 1)  # Exponential backoff: 2s, 4s, 6s
+                    logger.warning(f"⚠️  Network/connection error (attempt {attempt + 1}/{max_retries})")
+                    logger.warning(f"   Error: {error_str[:200]}")  # Truncate long errors
+                    logger.info(f"   RPC URL: {OSTIUM_RPC_URL}")
+                    
+                    # Recreate SDK instance with fresh connection (might have stale connection)
+                    logger.info("   Recreating SDK instance with fresh connection...")
+                    try:
+                        # Clear cache and create new SDK
+                        cache_key = f"{private_key[:10]}_{use_delegation}"
+                        if cache_key in sdk_cache:
+                            del sdk_cache[cache_key]
+                        sdk = get_sdk(private_key, use_delegation)
+                        logger.info("   ✅ New SDK instance created")
+                    except Exception as sdk_err:
+                        logger.warning(f"   ⚠️  Could not recreate SDK: {sdk_err}")
+                    
+                    logger.info(f"   Retrying in {wait_time} seconds...")
+                    import time
+                    time.sleep(wait_time)
+                    continue
+                else:
+                    # Not a network error, or max retries reached
+                    if attempt == max_retries - 1 and is_network_error:
+                        logger.error(f"❌ Network error after {max_retries} attempts")
+                        logger.error(f"   RPC URL: {OSTIUM_RPC_URL}")
+                        logger.error(f"   This might be a temporary RPC issue - try again later")
+                        logger.error(f"   Or check if RPC endpoint is accessible")
+                    else:
+                        logger.error(f"❌ perform_trade error: {error_str}")
+                        logger.error(f"   Trade params were: {trade_params}")
+                        logger.error(f"   Price was: {current_price}")
+                    raise
+        
+        if last_error and not result:
+            # This shouldn't happen, but just in case
+            raise last_error
         
         # Extract order_id and receipt
         order_id = result.get('order_id') if isinstance(result, dict) else None
@@ -605,123 +697,64 @@ def open_position():
         if not order_id:
             raise Exception("No order_id returned from SDK - trade may have failed")
         
-        # TODO: Track order until filled
-        # For now, return the order_id
         logger.info(f"✅ Order submitted: {order_id} (waiting for keeper to fill)")
         
-        # CRITICAL: Get actual trade index after opening
-        # The SDK returns index='0' for all, so we need to query storage contract
-        # NOTE: Order is pending (keeper will fill in 1-5 min), so we can't get index yet
-        # The position monitor will update the index once the order is filled
+        # CRITICAL: Get actual trade index using subgraph API (cleaner approach)
+        # NOTE: Order is pending (keeper will fill in 1-5 min), so we need to wait
         actual_trade_index = None
         
-        # Try to get index immediately (might fail if order not filled yet)
         try:
-            logger.info(f"🔍 Attempting to get trade index (order may not be filled yet)...")
+            logger.info(f"🔍 Attempting to get trade index via subgraph API...")
             
-            # Wait a moment for transaction to be mined
+            # Wait for the transaction to be confirmed and trade to be filled
             import time
-            time.sleep(3)  # Give it a bit more time
+            time.sleep(10)  # Wait 10 seconds for keeper to fill the order
             
-            # Get Web3 instance
-            w3 = sdk.w3
-            
-            # TradingStorage contract address
-            storage_address = Web3.to_checksum_address("0x0B9f5243B29938668c9Cfbd7557A389EC7Ef88b8")
-            
-            # Storage contract ABI (minimal - just what we need)
-            storage_abi = [
-                {
-                    "inputs": [
-                        {"name": "trader", "type": "address"},
-                        {"name": "pairIndex", "type": "uint256"},
-                        {"name": "index", "type": "uint256"}
-                    ],
-                    "name": "openTrades",
-                    "outputs": [
-                        {
-                            "components": [
-                                {"name": "trader", "type": "address"},
-                                {"name": "pairIndex", "type": "uint256"},
-                                {"name": "index", "type": "uint256"},
-                                {"name": "positionSizeAsset", "type": "uint256"},
-                                {"name": "openPrice", "type": "uint256"},
-                                {"name": "buy", "type": "bool"},
-                                {"name": "leverage", "type": "uint256"},
-                                {"name": "tp", "type": "uint256"},
-                                {"name": "sl", "type": "uint256"}
-                            ],
-                            "name": "",
-                            "type": "tuple"
-                        }
-                    ],
-                    "stateMutability": "view",
-                    "type": "function"
-                },
-                {
-                    "inputs": [
-                        {"name": "trader", "type": "address"},
-                        {"name": "pairIndex", "type": "uint256"}
-                    ],
-                    "name": "openTradesCount",
-                    "outputs": [{"name": "", "type": "uint256"}],
-                    "stateMutability": "view",
-                    "type": "function"
-                }
-            ]
-            
-            storage_contract = w3.eth.contract(address=storage_address, abi=storage_abi)
-            
-            # Try querying with user address (for delegated trades)
+            # Get trader address
             if use_delegation and user_address:
-                checksummed_user = Web3.to_checksum_address(user_address)
+                trader_address = Web3.to_checksum_address(user_address)
             else:
-                checksummed_user = sdk.ostium.get_public_address()
+                trader_address = sdk.ostium.get_public_address()
             
-            # Get count of trades for this pair
-            try:
-                count = storage_contract.functions.openTradesCount(checksummed_user, asset_index).call()
-                logger.info(f"📊 Storage shows {count} open trades for pair {asset_index}")
+            logger.info(f"📊 Querying subgraph for trades by {trader_address}...")
+            
+            # Use subgraph API to get open trades (async method)
+            import asyncio
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            open_trades = loop.run_until_complete(sdk.subgraph.get_open_trades(trader_address))
+            loop.close()
+            
+            logger.info(f"📊 Found {len(open_trades)} open trades")
+            
+            if len(open_trades) > 0:
+                # Get the most recently opened trade (last in the list)
+                newly_opened_trade = open_trades[-1]
                 
-                # The new trade should be at index = count - 1 (0-indexed)
-                # But we need to verify by matching openPrice
-                target_open_price_wei = int(current_price * 1e18)
+                # Extract trade index and pair id
+                actual_trade_index = newly_opened_trade.get('index')
+                trade_pair_id = newly_opened_trade.get('pair', {}).get('id')
                 
-                # Query each trade to find the one matching our openPrice
-                for i in range(count):
-                    try:
-                        trade = storage_contract.functions.openTrades(checksummed_user, asset_index, i).call()
-                        stored_open_price = trade[4]  # openPrice is at index 4
-                        stored_index = trade[2]  # index is at index 2
-                        
-                        # Match by openPrice (within 0.1% tolerance)
-                        price_diff = abs(stored_open_price - target_open_price_wei)
-                        if price_diff < (target_open_price_wei // 1000):  # 0.1% tolerance
-                            actual_trade_index = stored_index
-                            logger.info(f"✅ Found matching trade! Actual index = {actual_trade_index}")
-                            logger.info(f"   Query index: {i}, Stored index: {stored_index}, Price: ${current_price}")
-                            break
-                    except Exception as query_err:
-                        logger.warning(f"   Could not query trade at index {i}: {query_err}")
-                        continue
+                logger.info(f"✅ Found newly opened trade!")
+                logger.info(f"   Trade Index: {actual_trade_index}")
+                logger.info(f"   Pair ID: {trade_pair_id}")
+                logger.info(f"   Entry Price: {newly_opened_trade.get('openPrice')}")
                 
-            if actual_trade_index is None:
-                # Fallback: Use count - 1 as the index (newest trade)
-                logger.warning(f"⚠️  Could not match by price, using count-1 as index")
-                actual_trade_index = count - 1 if count > 0 else 0
-                    
-            except Exception as count_err:
-                logger.warning(f"⚠️  Could not query trade count: {count_err}")
-                logger.warning(f"   This might be a delegation issue or order not filled yet")
-                logger.warning(f"   Position monitor will update index once order is filled")
-                # Don't set index yet - position monitor will update it
+                # Verify it's the correct pair
+                if trade_pair_id != str(asset_index):
+                    logger.warning(f"⚠️  Pair mismatch! Expected {asset_index}, got {trade_pair_id}")
+                    logger.warning(f"   Using the trade index anyway (might be correct)")
+            else:
+                logger.warning(f"⚠️  No open trades found yet - order may not be filled")
+                logger.warning(f"   Position monitor will set TP/SL once trade is filled")
                 actual_trade_index = None
                 
         except Exception as index_err:
-            logger.warning(f"⚠️  Error getting trade index: {index_err}")
+            logger.warning(f"⚠️  Error getting trade index via subgraph: {index_err}")
             logger.warning(f"   Order may not be filled yet (keeper takes 1-5 minutes)")
             logger.warning(f"   Position monitor will update index once order is filled")
-            # Don't set index yet - position monitor will update it
+            import traceback
+            logger.warning(traceback.format_exc())
             actual_trade_index = None
         
         if actual_trade_index is not None:
@@ -729,6 +762,52 @@ def open_position():
         else:
             logger.info(f"ℹ️  Index not available yet (order pending or delegation issue)")
             logger.info(f"   Position monitor will update index once position is discovered")
+        
+        # Set SL after position opens (TP is NOT set - monitoring service handles it)
+        sl_set_success = False
+        sl_error = None
+        
+        if stop_loss_percent and actual_trade_index is not None and current_price > 0:
+            logger.info(f"🎯 Setting SL on position...")
+            logger.info(f"   Trade Index: {actual_trade_index}")
+            logger.info(f"   Pair Index: {asset_index}")
+            logger.info(f"   Entry Price: ${current_price:.4f}")
+            
+            try:
+                # Calculate SL price
+                is_long = side.lower() == 'long'
+                if is_long:
+                    # LONG: SL below entry price
+                    sl_price = current_price * (1 - stop_loss_percent)
+                else:
+                    # SHORT: SL above entry price
+                    sl_price = current_price * (1 + stop_loss_percent)
+                
+                logger.info(f"📉 Setting Stop-Loss: ${sl_price:.4f} ({(stop_loss_percent * 100):.1f}%)")
+                
+                # Call SDK update_sl
+                # Signature: update_sl(pair_id, index, new_sl, trader_address=None)
+                if use_delegation and user_address:
+                    checksummed_user = Web3.to_checksum_address(user_address)
+                    sdk.ostium.update_sl(asset_index, actual_trade_index, sl_price, checksummed_user)
+                else:
+                    sdk.ostium.update_sl(asset_index, actual_trade_index, sl_price)
+                
+                logger.info(f"   ✅ Stop-Loss set successfully")
+                sl_set_success = True
+                logger.info(f"✅ SL configured successfully on position")
+                logger.info(f"✅ TP NOT set - monitoring service handles trailing stops")
+                
+            except Exception as sl_error_ex:
+                sl_error = str(sl_error_ex)
+                logger.error(f"⚠️  Failed to set SL: {sl_error}")
+                logger.error(f"   Position opened successfully, but SL not set")
+                logger.error(f"   You may need to set it manually or via position monitor")
+        elif stop_loss_percent:
+            logger.warning(f"⚠️  SL percentage provided but cannot be set:")
+            logger.warning(f"   - Trade index available: {actual_trade_index is not None}")
+            logger.warning(f"   - Current price available: {current_price > 0}")
+            logger.warning(f"   Position monitor can set SL once trade is filled")
         
         # Convert Web3 AttributeDict to regular dict for JSON serialization
         tx_hash = ''
@@ -745,13 +824,17 @@ def open_position():
             "txHash": str(tx_hash) if tx_hash else '',  # Alias for compatibility
             "status": "pending",
             "message": "Order created, waiting for keeper to fill position",
-            "actualTradeIndex": actual_trade_index,  # NEW: Store the actual index!
+            "actualTradeIndex": actual_trade_index,
+            "slSet": sl_set_success,
+            "slError": sl_error,
             "result": {
                 "market": market,
                 "side": side,
                 "collateral": position_size,
                 "leverage": leverage,
-                "actualTradeIndex": actual_trade_index,  # Also in result
+                "actualTradeIndex": actual_trade_index,
+                "slConfigured": sl_set_success,
+                "tpConfigured": False,
             }
         })
     

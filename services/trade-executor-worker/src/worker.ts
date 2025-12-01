@@ -87,8 +87,7 @@ async function executeAllPendingSignals() {
             agent_deployments: {
               where: { 
                 status: 'ACTIVE'
-              },
-              take: 1,
+              }
             },
           },
         },
@@ -109,10 +108,10 @@ async function executeAllPendingSignals() {
     // Process each signal
     for (const signal of pendingSignals) {
       try {
-        const deployment = (signal as any).agents?.agent_deployments?.[0];
+        const deployments = (signal as any).agents?.agent_deployments || [];
         
-        if (!deployment) {
-          console.log(`[TradeExecutor] ⚠️  Signal ${signal.id}: No deployment found`);
+        if (deployments.length === 0) {
+          console.log(`[TradeExecutor] ⚠️  Signal ${signal.id}: No active deployments found`);
           continue;
         }
 
@@ -121,13 +120,21 @@ async function executeAllPendingSignals() {
         console.log(`[TradeExecutor]    Token: ${signal.token_symbol}`);
         console.log(`[TradeExecutor]    Side: ${signal.side}`);
         console.log(`[TradeExecutor]    Venue: ${signal.venue}`);
-        console.log(`[TradeExecutor]    Deployment: ${deployment.id.substring(0, 8)}...`);
+        console.log(`[TradeExecutor]    Deployments: ${deployments.length} active`);
 
-        // Execute the signal
-        await executeSignal(signal.id, deployment.id);
-        
-        // Small delay between executions
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        // Execute the signal for ALL active deployments
+        for (const deployment of deployments) {
+          try {
+            console.log(`[TradeExecutor]       → Deployment ${deployment.id.substring(0, 8)}...`);
+            await executeSignal(signal.id, deployment.id);
+            
+            // Small delay between executions
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          } catch (error: any) {
+            console.error(`[TradeExecutor]       ❌ Error executing for deployment ${deployment.id.substring(0, 8)}: ${error.message}`);
+            // Continue with next deployment even if one fails
+          }
+        }
       } catch (error: any) {
         console.error(`[TradeExecutor] ❌ Error processing signal ${signal.id}:`, error.message);
       }
@@ -144,6 +151,19 @@ async function executeAllPendingSignals() {
  */
 async function executeSignal(signalId: string, deploymentId: string) {
   try {
+    // Check if position already exists for this deployment-signal pair
+    const existingPosition = await prisma.positions.findFirst({
+      where: {
+        signal_id: signalId,
+        deployment_id: deploymentId,
+      },
+    });
+
+    if (existingPosition) {
+      console.log(`[TradeExecutor]       ⏭️  Position already exists for this deployment`);
+      return;
+    }
+
     // Get signal and deployment
     const signal = await prisma.signals.findUnique({
       where: { id: signalId },
@@ -157,7 +177,7 @@ async function executeSignal(signalId: string, deploymentId: string) {
     });
 
     if (!signal || !deployment) {
-      console.log(`[TradeExecutor] ⚠️  Signal or deployment not found`);
+      console.log(`[TradeExecutor]       ⚠️  Signal or deployment not found`);
       return;
     }
 
@@ -191,8 +211,8 @@ async function executeSignal(signalId: string, deploymentId: string) {
         },
       });
 
-      console.log(`[TradeExecutor] ✅ Trade executed successfully`);
-      console.log(`[TradeExecutor]    TX Hash: ${result.txHash || 'N/A'}`);
+      console.log(`[TradeExecutor]       ✅ Trade executed successfully`);
+      console.log(`[TradeExecutor]       TX Hash: ${result.txHash || 'N/A'}`);
     } else {
       // Check if error is retryable (backend/service errors)
       const errorMessage = result.error || result.reason || 'Execution failed';
@@ -221,7 +241,7 @@ async function executeSignal(signalId: string, deploymentId: string) {
               executor_agreement_error: null,
             },
           });
-          console.log(`[TradeExecutor] ❌ Trade failed - signal too old for retry: ${errorMessage}`);
+          console.log(`[TradeExecutor]       ❌ Trade failed - signal too old for retry: ${errorMessage}`);
         } else if (retryCount > MAX_RETRIES) {
           // Max retries reached - mark as permanently failed
           await prisma.signals.update({
@@ -231,7 +251,7 @@ async function executeSignal(signalId: string, deploymentId: string) {
               executor_agreement_error: null,
             },
           });
-          console.log(`[TradeExecutor] ❌ Trade failed after ${MAX_RETRIES} retries: ${errorMessage}`);
+          console.log(`[TradeExecutor]       ❌ Trade failed after ${MAX_RETRIES} retries: ${errorMessage}`);
         } else {
           // Store error in executor_agreement_error for retry tracking
           // Don't mark as skipped - allow retry
@@ -248,8 +268,8 @@ async function executeSignal(signalId: string, deploymentId: string) {
             },
           });
 
-          console.log(`[TradeExecutor] ⚠️  Trade failed (retryable, attempt ${retryCount}/${MAX_RETRIES}): ${errorMessage}`);
-          console.log(`[TradeExecutor]    Will retry in next cycle`);
+          console.log(`[TradeExecutor]       ⚠️  Trade failed (retryable, attempt ${retryCount}/${MAX_RETRIES}): ${errorMessage}`);
+          console.log(`[TradeExecutor]       Will retry in next cycle`);
         }
       } else {
         // Permanent failure - mark as skipped
@@ -261,7 +281,7 @@ async function executeSignal(signalId: string, deploymentId: string) {
           },
         });
 
-        console.log(`[TradeExecutor] ❌ Trade failed (permanent): ${errorMessage}`);
+        console.log(`[TradeExecutor]       ❌ Trade failed (permanent): ${errorMessage}`);
       }
     }
   } catch (error: any) {
@@ -280,8 +300,8 @@ async function executeSignal(signalId: string, deploymentId: string) {
             skipped_reason: null, // Clear skip flag to allow retry
           },
         });
-        console.log(`[TradeExecutor] ⚠️  Execution error (retryable): ${error.message}`);
-        console.log(`[TradeExecutor]    Will retry in next cycle`);
+        console.log(`[TradeExecutor]       ⚠️  Execution error (retryable): ${error.message}`);
+        console.log(`[TradeExecutor]       Will retry in next cycle`);
       } else {
         // Permanent failure - mark as skipped
         await prisma.signals.update({
@@ -291,7 +311,7 @@ async function executeSignal(signalId: string, deploymentId: string) {
             executor_agreement_error: null,
           },
         });
-        console.log(`[TradeExecutor] ❌ Execution error (permanent): ${error.message}`);
+        console.log(`[TradeExecutor]       ❌ Execution error (permanent): ${error.message}`);
       }
     } catch (updateError) {
       console.error(`[TradeExecutor] ❌ Failed to update signal:`, updateError);

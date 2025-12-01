@@ -34,9 +34,11 @@ export default function App({ Component, pageProps }: AppProps) {
           accentColor: '#22c55e',
           logo: undefined,
         },
-        // embeddedWallets: {
-        //   createOnLogin: 'users-without-wallets',
-        // },
+        embeddedWallets: {
+          ethereum: {
+            createOnLogin: 'users-without-wallets',
+          }
+        },
       }}
     >
       <Head>

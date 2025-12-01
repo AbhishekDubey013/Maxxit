@@ -1128,37 +1128,66 @@ export class TradeExecutor {
       // Create position record
       // Note: entry_price will be updated by position monitor once keeper fills the order
       // The order is pending, so we store the orderId and wait for keeper to fill it
-      const position = await prisma.positions.create({
-        data: {
-          deployment_id: ctx.deployment.id,
-          signal_id: ctx.signal.id,
-          venue: ctx.signal.venue,
-          token_symbol: actualTokenSymbol,
-          side: ctx.signal.side,
-          entry_price: entryPrice, // Will be updated by position monitor when order is filled
-          qty: collateralUSDC, // Collateral amount in USDC (MUST be > 0)
-          entry_tx_hash: result.txHash || result.orderId || 'OST-' + Date.now(),
-          status: 'OPEN', // Explicitly set to OPEN (order is pending but position is open)
-          ostium_trade_index: actualTradeIndex, // Store actual trade index (fixes SDK bug)
-          trailing_params: {
-            enabled: true,
-            trailingPercent: 1, // 1% trailing stop
-            highestPrice: null,
+      let position;
+      try {
+        position = await prisma.positions.create({
+          data: {
+            deployment_id: ctx.deployment.id,
+            signal_id: ctx.signal.id,
+            venue: ctx.signal.venue,
+            token_symbol: actualTokenSymbol,
+            side: ctx.signal.side,
+            entry_price: entryPrice, // Will be updated by position monitor when order is filled
+            qty: collateralUSDC, // Collateral amount in USDC (MUST be > 0)
+            entry_tx_hash: result.txHash || result.orderId || 'OST-' + Date.now(),
+            status: 'OPEN', // Explicitly set to OPEN (order is pending but position is open)
+            ostium_trade_index: actualTradeIndex, // Store actual trade index (fixes SDK bug)
+            trailing_params: {
+              enabled: true,
+              trailingPercent: 1, // 1% trailing stop
+              highestPrice: null,
+            },
           },
-        },
-      });
+        });
 
-      // Log position creation with validation
-      console.log('[TradeExecutor]    Position created with validated qty:', {
-        positionId: position.id,
-        qty: collateralUSDC,
-        entryPrice,
-        token: actualTokenSymbol,
-      });
+        // Log position creation with validation
+        console.log('[TradeExecutor]    Position created with validated qty:', {
+          positionId: position.id,
+          qty: collateralUSDC,
+          entryPrice,
+          token: actualTokenSymbol,
+        });
 
-      console.log('[TradeExecutor]    Position created in DB:', position.id);
-      console.log('[TradeExecutor]    ⚠️  Order is PENDING - waiting for keeper to fill');
-      console.log('[TradeExecutor]    Position monitor will update entry_price once filled');
+        console.log('[TradeExecutor]    Position created in DB:', position.id);
+        console.log('[TradeExecutor]    ⚠️  Order is PENDING - waiting for keeper to fill');
+        console.log('[TradeExecutor]    Position monitor will update entry_price once filled');
+      } catch (createError: any) {
+        // Handle race condition: position might already exist if another worker processed it
+        if (createError.code === 'P2002' && createError.meta?.target?.includes('deployment_id_signal_id')) {
+          console.log('[TradeExecutor]    ⚠️  Position already exists (race condition), fetching existing position...');
+          
+          // Fetch existing position
+          position = await prisma.positions.findUnique({
+            where: {
+              deployment_id_signal_id: {
+                deployment_id: ctx.deployment.id,
+                signal_id: ctx.signal.id,
+              },
+            },
+          });
+
+          if (position) {
+            console.log('[TradeExecutor]    ✅ Found existing position:', position.id);
+            console.log('[TradeExecutor]    ⏭️  Trade already executed by another worker (idempotent)');
+          } else {
+            // Position doesn't exist but constraint failed - this shouldn't happen, but handle gracefully
+            throw new Error('Position constraint failed but position not found');
+          }
+        } else {
+          // Re-throw if it's a different error
+          throw createError;
+        }
+      }
 
       return {
         success: true,

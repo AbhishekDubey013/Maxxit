@@ -266,9 +266,9 @@ export default function CreateAgent() {
       return;
     }
 
-    // Validate CT accounts or Telegram users selection (need at least one source)
-    if (selectedCtAccounts.size === 0 && selectedTelegramUsers.size === 0) {
-      setError('Please select at least one CT account or Telegram alpha user');
+    // Validate CT accounts selection
+    if (selectedCtAccounts.size === 0) {
+      setError('Please select at least one CT account');
       setStep(4);
       return;
     }
@@ -1459,6 +1459,7 @@ export default function CreateAgent() {
         <HyperliquidConnect
           agentId={hyperliquidAgentId}
           agentName={hyperliquidAgentName}
+          agentVenue={formData.venue}
           onClose={() => setHyperliquidModalOpen(false)}
           onSuccess={() => {
             console.log('Hyperliquid setup complete!');

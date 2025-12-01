@@ -52,26 +52,76 @@ export default async function handler(
     // Find ACTIVE deployments for this agent
     // For SPOT/GMX signals: require module_enabled = true
     // For HYPERLIQUID signals: require hyperliquid_agent_address set (uses agent wallet, not Safe module)
-    const deployments = await prisma.agent_deployments.findMany({
+    // For OSTIUM signals: require ostium_agent_address set (uses agent wallet, not Safe module)
+    let deployments = await prisma.agent_deployments.findMany({
       where: {
         agent_id: signal.agent_id,
         status: 'ACTIVE',
         sub_active: true,
-        OR: [
-          { module_enabled: true }, // For SPOT/GMX signals (need Safe module)
-          ...(signal.venue === 'HYPERLIQUID' ? [{ hyperliquid_agent_address: { not: null } }] : []), // For HYPERLIQUID signals (need agent wallet)
-        ]
       },
     });
 
-    console.log(`[TRADE] Found ${allDeployments.length} total active deployments, ${deployments.length} ready for execution (module enabled or Hyperliquid)`);
+    // Filter deployments based on venue requirements
+    if (signal.venue === 'HYPERLIQUID' || signal.venue === 'OSTIUM') {
+      // For HYPERLIQUID and OSTIUM, check user_agent_addresses table
+      const userWallets = deployments.map(d => d.user_wallet);
+      console.log(`[TRADE] Checking ${userWallets.length} user wallets for ${signal.venue} agent addresses:`, userWallets);
+      
+      // Get user agent addresses for these wallets
+      const userAgentAddresses = await prisma.user_agent_addresses.findMany({
+        where: {
+          user_wallet: { in: userWallets },
+          ...(signal.venue === 'HYPERLIQUID' 
+            ? { hyperliquid_agent_address: { not: null } }
+            : { ostium_agent_address: { not: null } }
+          ),
+        },
+        select: { user_wallet: true },
+      });
+
+      console.log(`[TRADE] Found ${userAgentAddresses.length} users with ${signal.venue} agent addresses configured`);
+      const validUserWallets = new Set(userAgentAddresses.map(u => u.user_wallet));
+      
+      // Filter deployments to only those with valid agent addresses
+      deployments = deployments.filter(d => validUserWallets.has(d.user_wallet));
+      console.log(`[TRADE] Filtered to ${deployments.length} deployments with valid agent addresses`);
+      deployments.forEach(d => {
+        console.log(`[TRADE]   - Deployment ${d.id.substring(0, 8)}... User: ${d.user_wallet}`);
+      });
+    } else {
+      // For SPOT/GMX, require module_enabled = true
+      deployments = deployments.filter(d => d.module_enabled === true);
+      console.log(`[TRADE] Filtered to ${deployments.length} deployments with module enabled`);
+    }
+
+    console.log(`[TRADE] Found ${allDeployments.length} total active deployments, ${deployments.length} ready for execution (venue: ${signal.venue})`);
+
+    // Check for existing positions for this signal (to see if some deployments already have positions)
+    const existingPositions = await prisma.positions.findMany({
+      where: {
+        signal_id: signal.id,
+      },
+      select: {
+        deployment_id: true,
+        status: true,
+      },
+    });
+
+    if (existingPositions.length > 0) {
+      console.log(`[TRADE] ⚠️  Found ${existingPositions.length} existing positions for this signal:`);
+      existingPositions.forEach(p => {
+        console.log(`[TRADE]   - Deployment ${p.deployment_id.substring(0, 8)}... Status: ${p.status}`);
+      });
+    }
 
     if (deployments.length === 0) {
       let message: string;
       if (allDeployments.length === 0) {
         message = 'No active deployments found for this agent';
       } else if (signal.venue === 'HYPERLIQUID') {
-        message = `${allDeployments.length} active deployments found for Hyperliquid signal, but none are properly configured.`;
+        message = `${allDeployments.length} active deployments found for Hyperliquid signal, but none have a Hyperliquid agent address configured.`;
+      } else if (signal.venue === 'OSTIUM') {
+        message = `${allDeployments.length} active deployments found for Ostium signal, but none have an Ostium agent address configured.`;
       } else {
         message = `${allDeployments.length} active deployments found, but module is not enabled on any. Users must enable the trading module on their Safe first.`;
       }
@@ -107,60 +157,89 @@ export default async function handler(
     const errors = [];
     const executor = new TradeExecutor();
 
-    for (const deployment of deployments) {
-      // Check for duplicate position (same deployment + signal)
-      const existing = await prisma.positions.findUnique({
-        where: {
-          deployment_id_signal_id: {
-            deployment_id: deployment.id,
-            signal_id: signal.id,
+    console.log(`[TRADE] 🔄 Processing ${deployments.length} deployments...`);
+    
+    for (let i = 0; i < deployments.length; i++) {
+      const deployment = deployments[i];
+      console.log(`[TRADE] 📍 Processing deployment ${i + 1}/${deployments.length}: ${deployment.id.substring(0, 8)}... (User: ${deployment.user_wallet})`);
+      
+      try {
+        // Check for duplicate position (same deployment + signal) - ATOMIC CHECK
+        const existing = await prisma.positions.findUnique({
+          where: {
+            deployment_id_signal_id: {
+              deployment_id: deployment.id,
+              signal_id: signal.id,
+            },
           },
-        },
-      });
-
-      if (existing) {
-        console.log(`[TRADE] Position already exists for deployment ${deployment.id}`);
-        continue;
-      }
-
-      // Execute REAL on-chain trade via TradeExecutor for SPECIFIC deployment
-      console.log(`[TRADE] Executing real trade for deployment ${deployment.id} (Safe: ${deployment.safe_wallet})`);
-      const result = await executor.executeSignalForDeployment(signal.id, deployment.id);
-
-      if (result.success && result.positionId) {
-        console.log(`[TRADE] ✅ Trade executed on-chain! Position: ${result.positionId}, TX: ${result.txHash}`);
-        
-        // Get the created position
-        const position = await prisma.positions.findUnique({
-          where: { id: result.positionId }
         });
-        
-        if (position) {
-          positionsCreated.push(position);
+
+        if (existing) {
+          console.log(`[TRADE] ⏭️  Position already exists for deployment ${deployment.id.substring(0, 8)}... (User: ${deployment.user_wallet})`);
+          continue;
         }
-      } else {
-        const errorMsg = result.error || result.reason || 'Unknown error';
-        console.error(`[TRADE] ❌ Trade execution failed for deployment ${deployment.id}:`, errorMsg);
-        console.error(`[TRADE] Full result:`, JSON.stringify(result, null, 2));
+
+        // Execute REAL on-chain trade via TradeExecutor for SPECIFIC deployment
+        console.log(`[TRADE] 🚀 Executing trade for deployment ${deployment.id.substring(0, 8)}... (User: ${deployment.user_wallet})`);
+        const result = await executor.executeSignalForDeployment(signal.id, deployment.id);
+
+        if (result.success && result.positionId) {
+          console.log(`[TRADE] ✅ Trade executed on-chain! Position: ${result.positionId}, TX: ${result.txHash}`);
+          
+          // Get the created position
+          const position = await prisma.positions.findUnique({
+            where: { id: result.positionId }
+          });
+          
+          if (position) {
+            positionsCreated.push(position);
+          }
+        } else {
+          const errorMsg = result.error || result.reason || 'Unknown error';
+          console.error(`[TRADE] ❌ Trade execution failed for deployment ${deployment.id}:`, errorMsg);
+          console.error(`[TRADE] Full result:`, JSON.stringify(result, null, 2));
+          errors.push({
+            deploymentId: deployment.id,
+            error: errorMsg,
+            reason: result.reason,
+            summary: result.executionSummary,
+          });
+        }
+      } catch (loopError: any) {
+        console.error(`[TRADE] ❌ Exception processing deployment ${deployment.id}:`, loopError);
         errors.push({
           deploymentId: deployment.id,
-          error: errorMsg,
-          reason: result.reason,
-          summary: result.executionSummary,
+          error: loopError.message || 'Unexpected error in deployment loop',
+          reason: 'Exception caught',
         });
       }
     }
+    
+    console.log(`[TRADE] ✅ Finished processing all deployments. Success: ${positionsCreated.length}, Errors: ${errors.length}`);
 
     // Return detailed response with errors
     const success = positionsCreated.length > 0;
+    const totalDeployments = deployments.length;
+    const successfulDeployments = positionsCreated.length;
+    const failedDeployments = errors.length;
+    
     return res.status(success ? 200 : 400).json({
       success,
       message: success 
-        ? `Trade execution completed. ${positionsCreated.length} positions created.`
-        : `Trade execution failed. ${errors.length} errors occurred.`,
+        ? `Trade execution completed. ${successfulDeployments}/${totalDeployments} deployments succeeded.`
+        : `Trade execution failed. ${failedDeployments}/${totalDeployments} deployments failed.`,
       positionsCreated: positionsCreated.length,
+      totalDeployments,
+      successfulDeployments,
+      failedDeployments,
       positions: positionsCreated,
       errors: errors.length > 0 ? errors : undefined,
+      deploymentSummary: {
+        total: totalDeployments,
+        successful: successfulDeployments,
+        failed: failedDeployments,
+        skipped: totalDeployments - successfulDeployments - failedDeployments,
+      },
     });
   } catch (error: any) {
     console.error('[ADMIN] Trade execution error:', error.message);
