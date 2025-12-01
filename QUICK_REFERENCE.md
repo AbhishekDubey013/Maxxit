@@ -71,6 +71,8 @@ PORT=<service-specific>
 # tweet-ingestion-worker
 TWITTER_PROXY_URL=https://maxxit.onrender.com
 PERPLEXITY_API_KEY=<key>
+EIGENAI_API_KEY=<key>            # optional - enables EigenAI
+LLM_PROVIDER=perplexity          # optional - set to 'eigenai' to switch providers
 
 # signal-generator-worker
 LUNARCRUSH_API_KEY=<key>

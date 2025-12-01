@@ -2,7 +2,7 @@
  * Telegram Alpha Ingestion Worker (Microservice)
  * Processes Telegram DM messages from alpha users and classifies them
  * Interval: 2 minutes (configurable via WORKER_INTERVAL)
- * 
+ *
  * Flow:
  * 1. Polls database for unprocessed messages from telegram_alpha_users
  * 2. Classifies messages using LLM
@@ -10,29 +10,32 @@
  * 4. Signal generator picks up classified messages
  */
 
-import dotenv from 'dotenv';
-import express from 'express';
-import { prisma } from './lib/prisma-client';
-import { setupGracefulShutdown, registerCleanup } from './lib/graceful-shutdown';
-import { checkDatabaseHealth } from './lib/prisma-client';
-import { createLLMClassifier } from './lib/llm-classifier';
+import dotenv from "dotenv";
+import express from "express";
+import { prisma } from "./lib/prisma-client";
+import {
+  setupGracefulShutdown,
+  registerCleanup,
+} from "./lib/graceful-shutdown";
+import { checkDatabaseHealth } from "./lib/prisma-client";
+import { createLLMClassifier } from "./lib/llm-classifier";
 
 dotenv.config();
 
 const PORT = process.env.PORT || 5006;
-const INTERVAL = parseInt(process.env.WORKER_INTERVAL || '120000'); // 2 minutes default
+const INTERVAL = parseInt(process.env.WORKER_INTERVAL || "120000"); // 2 minutes default
 
 let workerInterval: NodeJS.Timeout | null = null;
 
 // Health check server
 const app = express();
-app.get('/health', async (req, res) => {
+app.get("/health", async (req, res) => {
   const dbHealthy = await checkDatabaseHealth();
   res.status(dbHealthy ? 200 : 503).json({
-    status: dbHealthy ? 'ok' : 'degraded',
-    service: 'telegram-alpha-worker',
+    status: dbHealthy ? "ok" : "degraded",
+    service: "telegram-alpha-worker",
     interval: INTERVAL,
-    database: dbHealthy ? 'connected' : 'disconnected',
+    database: dbHealthy ? "connected" : "disconnected",
     isRunning: workerInterval !== null,
     timestamp: new Date().toISOString(),
   });
@@ -46,9 +49,9 @@ const server = app.listen(PORT, () => {
  * Process and classify Telegram alpha messages
  */
 async function processTelegramAlphaMessages() {
-  console.log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  console.log('  📱 TELEGRAM ALPHA INGESTION WORKER');
-  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  console.log("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+  console.log("  📱 TELEGRAM ALPHA INGESTION WORKER");
+  console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
   console.log(`Started at: ${new Date().toISOString()}\n`);
 
   try {
@@ -69,23 +72,27 @@ async function processTelegramAlphaMessages() {
         telegram_alpha_users: true,
       },
       orderBy: {
-        message_created_at: 'asc', // Process oldest first
+        message_created_at: "asc", // Process oldest first
       },
       take: 50, // Process in batches
     });
 
     if (unprocessedMessages.length === 0) {
-      console.log('✅ No unprocessed messages found\n');
+      console.log("✅ No unprocessed messages found\n");
       return;
     }
 
-    console.log(`📋 Found ${unprocessedMessages.length} unprocessed message(s) to classify\n`);
+    console.log(
+      `📋 Found ${unprocessedMessages.length} unprocessed message(s) to classify\n`
+    );
 
     const classifier = createLLMClassifier();
     if (!classifier) {
-      console.log('⚠️  LLM Classifier not available - skipping classification');
-      console.log('   Set PERPLEXITY_API_KEY, OPENAI_API_KEY, or ANTHROPIC_API_KEY');
-      console.log('   Messages will remain NULL until API key is configured\n');
+      console.log("⚠️  LLM Classifier not available - skipping classification");
+      console.log(
+        "   Set PERPLEXITY_API_KEY, EIGENAI_API_KEY, OPENAI_API_KEY, or ANTHROPIC_API_KEY"
+      );
+      console.log("   Messages will remain NULL until API key is configured\n");
       return; // Don't process without LLM - messages stay NULL
     }
 
@@ -97,15 +104,23 @@ async function processTelegramAlphaMessages() {
     for (const message of unprocessedMessages) {
       try {
         const user = message.telegram_alpha_users;
-        const username = user?.telegram_username || user?.first_name || 'Unknown';
-        
-        console.log(`[${username}] Processing: "${message.message_text.substring(0, 50)}..."`);
+        const username =
+          user?.telegram_username || user?.first_name || "Unknown";
+
+        console.log(
+          `[${username}] Processing: "${message.message_text.substring(
+            0,
+            50
+          )}..."`
+        );
 
         // NO PRE-FILTERING - Let LLM decide everything
         // All messages go through LLM classification
 
         // Classify message using LLM
-        const classification = await classifier.classifyTweet(message.message_text);
+        const classification = await classifier.classifyTweet(
+          message.message_text
+        );
 
         // Update message with classification
         await prisma.telegram_posts.update({
@@ -114,8 +129,12 @@ async function processTelegramAlphaMessages() {
             is_signal_candidate: classification.isSignalCandidate,
             extracted_tokens: classification.extractedTokens,
             confidence_score: classification.confidence,
-            signal_type: classification.sentiment === 'bullish' ? 'LONG' : 
-                         classification.sentiment === 'bearish' ? 'SHORT' : null,
+            signal_type:
+              classification.sentiment === "bullish"
+                ? "LONG"
+                : classification.sentiment === "bearish"
+                ? "SHORT"
+                : null,
           },
         });
 
@@ -123,32 +142,38 @@ async function processTelegramAlphaMessages() {
 
         if (classification.isSignalCandidate) {
           totalSignals++;
-          console.log(`[${username}] ✅ Signal detected: ${classification.extractedTokens.join(', ')} - ${classification.sentiment} (confidence: ${(classification.confidence * 100).toFixed(0)}%)`);
+          console.log(
+            `[${username}] ✅ Signal detected: ${classification.extractedTokens.join(
+              ", "
+            )} - ${classification.sentiment} (confidence: ${(
+              classification.confidence * 100
+            ).toFixed(0)}%)`
+          );
         } else {
           console.log(`[${username}] ℹ️  Not a signal`);
         }
-
       } catch (error: any) {
         totalErrors++;
         console.error(`[Message ${message.id}] ❌ Error:`, error.message);
-        console.error(`[Message ${message.id}] ⚠️  Keeping message as NULL for retry`);
-        
+        console.error(
+          `[Message ${message.id}] ⚠️  Keeping message as NULL for retry`
+        );
+
         // DON'T mark as false - keep as NULL so it can be retried
         // Only mark as false if we're certain it's not a signal (after successful LLM classification)
         // If classification fails, leave it NULL for next worker cycle
       }
     }
 
-    console.log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.log('📊 PROCESSING SUMMARY');
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+    console.log("📊 PROCESSING SUMMARY");
+    console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
     console.log(`  Messages Processed: ${totalProcessed}`);
     console.log(`  Signals Detected: ${totalSignals}`);
     console.log(`  Errors: ${totalErrors}`);
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
-
+    console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
   } catch (error: any) {
-    console.error('[TelegramAlpha] ❌ Fatal error:', error.message);
+    console.error("[TelegramAlpha] ❌ Fatal error:", error.message);
   }
 }
 
@@ -156,23 +181,25 @@ async function processTelegramAlphaMessages() {
  * Main worker loop
  */
 async function runWorker() {
-  console.log('🚀 Telegram Alpha Worker starting...');
+  console.log("🚀 Telegram Alpha Worker starting...");
   console.log(`⏱️  Interval: ${INTERVAL}ms (${INTERVAL / 1000}s)`);
-  
+
   // Check LLM classifier availability
   const classifier = createLLMClassifier();
   if (classifier) {
-    console.log('🤖 LLM Classifier: ENABLED');
+    console.log("🤖 LLM Classifier: ENABLED");
   } else {
-    console.log('⚠️  LLM Classifier: DISABLED (no API key)');
-    console.log('   Set PERPLEXITY_API_KEY, OPENAI_API_KEY, or ANTHROPIC_API_KEY to enable');
+    console.log("⚠️  LLM Classifier: DISABLED (no API key)");
+    console.log(
+      "   Set PERPLEXITY_API_KEY, EIGENAI_API_KEY, OPENAI_API_KEY, or ANTHROPIC_API_KEY to enable"
+    );
   }
-  
-  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  
+
+  console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+
   // Run immediately on startup
   await processTelegramAlphaMessages();
-  
+
   // Then run on interval
   workerInterval = setInterval(async () => {
     await processTelegramAlphaMessages();
@@ -181,7 +208,7 @@ async function runWorker() {
 
 // Register cleanup to stop worker interval
 registerCleanup(async () => {
-  console.log('🛑 Stopping Telegram Alpha Worker interval...');
+  console.log("🛑 Stopping Telegram Alpha Worker interval...");
   if (workerInterval) {
     clearInterval(workerInterval);
     workerInterval = null;
@@ -189,15 +216,14 @@ registerCleanup(async () => {
 });
 
 // Setup graceful shutdown
-setupGracefulShutdown('Telegram Alpha Worker', server);
+setupGracefulShutdown("Telegram Alpha Worker", server);
 
 // Start worker
 if (require.main === module) {
-  runWorker().catch(error => {
-    console.error('[TelegramAlpha] ❌ Worker failed to start:', error);
+  runWorker().catch((error) => {
+    console.error("[TelegramAlpha] ❌ Worker failed to start:", error);
     process.exit(1);
   });
 }
 
 export { processTelegramAlphaMessages };
-
