@@ -4,44 +4,46 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 240 10% 3.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 240 10% 3.9%;
-    --primary: 142 76% 36%;
-    --primary-foreground: 355.7 100% 97.3%;
-    --secondary: 240 4.8% 95.9%;
-    --secondary-foreground: 240 5.9% 10%;
-    --muted: 240 4.8% 95.9%;
-    --muted-foreground: 240 3.8% 46.1%;
-    --accent: 240 4.8% 95.9%;
-    --accent-foreground: 240 5.9% 10%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 240 5.9% 90%;
-    --input: 240 5.9% 90%;
-    --ring: 142 76% 36%;
+    /* Brand palette: deep navy + brighter lavender/indigo accents */
+    --background: 230 75% 7%; /* deep indigo navy */
+    --foreground: 220 40% 96%; /* near-white text for strong contrast */
+    --card: 232 45% 17%; /* elevated panels, slightly lighter than background */
+    --card-foreground: 220 40% 96%;
+    --primary: 246 88% 72%; /* bright lavender highlight */
+    --primary-foreground: 230 75% 7%; /* dark text when needed on primary surfaces */
+    --secondary: 232 40% 14%; /* section bands, subtle contrast against background */
+    --secondary-foreground: 220 40% 96%;
+    --muted: 232 32% 20%;
+    --muted-foreground: 238 21% 80%; /* softer lavender copy */
+    --accent: 259 94% 78%; /* warmer violet accent for borders/badges */
+    --accent-foreground: 230 75% 7%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 222 47% 18%;
+    --input: 222 47% 18%;
+    --ring: 160 84% 45%;
     --radius: 0.5rem;
   }
 
   .dark {
-    --background: 240 10% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 240 10% 3.9%;
-    --card-foreground: 0 0% 98%;
-    --primary: 142 76% 36%;
-    --primary-foreground: 355.7 100% 97.3%;
-    --secondary: 240 3.7% 15.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 240 3.7% 15.9%;
-    --muted-foreground: 240 5% 64.9%;
-    --accent: 240 3.7% 15.9%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 240 3.7% 15.9%;
-    --input: 240 3.7% 15.9%;
-    --ring: 142 76% 36%;
+    /* Brand palette: deep navy + brighter lavender/indigo accents */
+    --background: 230 75% 7%; /* deep indigo navy */
+    --foreground: 220 40% 96%;
+    --card: 232 45% 17%;
+    --card-foreground: 220 40% 96%;
+    --primary: 246 88% 72%;
+    --primary-foreground: 230 75% 7%;
+    --secondary: 232 40% 14%;
+    --secondary-foreground: 220 40% 96%;
+    --muted: 232 32% 20%;
+    --muted-foreground: 238 21% 80%;
+    --accent: 259 94% 78%;
+    --accent-foreground: 230 75% 7%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 222 47% 18%;
+    --input: 222 47% 18%;
+    --ring: 160 84% 45%;
   }
 }
 
@@ -51,5 +53,27 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+@layer base {
+  :root {
+    --font-heading: "Space Grotesk", system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
+    --font-body: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
+  }
+
+  body {
+    font-family: var(--font-body);
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6,
+  [data-heading] {
+    font-family: var(--font-heading);
+    letter-spacing: 0.02em;
   }
 }

@@ -2,7 +2,7 @@
 node_modules/
 .pnp
 .pnp.js
-
+.vercel/
 # Testing
 /coverage
 
@@ -11,6 +11,7 @@ node_modules/
 .next/
 out/
 dist/
+
 
 # Environment variables
 .env

@@ -5,8 +5,10 @@ import { AgentCard } from '@components/AgentCard';
 import { AgentDrawer } from '@components/AgentDrawer';
 import { HyperliquidConnect } from '@components/HyperliquidConnect';
 import { MultiVenueSelector } from '@components/MultiVenueSelector';
-import { Bot, TrendingUp, Shield, Zap } from 'lucide-react';
+import { Bot, TrendingUp, Shield, Zap, Sparkles } from 'lucide-react';
 import { Header } from '@components/Header';
+import ColorBends from '@components/ColorBends';
+// import ColorBends from '@components/ColorBends';
 
 interface Agent {
   id: string;
@@ -28,6 +30,30 @@ export default function Home() {
   const [hyperliquidAgentName, setHyperliquidAgentName] = useState<string>('');
   const [multiVenueSelectorOpen, setMultiVenueSelectorOpen] = useState(false);
   const [multiVenueAgent, setMultiVenueAgent] = useState<{ id: string; name: string } | null>(null);
+
+  const features = [
+    {
+      icon: TrendingUp,
+      title: "Transparent PnL",
+      description: "Every trade tracked with full position history and real-time performance metrics",
+      color: "emerald",
+      position: "top"
+    },
+    {
+      icon: Bot,
+      title: "AI-Powered Reasoning",
+      description: "Agents powered by crypto Twitter signals and technical indicators",
+      color: "violet",
+      position: "left"
+    },
+    {
+      icon: Zap,
+      title: "Gasless Execution",
+      description: "Only $0.20 per trade with no gas fees — transparent pricing",
+      color: "amber",
+      position: "right"
+    }
+  ];
 
   useEffect(() => {
     async function fetchAgents() {
@@ -69,43 +95,50 @@ export default function Home() {
       <Header />
       {/* Hero Section */}
       <section className="relative overflow-hidden">
-        {/* Background with gradient and pattern */}
-        <div className="absolute inset-0">
-          <div className="absolute inset-0 bg-gradient-to-br from-black via-gray-900 to-background" />
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(34,197,94,0.15),transparent_50%)]" />
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_80%,rgba(34,197,94,0.1),transparent_50%)]" />
-          <div className="absolute inset-0" style={{
-            backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%2322c55e' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`
-          }} />
+        {/* Futuristic shader background */}
+        <div className="pointer-events-none absolute inset-0">
+          <ColorBends
+            colors={['#070F2B', '#1B1A55', '#535C91', '#9290C3']}
+            rotation={30}
+            speed={0.25}
+            scale={1.1}
+            frequency={1.3}
+            warpStrength={1.1}
+            mouseInfluence={0.7}
+            parallax={0.4}
+            noise={0.06}
+            transparent
+          />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/10 to-transparent" />
         </div>
-        
-        <div className="relative container mx-auto px-4 py-24 md:py-32 text-center">
+
+        <div className="relative container mx-auto px-4 py-24 md:py-40 text-center">
           {/* Maxxit Logo/Brand */}
-          <div className="mb-8 animate-in fade-in slide-in-from-top duration-300">
+          {/* <div className="mb-8 animate-in fade-in slide-in-from-top duration-300">
             <h2 className="text-4xl md:text-5xl font-bold text-primary mb-2" data-testid="text-brand">
               MAXXIT
             </h2>
             <div className="h-1 w-20 bg-primary/50 mx-auto" />
-          </div>
-          
-          <div className="inline-flex items-center gap-2 bg-primary/10 border border-primary/20 rounded-full px-4 py-2 mb-6 animate-in fade-in slide-in-from-top duration-500">
+          </div> */}
+
+          {/* <div className="inline-flex items-center gap-2 bg-primary/10 border border-primary/20 rounded-full px-4 py-2 mb-6 animate-in fade-in slide-in-from-top duration-500">
             <Bot className="h-4 w-4 text-primary" />
             <span className="text-sm font-medium text-primary">Agentic DeFi Trading</span>
-          </div>
-          
-          <h1 className="text-5xl md:text-7xl font-bold text-white mb-6 animate-in fade-in slide-in-from-top duration-700" data-testid="text-hero-title">
+          </div> */}
+
+          <h1 className="text-5xl md:text-7xl md:pt-16 font-bold text-white mb-6 animate-in fade-in slide-in-from-top duration-700" data-testid="text-hero-title">
             DeFi Agent Marketplace
           </h1>
-          
-          <p className="text-lg md:text-xl text-gray-300 max-w-3xl mx-auto mb-10 leading-relaxed animate-in fade-in slide-in-from-top duration-1000">
-            Deploy AI-powered trading agents differentiated by real-time crypto Twitter signals 
+
+          <p className="text-lg md:text-xl text-gray-300 max-w-3xl mx-auto mb-10  py-4 leading-relaxed animate-in fade-in slide-in-from-top duration-1000">
+            Deploy AI-powered trading agents differentiated by real-time crypto Twitter signals
             and technical indicators — with transparent performance tracking and gasless execution.
           </p>
-          
-          <div className="flex flex-col sm:flex-row gap-4 justify-center animate-in fade-in slide-in-from-bottom duration-1000">
+
+          <div className="flex flex-row gap-4 justify-center items-center animate-in fade-in slide-in-from-bottom duration-1000">
             <button
               onClick={scrollToAgents}
-              className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-md text-base font-medium hover-elevate active-elevate-2 transition-all"
+              className="inline-flex items-center w-fit  justify-center gap-2 px-6 py-3 bg-primary text-white rounded-full text-base font-medium hover-elevate active-elevate-2 transition-all"
               data-testid="button-explore"
             >
               <TrendingUp className="h-4 w-4" />
@@ -113,7 +146,7 @@ export default function Home() {
             </button>
             <Link href="/create-agent">
               <button
-                className="inline-flex items-center justify-center gap-2 px-6 py-3 border border-white/20 bg-white/10 backdrop-blur-sm text-white rounded-md text-base font-medium hover-elevate active-elevate-2 transition-all"
+                className="inline-flex items-center justify-center gap-2 px-6 py-3 border border-white/20 bg-white/10 backdrop-blur-sm text-white rounded-full text-base font-medium hover-elevate active-elevate-2 transition-all"
                 data-testid="link-create"
               >
                 <Bot className="h-4 w-4" />
@@ -125,36 +158,110 @@ export default function Home() {
       </section>
 
       {/* Features Strip */}
-      <section className="border-y border-border bg-card/50 backdrop-blur-sm">
-        <div className="container mx-auto px-4 py-12">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="flex flex-col items-center text-center group">
-              <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-4 group-hover:bg-primary/20 transition-colors">
-                <TrendingUp className="h-6 w-6 text-primary" />
+      <section className="relative pt-20 px-4 bg-gradient-to-b from-slate-950 to-slate-900 overflow-hidden">
+        {/* Background glow */}
+        <div className="absolute inset-0">
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-violet-500/10 rounded-full blur-[120px]"></div>
+        </div>
+
+        <div className="container mx-auto max-w-6xl relative z-10">
+          <div className="relative flex items-center justify-center min-h-[700px]">
+
+            {/* Center hub */}
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20">
+              <div className="relative">
+                {/* Outer rotating ring */}
+                <div className="absolute inset-0 -m-8">
+                  <div className="w-40 h-40 rounded-full border-2 border-dashed border-violet-500/30 animate-spin" style={{ animationDuration: '20s' }}></div>
+                </div>
+
+                {/* Glowing circle */}
+                <div className="relative w-24 h-24 rounded-full bg-gradient-to-br from-violet-600 to-purple-600 p-[2px] shadow-2xl shadow-violet-500/50">
+                  <div className="w-full h-full rounded-full bg-slate-900 flex items-center justify-center">
+                    <Sparkles className="h-8 w-8 text-violet-400" />
+                  </div>
+                </div>
+
+                {/* Center label */}
+                <div className="absolute -bottom-28 left-1/2 -translate-x-1/2 whitespace-nowrap">
+                  <span className=" text-5xl font-heading font-semibold text-white/80">Features</span>
+                </div>
               </div>
-              <h3 className="font-semibold text-foreground mb-2">Transparent PnL</h3>
-              <p className="text-sm text-muted-foreground">
-                Every trade tracked with full position history and real-time performance metrics
-              </p>
             </div>
-            <div className="flex flex-col items-center text-center group">
-              <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-4 group-hover:bg-primary/20 transition-colors">
-                <Bot className="h-6 w-6 text-primary" />
+
+            {/* Top feature */}
+            <div className="absolute top-0 left-1/2 -translate-x-1/2">
+              {/* Connecting line */}
+              <div className="absolute top-12 left-1/2 -translate-x-1/2 w-[2px] h-32 bg-gradient-to-b from-emerald-500/50 to-transparent"></div>
+              <div className="absolute top-12 left-1/2 -translate-x-1/2 w-2 h-2 rounded-full bg-emerald-500 shadow-lg shadow-emerald-500/50"></div>
+
+              <div className="group relative w-72">
+                <div className="absolute -inset-[1px] bg-gradient-to-r from-emerald-500 to-teal-500 rounded-2xl blur opacity-40 group-hover:opacity-60 transition-opacity"></div>
+                <div className="relative bg-slate-900 border border-emerald-500/30 rounded-2xl p-6 hover:border-emerald-500/50 transition-all">
+                  <div className="flex items-start gap-4">
+                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-500/20 to-teal-500/20 flex items-center justify-center flex-shrink-0">
+                      <TrendingUp className="h-6 w-6 text-emerald-400" strokeWidth={2} />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-bold text-white mb-2">{features[0].title}</h3>
+                      <p className="text-sm text-slate-400 leading-relaxed">{features[0].description}</p>
+                    </div>
+                  </div>
+                </div>
               </div>
-              <h3 className="font-semibold text-foreground mb-2">AI-Powered Reasoning</h3>
-              <p className="text-sm text-muted-foreground">
-                Agents powered by crypto Twitter signals and technical indicators
-              </p>
             </div>
-            <div className="flex flex-col items-center text-center group">
-              <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-4 group-hover:bg-primary/20 transition-colors">
-                <Zap className="h-6 w-6 text-primary" />
+
+            {/* Left feature */}
+            <div className="absolute top-1/2 left-0 -translate-y-1/2">
+              {/* Connecting line */}
+              <div className="absolute top-1/2 left-24 w-32 h-[2px] bg-gradient-to-r from-violet-500/50 to-transparent"></div>
+              <div className="absolute top-1/2 left-24 w-2 h-2 rounded-full bg-violet-500 shadow-lg shadow-violet-500/50 -translate-y-1/2"></div>
+
+              <div className="group relative w-72">
+                <div className="absolute -inset-[1px] bg-gradient-to-r from-violet-500 to-purple-500 rounded-2xl blur opacity-40 group-hover:opacity-60 transition-opacity"></div>
+                <div className="relative bg-slate-900 border border-violet-500/30 rounded-2xl p-6 hover:border-violet-500/50 transition-all">
+                  <div className="flex items-start gap-4">
+                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-500/20 to-purple-500/20 flex items-center justify-center flex-shrink-0">
+                      <Bot className="h-6 w-6 text-violet-400" strokeWidth={2} />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-bold text-white mb-2">{features[1].title}</h3>
+                      <p className="text-sm text-slate-400 leading-relaxed">{features[1].description}</p>
+                    </div>
+                  </div>
+                </div>
               </div>
-              <h3 className="font-semibold text-foreground mb-2">Gasless Execution</h3>
-              <p className="text-sm text-muted-foreground">
-                Only $0.20 per trade with no gas fees — transparent pricing
-              </p>
             </div>
+
+            {/* Right feature */}
+            <div className="absolute top-1/2 right-0 -translate-y-1/2">
+              {/* Connecting line */}
+              <div className="absolute top-1/2 right-24 w-32 h-[2px] bg-gradient-to-l from-amber-500/50 to-transparent"></div>
+              <div className="absolute top-1/2 right-24 w-2 h-2 rounded-full bg-amber-500 shadow-lg shadow-amber-500/50 -translate-y-1/2"></div>
+
+              <div className="group relative w-72">
+                <div className="absolute -inset-[1px] bg-gradient-to-r from-amber-500 to-orange-500 rounded-2xl blur opacity-40 group-hover:opacity-60 transition-opacity"></div>
+                <div className="relative bg-slate-900 border border-amber-500/30 rounded-2xl p-6 hover:border-amber-500/50 transition-all">
+                  <div className="flex items-start gap-4">
+                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500/20 to-orange-500/20 flex items-center justify-center flex-shrink-0">
+                      <Zap className="h-6 w-6 text-amber-400" strokeWidth={2} />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-bold text-white mb-2">{features[2].title}</h3>
+                      <p className="text-sm text-slate-400 leading-relaxed">{features[2].description}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Animated particles */}
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-2 h-2">
+              <div className="absolute w-1 h-1 rounded-full bg-emerald-400 animate-ping" style={{ top: '-140px', animationDuration: '2s' }}></div>
+              <div className="absolute w-1 h-1 rounded-full bg-violet-400 animate-ping" style={{ left: '-140px', animationDuration: '2.5s', animationDelay: '0.5s' }}></div>
+              <div className="absolute w-1 h-1 rounded-full bg-amber-400 animate-ping" style={{ right: '-140px', animationDuration: '3s', animationDelay: '1s' }}></div>
+            </div>
+
           </div>
         </div>
       </section>
@@ -270,6 +377,7 @@ export default function Home() {
         <HyperliquidConnect
           agentId={hyperliquidAgentId}
           agentName={hyperliquidAgentName}
+          agentVenue="HYPERLIQUID"
           onClose={() => setHyperliquidModalOpen(false)}
           onSuccess={() => {
             console.log('Hyperliquid setup complete!');

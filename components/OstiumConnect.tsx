@@ -54,10 +54,14 @@ export function OstiumConnect({
   // Auto-assign agent when wallet is connected
   useEffect(() => {
     if (authenticated && user?.wallet?.address && !agentAddress && !loading) {
+      // Move immediately out of "connect" visual state once wallet is available
+      if (step === 'connect') {
+        setStep('agent');
+      }
       // Check if user already has addresses first
       checkSetupStatus();
     }
-  }, [authenticated, user?.wallet?.address]);
+  }, [authenticated, user?.wallet?.address, step, loading]);
 
   const checkSetupStatus = async () => {
     if (!user?.wallet?.address) return;
@@ -65,25 +69,25 @@ export function OstiumConnect({
     try {
       // Check if user already has addresses (from previous deployments)
       const setupResponse = await fetch(`/api/user/check-setup-status?userWallet=${user.wallet.address}`);
-      
+
       if (setupResponse.ok) {
         const setupData = await setupResponse.json();
-        
+
         if (setupData.setupComplete && setupData.hasOstiumAddress) {
           // User has address, but check if they've actually approved on-chain
           console.log('[OstiumConnect] User has Ostium address, checking on-chain approvals...');
-          
+
           const approvalResponse = await fetch(`/api/ostium/check-approval-status?userWallet=${user.wallet.address}`);
-          
+
           if (approvalResponse.ok) {
             const approvalData = await approvalResponse.json();
-            
+
             console.log('[OstiumConnect] Approval status:', {
               hasApproval: approvalData.hasApproval,
               allowance: approvalData.usdcAllowance,
               balance: approvalData.usdcBalance,
             });
-            
+
             if (approvalData.hasApproval && approvalData.hasSufficientBalance) {
               // User has address AND on-chain approval - skip setup
               console.log('[OstiumConnect] ✅ User has valid approvals - skipping setup');
@@ -125,7 +129,7 @@ export function OstiumConnect({
 
     try {
       console.log('[OstiumConnect] Creating deployment directly (user already has address and delegation)');
-      
+
       // User already has addresses - just create deployment
       const response = await fetch('/api/ostium/create-deployment', {
         method: 'POST',
@@ -145,12 +149,12 @@ export function OstiumConnect({
       const data = await response.json();
       setDeploymentId(data.deployment.id);
       console.log('[OstiumConnect] ✅ Deployment created:', data.deployment.id);
-      
+
       // Show success immediately
       setStep('complete');
       setDelegateApproved(true);
       setUsdcApproved(true);
-      
+
       // Notify parent
       if (onSuccess) {
         setTimeout(() => onSuccess(), 1500);
@@ -187,7 +191,7 @@ export function OstiumConnect({
 
       const addressData = await addressResponse.json();
       const agentAddr = addressData.address || addressData.addresses?.ostium?.address;
-      
+
       if (!agentAddr) {
         throw new Error('No Ostium agent address returned');
       }
@@ -247,11 +251,11 @@ export function OstiumConnect({
       }
 
       const ethersProvider = new ethers.providers.Web3Provider(provider);
-      
+
       // ⚠️ CRITICAL: Check network - MUST be Arbitrum Sepolia
       const network = await ethersProvider.getNetwork();
       console.log('[Ostium] Current network:', network.name, 'Chain ID:', network.chainId);
-      
+
       const ARBITRUM_SEPOLIA_CHAIN_ID = 421614;
       if (network.chainId !== ARBITRUM_SEPOLIA_CHAIN_ID) {
         // Attempt to switch networks automatically
@@ -278,7 +282,7 @@ export function OstiumConnect({
           );
         }
       }
-      
+
       const signer = ethersProvider.getSigner();
 
       // Create contract instance
@@ -310,7 +314,7 @@ export function OstiumConnect({
 
     } catch (err: any) {
       console.error('[Ostium] Approval error:', err);
-      
+
       if (err.code === 4001) {
         setError('Transaction rejected by user');
       } else if (err.code === 'CALL_EXCEPTION') {
@@ -336,7 +340,7 @@ export function OstiumConnect({
     console.log('[Ostium] Loading:', loading);
     console.log('[Ostium] Authenticated:', authenticated);
     console.log('[Ostium] User:', user?.wallet?.address);
-    
+
     setLoading(true);
     setError('');
 
@@ -358,13 +362,13 @@ export function OstiumConnect({
 
       console.log('[Ostium] Provider found:', !!provider);
       console.log('[Ostium] Requesting accounts...');
-      
+
       const ethersProvider = new ethers.providers.Web3Provider(provider);
-      
+
       // CRITICAL: Request accounts first - this triggers MetaMask popup
       await ethersProvider.send('eth_requestAccounts', []);
       console.log('[Ostium] Accounts requested');
-      
+
       // Verify still on Arbitrum Sepolia
       const network = await ethersProvider.getNetwork();
       console.log('[Ostium] Network:', network.name, 'Chain ID:', network.chainId);
@@ -372,7 +376,7 @@ export function OstiumConnect({
       if (network.chainId !== ARBITRUM_SEPOLIA_CHAIN_ID) {
         throw new Error(`Please switch to Arbitrum Sepolia (Chain ID: ${ARBITRUM_SEPOLIA_CHAIN_ID})`);
       }
-      
+
       const signer = ethersProvider.getSigner();
       const signerAddress = await signer.getAddress();
       console.log('[Ostium] Signer address:', signerAddress);
@@ -385,7 +389,7 @@ export function OstiumConnect({
       );
 
       console.log('[Ostium] Checking current USDC allowance...');
-      
+
       // CRITICAL FIX: SDK checks OSTIUM_STORAGE, not OSTIUM_TRADING_CONTRACT
       // The SDK's __approve method checks allowance for OSTIUM_STORAGE
       // We need to approve BOTH contracts to be safe, but SDK specifically checks STORAGE
@@ -393,22 +397,22 @@ export function OstiumConnect({
         user.wallet.address,
         OSTIUM_STORAGE  // ✅ SDK checks this one
       );
-      
+
       const currentAllowanceTrading = await usdcContract.allowance(
         user.wallet.address,
         OSTIUM_TRADING_CONTRACT  // Also check this for completeness
       );
-      
+
       const allowanceAmount = ethers.utils.parseUnits('1000000', 6); // $1M
-      
+
       console.log('[Ostium] Current allowance to STORAGE:', ethers.utils.formatUnits(currentAllowanceStorage, 6), 'USDC');
       console.log('[Ostium] Current allowance to TRADING_CONTRACT:', ethers.utils.formatUnits(currentAllowanceTrading, 6), 'USDC');
-      
+
       // SDK checks STORAGE, but we should approve BOTH to be safe
       // The working wallet has both approved, so approve both
       const needsStorageApproval = currentAllowanceStorage.lt(allowanceAmount);
       const needsTradingApproval = currentAllowanceTrading.lt(allowanceAmount);
-      
+
       if (!needsStorageApproval && !needsTradingApproval) {
         console.log('[Ostium] ✅ Both contracts already approved');
         setUsdcApproved(true);
@@ -431,14 +435,14 @@ export function OstiumConnect({
         console.log('[Ostium] Approving STORAGE (SDK requirement)...');
         console.log('[Ostium] Spender:', OSTIUM_STORAGE);
         console.log('[Ostium] ⏳ Triggering MetaMask popup for STORAGE approval...');
-        
+
         // CRITICAL: Use provider.request() directly to ensure MetaMask popup
         // This bypasses any ethers.js caching that might prevent popup
         const approveData = usdcContract.interface.encodeFunctionData('approve', [
           OSTIUM_STORAGE,
           allowanceAmount,
         ]);
-        
+
         // Estimate gas first
         const gasEstimate = await ethersProvider.estimateGas({
           to: USDC_TOKEN,
@@ -446,12 +450,12 @@ export function OstiumConnect({
           data: approveData,
         });
         console.log('[Ostium] Gas estimate:', gasEstimate.toString());
-        
+
         // Calculate gas with 20% buffer
         // BigNumber.toString() doesn't accept parameters in ethers v5, use toHexString() instead
         const gasWithBuffer = gasEstimate.mul(120).div(100);
         const gasHex = gasWithBuffer.toHexString(); // toHexString() already includes '0x' prefix
-        
+
         // Use provider.request() directly - this ensures MetaMask popup
         const txHash = await provider.request({
           method: 'eth_sendTransaction',
@@ -462,10 +466,10 @@ export function OstiumConnect({
             gas: gasHex, // Use hex string with buffer
           }],
         });
-        
+
         console.log('[Ostium] ✅ STORAGE approval transaction sent:', txHash);
         setTxHash(txHash);
-        
+
         // Wait for confirmation
         const receipt = await ethersProvider.waitForTransaction(txHash);
         console.log('[Ostium] ✅ STORAGE approval confirmed:', receipt.transactionHash);
@@ -477,25 +481,25 @@ export function OstiumConnect({
         console.log('[Ostium] Approving TRADING_CONTRACT (for completeness)...');
         console.log('[Ostium] Spender:', OSTIUM_TRADING_CONTRACT);
         console.log('[Ostium] ⏳ Triggering MetaMask popup for TRADING_CONTRACT approval...');
-        
+
         // Use same approach for TRADING_CONTRACT
         const approveDataTrading = usdcContract.interface.encodeFunctionData('approve', [
           OSTIUM_TRADING_CONTRACT,
           allowanceAmount,
         ]);
-        
+
         const gasEstimateTrading = await ethersProvider.estimateGas({
           to: USDC_TOKEN,
           from: user.wallet.address,
           data: approveDataTrading,
         });
         console.log('[Ostium] Gas estimate:', gasEstimateTrading.toString());
-        
+
         // Calculate gas with 20% buffer
         // BigNumber.toString() doesn't accept parameters in ethers v5, use toHexString() instead
         const gasWithBufferTrading = gasEstimateTrading.mul(120).div(100);
         const gasHexTrading = gasWithBufferTrading.toHexString(); // toHexString() already includes '0x' prefix
-        
+
         // Use provider.request() directly - this ensures MetaMask popup
         const txHashTrading = await provider.request({
           method: 'eth_sendTransaction',
@@ -506,10 +510,10 @@ export function OstiumConnect({
             gas: gasHexTrading, // Use hex string with buffer
           }],
         });
-        
+
         console.log('[Ostium] ✅ TRADING_CONTRACT approval transaction sent:', txHashTrading);
         setTxHash(txHashTrading);
-        
+
         const receiptTrading = await ethersProvider.waitForTransaction(txHashTrading);
         console.log('[Ostium] ✅ TRADING_CONTRACT approval confirmed:', receiptTrading.transactionHash);
         lastTxHash = receiptTrading.transactionHash;
@@ -517,7 +521,7 @@ export function OstiumConnect({
 
       setUsdcApproved(true);
       setStep('complete');
-      
+
       // Call success callback after a short delay
       setTimeout(() => {
         onSuccess?.();
@@ -529,7 +533,7 @@ export function OstiumConnect({
       console.error('[Ostium] Error code:', err.code);
       console.error('[Ostium] Error message:', err.message);
       console.error('[Ostium] Error stack:', err.stack);
-      
+
       if (err.code === 4001) {
         setError('Transaction rejected by user');
         console.log('[Ostium] User rejected transaction');
@@ -557,22 +561,29 @@ export function OstiumConnect({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div className="relative w-full max-w-md mx-4 bg-card border border-border rounded-lg shadow-xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+      <div className="relative w-full max-w-md mx-4 bg-card border border-border/80 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom duration-300">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-border bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-t-lg">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <Zap className="w-5 h-5" />
-              <h2 className="text-xl font-bold">Setup Ostium</h2>
+        <div className="relative flex items-center justify-between px-6 pt-5 pb-4 border-b border-border/80 bg-background/80 backdrop-blur-sm">
+          <div className="space-y-1">
+            <div className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-muted/40 px-3 py-1 text-[11px] text-muted-foreground">
+              <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-primary/20 text-primary text-[9px] font-semibold">
+                ⚡
+              </span>
+              <span className="uppercase tracking-wide">Setup Ostium</span>
             </div>
-            <p className="text-sm text-blue-100">{agentName}</p>
+            <div>
+              <h2 className="text-lg font-semibold text-foreground">Ostium Trading Setup</h2>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {agentName}
+              </p>
+            </div>
           </div>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-white/20 rounded-md transition-colors"
+            className="p-2 rounded-full border border-border/70 bg-background/80 text-muted-foreground hover:text-foreground hover:border-primary/40 hover:bg-primary/10 transition-colors"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
@@ -587,45 +598,62 @@ export function OstiumConnect({
 
           {/* Step Indicator */}
           {step !== 'connect' && (
-            <div className="flex items-center justify-between text-xs font-semibold text-muted-foreground mb-4">
-              <div className={`flex items-center gap-1 ${delegateApproved ? 'text-green-600' : ''}`}>
-                <span className={`w-6 h-6 rounded-full flex items-center justify-center ${delegateApproved ? 'bg-green-600 text-white' : 'bg-muted'}`}>
+            <div className="flex items-center justify-between text-[11px] font-medium text-muted-foreground mb-3">
+              <div className="flex items-center gap-1.5">
+                <span
+                  className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] ${delegateApproved
+                    ? 'bg-emerald-500 text-white'
+                    : 'bg-muted text-muted-foreground'
+                    }`}
+                >
                   {delegateApproved ? '✓' : '1'}
                 </span>
-                Delegate
+                <span>Delegate</span>
               </div>
-              <div className={`flex-1 h-0.5 mx-2 ${delegateApproved ? 'bg-green-600' : 'bg-muted'}`}></div>
-              <div className={`flex items-center gap-1 ${usdcApproved ? 'text-green-600' : ''}`}>
-                <span className={`w-6 h-6 rounded-full flex items-center justify-center ${usdcApproved ? 'bg-green-600 text-white' : 'bg-muted'}`}>
+              <div
+                className={`flex-1 h-px mx-2 ${delegateApproved ? 'bg-emerald-500/80' : 'bg-border'
+                  }`}
+              ></div>
+              <div className="flex items-center gap-1.5">
+                <span
+                  className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] ${usdcApproved
+                    ? 'bg-emerald-500 text-white'
+                    : 'bg-muted text-muted-foreground'
+                    }`}
+                >
                   {usdcApproved ? '✓' : '2'}
                 </span>
-                USDC
+                <span>USDC</span>
               </div>
             </div>
           )}
 
           {step === 'connect' ? (
             /* Step 1: Not Connected */
-            <div className="text-center space-y-4">
-              <Wallet className="w-16 h-16 mx-auto text-muted-foreground" />
+            <div className="text-center space-y-4 py-4">
+              <div className="w-14 h-14 mx-auto rounded-2xl bg-muted/40 border border-border/70 flex items-center justify-center">
+                <Wallet className="w-7 h-7 text-muted-foreground" />
+              </div>
               <div>
-                <h3 className="text-lg font-semibold mb-2">Connect Your Wallet</h3>
+                <h3 className="text-lg font-semibold mb-1">Connect Your Wallet</h3>
                 <p className="text-sm text-muted-foreground">
                   Connect your Arbitrum wallet to whitelist the agent
                 </p>
               </div>
               <button
                 onClick={handleConnect}
-                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-primary text-primary-foreground rounded-md font-semibold hover:bg-primary/90"
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-primary text-primary-foreground rounded-lg font-semibold hover:bg-primary/90 hover:shadow-lg hover:shadow-primary/30 transition-all"
               >
-                <Wallet className="w-5 h-5" />
+                <Wallet className="w-4 h-4" />
                 Connect Wallet
               </button>
             </div>
           ) : step === 'agent' ? (
             /* Step 2: Loading Agent */
             <div className="text-center space-y-4 py-8">
-              <Loader2 className="w-16 h-16 mx-auto text-primary animate-spin" />
+              <div className="w-12 h-12 mx-auto rounded-2xl bg-primary/15 border border-primary/30 flex items-center justify-center">
+                <Loader2 className="w-7 h-7 text-primary animate-spin" />
+              </div>
               <div>
                 <h3 className="text-lg font-semibold mb-2">Assigning Agent...</h3>
                 <p className="text-sm text-muted-foreground">
@@ -636,21 +664,24 @@ export function OstiumConnect({
           ) : step === 'delegate' ? (
             /* Step 3: Approve Delegate */
             <>
-              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 space-y-2">
+              <div className="bg-muted/40 border border-border/70 rounded-lg p-4 space-y-2">
                 <div>
-                  <p className="text-sm text-blue-900 dark:text-blue-100 font-medium mb-1">
-                    🤖 Agent Assigned
+                  <p className="text-sm text-foreground font-medium mb-1 flex items-center gap-2">
+                    <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-primary/20 text-primary text-xs">
+                      🤖
+                    </span>
+                    Agent Assigned
                   </p>
-                  <p className="text-xs text-blue-700 dark:text-blue-300 font-mono break-all">
+                  <p className="text-xs text-muted-foreground font-mono break-all">
                     {agentAddress}
                   </p>
                 </div>
                 {deploymentId && (
                   <div>
-                    <p className="text-xs text-blue-700 dark:text-blue-300 font-medium">
+                    <p className="text-xs text-muted-foreground font-medium">
                       Deployment ID:
                     </p>
-                    <p className="text-xs text-blue-600 dark:text-blue-400 font-mono break-all">
+                    <p className="text-xs text-muted-foreground font-mono break-all">
                       {deploymentId.substring(0, 8)}...{deploymentId.substring(deploymentId.length - 6)}
                     </p>
                   </div>
@@ -666,7 +697,7 @@ export function OstiumConnect({
                 </div>
               </div>
 
-              <div className="bg-muted rounded-lg p-4 space-y-2 text-sm">
+              <div className="bg-muted/40 rounded-lg p-4 space-y-2 text-sm border border-border/70">
                 <p className="font-semibold mb-2">Step 1: Approve Agent Access</p>
                 <div className="flex items-start gap-2">
                   <span className="text-blue-600 font-bold">→</span>
@@ -678,17 +709,17 @@ export function OstiumConnect({
                 </div>
               </div>
 
-              <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-3 text-xs text-green-800 dark:text-green-200">
+              <div className="bg-emerald-500/10 border border-emerald-500/40 rounded-lg p-3 text-xs text-emerald-300">
                 <strong>✅ Deployment Created:</strong> Your agent is registered in the system and ready to be approved on-chain.
               </div>
 
-              <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3 text-xs text-yellow-800 dark:text-yellow-200">
+              <div className="bg-amber-500/10 border border-amber-500/40 rounded-lg p-3 text-xs text-amber-200">
                 <strong>⚠️ You remain in control:</strong> Agent can only trade - cannot withdraw funds. You can revoke access anytime.
               </div>
 
               {txHash && (
-                <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-3">
-                  <p className="text-green-700 dark:text-green-300 text-sm mb-2">✓ Transaction confirmed!</p>
+                <div className="bg-emerald-500/10 border border-emerald-500/40 rounded-lg p-3">
+                  <p className="text-emerald-200 text-sm mb-2">✓ Transaction confirmed!</p>
                   <a
                     href={`https://sepolia.arbiscan.io/tx/${txHash}`}
                     target="_blank"
@@ -703,7 +734,7 @@ export function OstiumConnect({
               <button
                 onClick={approveAgent}
                 disabled={loading}
-                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-md font-semibold hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-primary text-primary-foreground rounded-lg font-semibold hover:bg-primary/90 hover:shadow-lg hover:shadow-primary/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? (
                   <>
@@ -726,16 +757,16 @@ export function OstiumConnect({
           ) : step === 'usdc' ? (
             /* Step 4: Approve USDC */
             <>
-              <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
-                <p className="text-sm text-green-900 dark:text-green-100 font-medium mb-2">
+              <div className="bg-emerald-500/10 border border-emerald-500/40 rounded-lg p-4">
+                <p className="text-sm text-emerald-200 font-medium mb-2">
                   ✓ Delegate Approved
                 </p>
-                <p className="text-xs text-green-700 dark:text-green-300">
+                <p className="text-xs text-emerald-200/90">
                   Agent has been whitelisted to trade on your behalf
                 </p>
               </div>
 
-              <div className="bg-muted rounded-lg p-4 space-y-2 text-sm">
+              <div className="bg-muted/40 rounded-lg p-4 space-y-2 text-sm border border-border/70">
                 <p className="font-semibold mb-2">Step 2: Approve USDC Spending</p>
                 <div className="flex items-start gap-2">
                   <span className="text-blue-600 font-bold">→</span>
@@ -746,13 +777,13 @@ export function OstiumConnect({
                 </p>
               </div>
 
-              <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3 text-xs text-yellow-800 dark:text-yellow-200">
+              <div className="bg-amber-500/10 border border-amber-500/40 rounded-lg p-3 text-xs text-amber-200">
                 <strong>💡 Tip:</strong> We're approving $1M. This is a standard amount and prevents repeated approvals.
               </div>
 
               {txHash && (
-                <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-3">
-                  <p className="text-green-700 dark:text-green-300 text-sm mb-2">✓ Transaction confirmed!</p>
+                <div className="bg-emerald-500/10 border border-emerald-500/40 rounded-lg p-3">
+                  <p className="text-emerald-200 text-sm mb-2">✓ Transaction confirmed!</p>
                   <a
                     href={`https://sepolia.arbiscan.io/tx/${txHash}`}
                     target="_blank"
@@ -770,7 +801,7 @@ export function OstiumConnect({
                   approveUsdc();
                 }}
                 disabled={loading}
-                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-md font-semibold hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-emerald-500 text-emerald-950 rounded-lg font-semibold hover:bg-emerald-400 hover:shadow-lg hover:shadow-emerald-500/40 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? (
                   <>
@@ -788,8 +819,8 @@ export function OstiumConnect({
           ) : (
             /* Complete */
             <div className="text-center space-y-4 py-4">
-              <div className="w-16 h-16 mx-auto bg-green-100 dark:bg-green-900/20 rounded-full flex items-center justify-center">
-                <CheckCircle className="w-10 h-10 text-green-600" />
+              <div className="w-16 h-16 mx-auto bg-emerald-500/15 rounded-full flex items-center justify-center border border-emerald-500/40">
+                <CheckCircle className="w-9 h-9 text-emerald-300" />
               </div>
               <div>
                 <h3 className="text-lg font-semibold mb-2">All Set! 🎉</h3>
@@ -803,13 +834,13 @@ export function OstiumConnect({
                   href={`https://sepolia.arbiscan.io/tx/${txHash}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-blue-600 hover:underline text-sm"
+                  className="text-primary hover:underline text-sm"
                 >
                   View last transaction →
                 </a>
               )}
 
-              <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 p-4 rounded-md space-y-2 text-sm">
+              <div className="bg-emerald-500/10 border border-emerald-500/40 p-4 rounded-md space-y-2 text-sm text-emerald-100">
                 <div className="flex items-center gap-2">
                   <CheckCircle className="w-4 h-4 text-green-600" />
                   <span>Agent whitelisted</span>
