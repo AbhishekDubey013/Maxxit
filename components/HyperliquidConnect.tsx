@@ -304,14 +304,14 @@ export function HyperliquidConnect({
   return (
     <>
       <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="bg-white dark:bg-gray-900 rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
           {/* Header */}
-          <div className="sticky top-0 bg-gradient-to-r from-purple-600 to-blue-600 text-white p-6 rounded-t-xl flex items-center justify-between z-10">
+          <div className="sticky top-0 bg-gradient-to-r from-emerald-700 to-lime-500 text-white p-6 rounded-t-xl flex items-center justify-between z-10">
             <div className="flex items-center gap-3">
               <Zap className="h-6 w-6" />
               <div>
                 <h2 className="text-xl font-bold">Deploy {agentName}</h2>
-                <p className="text-sm text-purple-100 mt-1">
+                <p className="text-sm text-emerald-100 mt-1">
                   {agentVenue === 'MULTI' ? 'Multi-Venue Trading' : 'Hyperliquid Perpetuals'}
                 </p>
               </div>
@@ -337,23 +337,23 @@ export function HyperliquidConnect({
             {/* Step 1: Connect Wallet */}
             {step === 'connect' && (
               <div className="space-y-4">
-                <div className="bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-lg p-6 border border-blue-200 dark:border-blue-700">
+                <div className="bg-gradient-to-br from-emerald-50 to-lime-50 dark:from-emerald-900/20 dark:to-lime-900/20 rounded-lg p-6 border border-emerald-200 dark:border-emerald-700">
                   <div className="flex items-center gap-3 mb-4">
-                    <div className="flex items-center justify-center w-10 h-10 bg-blue-600 rounded-full">
+                    <div className="flex items-center justify-center w-10 h-10 bg-emerald-600 rounded-full">
                       <span className="text-white font-bold">1</span>
                     </div>
-                    <h3 className="font-bold text-lg text-blue-900 dark:text-blue-100">
+                    <h3 className="font-bold text-lg text-emerald-900 dark:text-emerald-100">
                       Connect Your Wallet
                     </h3>
                   </div>
-                  <p className="text-sm text-blue-800 dark:text-blue-200 mb-4">
+                  <p className="text-sm text-emerald-800 dark:text-emerald-200 mb-4">
                     Connect the wallet you use for trading. We'll generate a secure agent address for you.
                   </p>
                   
                   <button
                     onClick={connectWallet}
                     disabled={loading}
-                    className="w-full px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-semibold hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    className="w-full px-6 py-3 bg-gradient-to-r from-emerald-600 to-lime-500 text-white rounded-lg font-semibold hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
                     {loading ? (
                       <>
@@ -389,17 +389,17 @@ export function HyperliquidConnect({
                   </div>
                 </div>
 
-                <div className="bg-gradient-to-br from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 rounded-lg p-6 border border-purple-200 dark:border-purple-700">
+                <div className="bg-gradient-to-br from-emerald-50 to-lime-50 dark:from-emerald-900/20 dark:to-lime-900/20 rounded-lg p-6 border border-emerald-200 dark:border-emerald-700">
                   <div className="flex items-center gap-3 mb-4">
-                    <div className="flex items-center justify-center w-10 h-10 bg-purple-600 rounded-full">
+                    <div className="flex items-center justify-center w-10 h-10 bg-emerald-600 rounded-full">
                       <span className="text-white font-bold">2</span>
                     </div>
-                    <h3 className="font-bold text-lg text-purple-900 dark:text-purple-100">
+                    <h3 className="font-bold text-lg text-emerald-900 dark:text-emerald-100">
                       Customize Your Trading Style (Agent HOW)
                     </h3>
                   </div>
 
-                  <p className="text-sm text-purple-800 dark:text-purple-200 mb-4">
+                  <p className="text-sm text-emerald-800 dark:text-emerald-200 mb-4">
                     {hasPreferences
                       ? "You've already set your trading preferences. You can update them or continue with existing settings."
                       : "Set your trading preferences to personalize position sizing. This creates a 'trade clone' matching your style."}
@@ -418,8 +418,8 @@ export function HyperliquidConnect({
                     </ul>
                   </div>
 
-                  <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 border border-blue-200 dark:border-blue-700 mb-4">
-                    <p className="text-xs text-blue-800 dark:text-blue-200">
+                  <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded-lg p-3 border border-emerald-200 dark:border-emerald-700 mb-4">
+                    <p className="text-xs text-emerald-800 dark:text-emerald-200">
                       💡 <strong>Result:</strong> Position sizes will range from 0.5% to 10% based on your preferences,
                       instead of a fixed 5% for all trades.
                     </p>
@@ -428,7 +428,7 @@ export function HyperliquidConnect({
                   <div className="flex gap-3">
                     <button
                       onClick={() => setShowPreferencesModal(true)}
-                      className="flex-1 px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg font-semibold hover:shadow-lg transition-all flex items-center justify-center gap-2"
+                      className="flex-1 px-6 py-3 bg-gradient-to-r from-emerald-600 to-lime-500 text-white rounded-lg font-semibold hover:shadow-lg transition-all flex items-center justify-center gap-2"
                     >
                       <Settings className="h-5 w-5" />
                       {hasPreferences ? 'Update Preferences' : 'Set Preferences'}
@@ -447,7 +447,7 @@ export function HyperliquidConnect({
             {/* Step 3: Generate Address */}
             {step === 'generate' && (
               <div className="space-y-4">
-                <div className="bg-gradient-to-br from-green-50 to-blue-50 dark:from-green-900/20 dark:to-blue-900/20 rounded-lg p-6 border border-green-200 dark:border-green-700">
+                <div className="bg-gradient-to-br from-emerald-50 to-lime-50 dark:from-emerald-900/20 dark:to-lime-900/20 rounded-lg p-6 border border-emerald-200 dark:border-emerald-700">
                   <div className="flex items-center gap-3 mb-4">
                     <div className="flex items-center justify-center w-10 h-10 bg-green-600 rounded-full">
                       <span className="text-white font-bold">3</span>
@@ -464,7 +464,7 @@ export function HyperliquidConnect({
                   <button
                     onClick={generateAgentAddress}
                     disabled={loading}
-                    className="w-full px-6 py-3 bg-gradient-to-r from-green-600 to-blue-600 text-white rounded-lg font-semibold hover:shadow-lg transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                    className="w-full px-6 py-3 bg-gradient-to-r from-emerald-600 to-lime-500 text-white rounded-lg font-semibold hover:shadow-lg transition-all disabled:opacity-50 flex items-center justify-center gap-2"
                   >
                     {loading ? (
                       <>
@@ -522,11 +522,11 @@ export function HyperliquidConnect({
                   </div>
 
                   {/* Instructions */}
-                  <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 border border-blue-200 dark:border-blue-700 mb-4">
-                    <h4 className="font-bold text-blue-900 dark:text-blue-100 mb-3 text-sm">
+                  <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded-lg p-4 border border-emerald-200 dark:border-emerald-700 mb-4">
+                    <h4 className="font-bold text-emerald-900 dark:text-emerald-100 mb-3 text-sm">
                       📋 Whitelisting Steps:
                     </h4>
-                    <ol className="space-y-2 text-sm text-blue-800 dark:text-blue-200">
+                    <ol className="space-y-2 text-sm text-emerald-800 dark:text-emerald-200">
                       <li className="flex gap-2">
                         <span className="font-bold">1.</span>
                         <span>Copy the agent address above</span>
@@ -560,7 +560,7 @@ export function HyperliquidConnect({
                       href={hyperliquidUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex-1 inline-flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg font-semibold hover:shadow-lg transition-all"
+                      className="flex-1 inline-flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-emerald-600 to-lime-500 text-white rounded-lg font-semibold hover:shadow-lg transition-all"
                     >
                       <span>Open Hyperliquid</span>
                       <ExternalLink className="h-4 w-4" />
@@ -587,17 +587,17 @@ export function HyperliquidConnect({
             {/* Step 5: Complete */}
             {step === 'complete' && (
               <div className="space-y-4">
-                <div className="bg-gradient-to-br from-green-50 to-blue-50 dark:from-green-900/20 dark:to-blue-900/20 rounded-lg p-8 border border-green-200 dark:border-green-700 text-center">
+                <div className="bg-gradient-to-br from-emerald-50 to-lime-50 dark:from-emerald-900/20 dark:to-lime-900/20 rounded-lg p-8 border border-emerald-200 dark:border-emerald-700 text-center">
                   <div className="inline-flex items-center justify-center w-16 h-16 bg-green-600 rounded-full mb-4">
                     <CheckCircle className="h-10 w-10 text-white" />
                   </div>
-                  <h3 className="text-2xl font-bold text-green-900 dark:text-green-100 mb-2">
+                  <h3 className="text-2xl font-bold text-emerald-900 dark:text-emerald-100 mb-2">
                     All Set! 🎉
                   </h3>
-                  <p className="text-green-800 dark:text-green-200 mb-4">
+                  <p className="text-emerald-800 dark:text-emerald-200 mb-4">
                     {agentName} is deployed and ready to trade with your personalized settings!
                   </p>
-                  <div className="bg-white dark:bg-gray-900 rounded-lg p-4 border border-green-200 dark:border-green-700 space-y-2 text-left text-sm">
+                  <div className="bg-white dark:bg-gray-900 rounded-lg p-4 border border-emerald-200 dark:border-emerald-700 space-y-2 text-left text-sm">
                     <div className="flex justify-between">
                       <span className="text-gray-600 dark:text-gray-400">Your Account:</span>
                       <code className="text-gray-800 dark:text-gray-200 font-mono">{userWallet.slice(0, 10)}...{userWallet.slice(-8)}</code>
@@ -608,28 +608,28 @@ export function HyperliquidConnect({
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-600 dark:text-gray-400">Status:</span>
-                      <span className="text-green-600 dark:text-green-400 font-semibold">✅ Active</span>
+                      <span className="text-emerald-500 dark:text-emerald-300 font-semibold">✅ Active</span>
                     </div>
                   </div>
                 </div>
 
-                <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-5 border border-blue-200 dark:border-blue-700">
-                  <h3 className="font-bold text-blue-900 dark:text-blue-100 mb-3 text-sm">What happens next?</h3>
-                  <ul className="space-y-2 text-sm text-blue-800 dark:text-blue-200">
+                <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded-lg p-5 border border-emerald-200 dark:border-emerald-700">
+                  <h3 className="font-bold text-emerald-900 dark:text-emerald-100 mb-3 text-sm">What happens next?</h3>
+                  <ul className="space-y-2 text-sm text-emerald-800 dark:text-emerald-200">
                     <li className="flex items-start gap-2">
-                      <span className="text-blue-600 mt-0.5">📊</span>
+                      <span className="text-emerald-600 mt-0.5">📊</span>
                       <span>{agentName} monitors signals from your selected sources</span>
                     </li>
                     <li className="flex items-start gap-2">
-                      <span className="text-blue-600 mt-0.5">🎯</span>
+                      <span className="text-emerald-600 mt-0.5">🎯</span>
                       <span>Position sizes personalized to YOUR trading style</span>
                     </li>
                     <li className="flex items-start gap-2">
-                      <span className="text-blue-600 mt-0.5">🤖</span>
+                      <span className="text-emerald-600 mt-0.5">🤖</span>
                       <span>Positions open automatically using YOUR funds</span>
                     </li>
                     <li className="flex items-start gap-2">
-                      <span className="text-blue-600 mt-0.5">💰</span>
+                      <span className="text-emerald-600 mt-0.5">💰</span>
                       <span>All PnL appears in YOUR Hyperliquid account</span>
                     </li>
                   </ul>
@@ -640,7 +640,7 @@ export function HyperliquidConnect({
                     onSuccess?.();
                     onClose();
                   }}
-                  className="w-full px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg font-semibold hover:shadow-lg transition-all"
+                  className="w-full px-6 py-3 bg-gradient-to-r from-emerald-600 to-lime-500 text-white rounded-lg font-semibold hover:shadow-lg transition-all"
                 >
                   Done
                 </button>

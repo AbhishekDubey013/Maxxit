@@ -562,7 +562,7 @@ export default function CreateAgent() {
       <Header />
       <div className="py-12">
         <div className="container mx-auto px-4 max-w-4xl">
-          <div className="text-center mb-12">
+          <div className="text-center mb-12 pt-20">
             <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text text-transparent pb-3" data-testid="text-title">
               Create Your Trading Agent
             </h1>

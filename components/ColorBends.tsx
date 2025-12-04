@@ -262,7 +262,12 @@ export default function ColorBends({
       return new THREE.Vector3(v[0] / 255, v[1] / 255, v[2] / 255);
     };
 
-    const arr = (colors || []).filter(Boolean).slice(0, MAX_COLORS).map(toVec3);
+    // Default to a dark greenish palette when no colors are provided
+    const defaultColors = ['#00140F', '#022C22', '#064E3B', '#166534'];
+    const sourceColors =
+      colors && colors.length > 0 ? colors : defaultColors;
+
+    const arr = sourceColors.filter(Boolean).slice(0, MAX_COLORS).map(toVec3);
     for (let i = 0; i < MAX_COLORS; i++) {
       const vec = (material.uniforms.uColors.value as THREE.Vector3[])[i];
       if (i < arr.length) vec.copy(arr[i]);

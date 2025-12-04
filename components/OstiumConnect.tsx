@@ -686,11 +686,11 @@ export function OstiumConnect({
                     </p>
                   </div>
                 )}
-                <div className="pt-2 border-t border-blue-200 dark:border-blue-700">
+                <div className="pt-2 border-t border-emerald-500/30">
                   <button
                     onClick={assignAgent}
                     disabled={loading}
-                    className="text-xs text-blue-600 dark:text-blue-400 hover:underline disabled:opacity-50"
+                    className="text-xs text-emerald-400 hover:underline disabled:opacity-50"
                   >
                     {loading ? 'Refreshing...' : '🔄 Refresh Deployment'}
                   </button>
@@ -700,7 +700,7 @@ export function OstiumConnect({
               <div className="bg-muted/40 rounded-lg p-4 space-y-2 text-sm border border-border/70">
                 <p className="font-semibold mb-2">Step 1: Approve Agent Access</p>
                 <div className="flex items-start gap-2">
-                  <span className="text-blue-600 font-bold">→</span>
+                  <span className="text-emerald-400 font-bold">→</span>
                   <span>Sign transaction to whitelist agent</span>
                 </div>
                 <div className="flex items-start gap-2">
@@ -724,7 +724,7 @@ export function OstiumConnect({
                     href={`https://sepolia.arbiscan.io/tx/${txHash}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-blue-600 hover:underline text-xs break-all"
+                    className="text-emerald-400 hover:underline text-xs break-all"
                   >
                     View on Arbiscan →
                   </a>
@@ -769,7 +769,7 @@ export function OstiumConnect({
               <div className="bg-muted/40 rounded-lg p-4 space-y-2 text-sm border border-border/70">
                 <p className="font-semibold mb-2">Step 2: Approve USDC Spending</p>
                 <div className="flex items-start gap-2">
-                  <span className="text-blue-600 font-bold">→</span>
+                  <span className="text-emerald-400 font-bold">→</span>
                   <span>Sign transaction to approve USDC</span>
                 </div>
                 <p className="text-xs text-muted-foreground mt-3">
@@ -788,7 +788,7 @@ export function OstiumConnect({
                     href={`https://sepolia.arbiscan.io/tx/${txHash}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-blue-600 hover:underline text-xs break-all"
+                    className="text-emerald-400 hover:underline text-xs break-all"
                   >
                     View on Arbiscan →
                   </a>

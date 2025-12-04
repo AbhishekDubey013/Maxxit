@@ -6,10 +6,10 @@ import { HyperliquidSetupButton } from '@components/HyperliquidSetupButton';
 import { OstiumSetupButton } from '@components/OstiumSetupButton';
 import { HyperliquidAgentModal } from '@components/HyperliquidAgentModal';
 import { usePrivy } from '@privy-io/react-auth';
-import { 
-  Wallet, 
-  Activity, 
-  MessageCircle, 
+import {
+  Wallet,
+  Activity,
+  MessageCircle,
   CheckCircle,
   TrendingUp,
   Settings,
@@ -63,13 +63,13 @@ export default function MyDeployments() {
     try {
       // Fetch deployments for logged-in Privy wallet
       const response = await fetch(`/api/deployments?userWallet=${user.wallet.address}`);
-      
+
       if (!response.ok) {
         throw new Error('Failed to fetch deployments');
       }
 
       const data = await response.json();
-      
+
       // Ensure data is always an array
       if (Array.isArray(data)) {
         setDeployments(data);
@@ -99,7 +99,7 @@ export default function MyDeployments() {
       const response = await fetch('/api/telegram/generate-link', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           deploymentId: selectedDeploymentId,
           userWallet: user?.wallet?.address || ''
         }),
@@ -158,9 +158,9 @@ export default function MyDeployments() {
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      
+
       <div className="container mx-auto px-4 py-8">
-        <div className="mb-8">
+        <div className="mb-8 pt-20">
           <h1 className="text-3xl font-bold mb-2">My Deployments</h1>
           <p className="text-muted-foreground">
             Manage your agent subscriptions and connect Telegram for manual trading
@@ -175,7 +175,7 @@ export default function MyDeployments() {
               <p className="text-muted-foreground mb-4 text-center">
                 Please connect your wallet to view your deployments
               </p>
-              <button 
+              <button
                 onClick={login}
                 className="inline-flex items-center justify-center px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:bg-primary/90"
               >
@@ -191,7 +191,7 @@ export default function MyDeployments() {
               <p className="text-muted-foreground mb-4 text-center">
                 Deploy an agent to start automated trading
               </p>
-              <a 
+              <a
                 href="/"
                 className="inline-flex items-center justify-center px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:bg-primary/90"
               >
@@ -207,11 +207,10 @@ export default function MyDeployments() {
                 <div className="border-b border-border p-6">
                   <div className="flex items-center justify-between mb-2">
                     <h3 className="text-xl font-semibold">{deployment.agent.name}</h3>
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      deployment.status === 'ACTIVE' 
-                        ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' 
-                        : 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200'
-                    }`}>
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${deployment.status === 'ACTIVE'
+                      ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                      : 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200'
+                      }`}>
                       {deployment.status}
                     </span>
                   </div>
@@ -219,7 +218,7 @@ export default function MyDeployments() {
                     {deployment.agent.venue}
                   </p>
                 </div>
-                
+
                 {/* Content */}
                 <div className="p-6 space-y-4">
                   {/* Safe Wallet */}
@@ -256,14 +255,14 @@ export default function MyDeployments() {
                     <div className="pt-4 border-t border-border">
                       <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
                         <Zap className="w-4 h-4" />
-                        {deployment.agent.venue === 'MULTI' 
-                          ? 'Multi-Venue Trading Setup' 
-                          : deployment.agent.venue === 'GMX' 
-                            ? 'GMX Trading Setup' 
-                            : deployment.agent.venue === 'HYPERLIQUID' 
-                              ? 'Hyperliquid Trading Setup' 
-                              : deployment.agent.venue === 'OSTIUM' 
-                                ? 'Ostium Trading Setup' 
+                        {deployment.agent.venue === 'MULTI'
+                          ? 'Multi-Venue Trading Setup'
+                          : deployment.agent.venue === 'GMX'
+                            ? 'GMX Trading Setup'
+                            : deployment.agent.venue === 'HYPERLIQUID'
+                              ? 'Hyperliquid Trading Setup'
+                              : deployment.agent.venue === 'OSTIUM'
+                                ? 'Ostium Trading Setup'
                                 : 'Trading Module Setup'}
                       </div>
                       <div className="bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-800 rounded-lg p-3 mb-3">
@@ -304,19 +303,19 @@ export default function MyDeployments() {
                       {deployment.agent.venue === 'MULTI' ? (
                         <div className="space-y-2">
                           {deployment.enabledVenues?.includes('SPOT') && (
-                            <SPOTSetupButton 
+                            <SPOTSetupButton
                               safeAddress={deployment.safeWallet}
                               onSetupComplete={() => fetchDeployments()}
                             />
                           )}
                           {deployment.enabledVenues?.includes('HYPERLIQUID') && (
-                            <HyperliquidSetupButton 
+                            <HyperliquidSetupButton
                               safeAddress={deployment.safeWallet}
                               onSetupComplete={() => fetchDeployments()}
                             />
                           )}
                           {deployment.enabledVenues?.includes('OSTIUM') && (
-                            <OstiumSetupButton 
+                            <OstiumSetupButton
                               agentId={deployment.agentId}
                               agentName={deployment.agent.name}
                               onSetupComplete={() => fetchDeployments()}
@@ -324,23 +323,23 @@ export default function MyDeployments() {
                           )}
                         </div>
                       ) : deployment.agent.venue === 'GMX' ? (
-                        <GMXSetupButton 
+                        <GMXSetupButton
                           safeAddress={deployment.safeWallet}
                           onSetupComplete={() => fetchDeployments()}
                         />
                       ) : deployment.agent.venue === 'HYPERLIQUID' ? (
-                        <HyperliquidSetupButton 
+                        <HyperliquidSetupButton
                           safeAddress={deployment.safeWallet}
                           onSetupComplete={() => fetchDeployments()}
                         />
                       ) : deployment.agent.venue === 'OSTIUM' ? (
-                        <OstiumSetupButton 
+                        <OstiumSetupButton
                           agentId={deployment.agentId}
                           agentName={deployment.agent.name}
                           onSetupComplete={() => fetchDeployments()}
                         />
                       ) : (
-                        <SPOTSetupButton 
+                        <SPOTSetupButton
                           safeAddress={deployment.safeWallet}
                           onSetupComplete={() => fetchDeployments()}
                         />
@@ -381,7 +380,7 @@ export default function MyDeployments() {
                     </a>
                     <button
                       onClick={() => handleSetupHyperliquid(deployment.agentId, deployment.agent.name)}
-                      className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-md text-sm font-medium hover:shadow-lg transition-all"
+                      className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-600 to-lime-500 text-white rounded-md text-sm font-medium hover:shadow-lg transition-all"
                       title="Setup Hyperliquid Trading"
                     >
                       <Zap className="w-4 h-4" />
@@ -408,7 +407,7 @@ export default function MyDeployments() {
                 <div className="flex items-center justify-between">
                   <div>
                     <h2 className="text-lg font-semibold flex items-center gap-2">
-                      <MessageCircle className="w-5 h-5 text-blue-500" />
+                      <MessageCircle className="w-5 h-5 text-emerald-400" />
                       Connect Telegram
                     </h2>
                     <p className="text-sm text-muted-foreground mt-1">
@@ -505,8 +504,8 @@ export default function MyDeployments() {
                     </div>
 
                     {/* Tip */}
-                    <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
-                      <p className="text-xs text-blue-700 dark:text-blue-300">
+                    <div className="bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800 rounded-lg p-3">
+                      <p className="text-xs text-emerald-800 dark:text-emerald-200">
                         💡 After linking, trade with natural language: "Buy 10 USDC of WETH"
                       </p>
                     </div>

@@ -98,7 +98,7 @@ export default function Home() {
         {/* Futuristic shader background */}
         <div className="pointer-events-none absolute inset-0">
           <ColorBends
-            colors={['#070F2B', '#1B1A55', '#535C91', '#9290C3']}
+            colors={['#00140F', '#003322', '#064E3B', '#16A34A']}
             rotation={30}
             speed={0.25}
             scale={1.1}
@@ -158,10 +158,10 @@ export default function Home() {
       </section>
 
       {/* Features Strip */}
-      <section className="relative pt-20 px-4 bg-gradient-to-b from-slate-950 to-slate-900 overflow-hidden">
+      <section className="relative pt-20 px-4 bg-gradient-to-b from-emerald-950 to-emerald-900 overflow-hidden">
         {/* Background glow */}
         <div className="absolute inset-0">
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-violet-500/10 rounded-full blur-[120px]"></div>
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-emerald-500/10 rounded-full blur-[120px]"></div>
         </div>
 
         <div className="container mx-auto max-w-6xl relative z-10">
@@ -172,13 +172,13 @@ export default function Home() {
               <div className="relative">
                 {/* Outer rotating ring */}
                 <div className="absolute inset-0 -m-8">
-                  <div className="w-40 h-40 rounded-full border-2 border-dashed border-violet-500/30 animate-spin" style={{ animationDuration: '20s' }}></div>
+                  <div className="w-40 h-40 rounded-full border-2 border-dashed border-emerald-500/30 animate-spin" style={{ animationDuration: '20s' }}></div>
                 </div>
 
                 {/* Glowing circle */}
-                <div className="relative w-24 h-24 rounded-full bg-gradient-to-br from-violet-600 to-purple-600 p-[2px] shadow-2xl shadow-violet-500/50">
+                <div className="relative w-24 h-24 rounded-full bg-gradient-to-br from-emerald-600 to-lime-500 p-[2px] shadow-2xl shadow-emerald-500/50">
                   <div className="w-full h-full rounded-full bg-slate-900 flex items-center justify-center">
-                    <Sparkles className="h-8 w-8 text-violet-400" />
+                    <Sparkles className="h-8 w-8 text-emerald-300" />
                   </div>
                 </div>
 
@@ -214,15 +214,15 @@ export default function Home() {
             {/* Left feature */}
             <div className="absolute top-1/2 left-0 -translate-y-1/2">
               {/* Connecting line */}
-              <div className="absolute top-1/2 left-24 w-32 h-[2px] bg-gradient-to-r from-violet-500/50 to-transparent"></div>
-              <div className="absolute top-1/2 left-24 w-2 h-2 rounded-full bg-violet-500 shadow-lg shadow-violet-500/50 -translate-y-1/2"></div>
+              <div className="absolute top-1/2 left-24 w-32 h-[2px] bg-gradient-to-r from-emerald-500/50 to-transparent"></div>
+              <div className="absolute top-1/2 left-24 w-2 h-2 rounded-full bg-emerald-500 shadow-lg shadow-emerald-500/50 -translate-y-1/2"></div>
 
               <div className="group relative w-72">
-                <div className="absolute -inset-[1px] bg-gradient-to-r from-violet-500 to-purple-500 rounded-2xl blur opacity-40 group-hover:opacity-60 transition-opacity"></div>
-                <div className="relative bg-slate-900 border border-violet-500/30 rounded-2xl p-6 hover:border-violet-500/50 transition-all">
+                <div className="absolute -inset-[1px] bg-gradient-to-r from-emerald-500 to-lime-500 rounded-2xl blur opacity-40 group-hover:opacity-70 transition-opacity"></div>
+                <div className="relative bg-slate-900 border border-emerald-500/30 rounded-2xl p-6 hover:border-emerald-500/50 transition-all">
                   <div className="flex items-start gap-4">
-                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-500/20 to-purple-500/20 flex items-center justify-center flex-shrink-0">
-                      <Bot className="h-6 w-6 text-violet-400" strokeWidth={2} />
+                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-500/20 to-lime-500/20 flex items-center justify-center flex-shrink-0">
+                      <Bot className="h-6 w-6 text-emerald-400" strokeWidth={2} />
                     </div>
                     <div>
                       <h3 className="text-lg font-bold text-white mb-2">{features[1].title}</h3>
@@ -258,7 +258,7 @@ export default function Home() {
             {/* Animated particles */}
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-2 h-2">
               <div className="absolute w-1 h-1 rounded-full bg-emerald-400 animate-ping" style={{ top: '-140px', animationDuration: '2s' }}></div>
-              <div className="absolute w-1 h-1 rounded-full bg-violet-400 animate-ping" style={{ left: '-140px', animationDuration: '2.5s', animationDelay: '0.5s' }}></div>
+              <div className="absolute w-1 h-1 rounded-full bg-emerald-300 animate-ping" style={{ left: '-140px', animationDuration: '2.5s', animationDelay: '0.5s' }}></div>
               <div className="absolute w-1 h-1 rounded-full bg-amber-400 animate-ping" style={{ right: '-140px', animationDuration: '3s', animationDelay: '1s' }}></div>
             </div>
 
@@ -347,7 +347,7 @@ export default function Home() {
                           setHyperliquidAgentName(agent.name);
                           setHyperliquidModalOpen(true);
                         }}
-                        className="inline-flex items-center justify-center gap-2 px-3 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg text-sm font-medium hover:shadow-lg transition-all"
+                        className="inline-flex items-center justify-center gap-2 px-3 py-2 bg-gradient-to-r from-emerald-600 to-lime-500 text-white rounded-lg text-sm font-medium hover:shadow-lg transition-all"
                         title="Setup Hyperliquid Trading"
                       >
                         <Zap className="h-4 w-4" />

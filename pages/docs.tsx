@@ -52,7 +52,7 @@ export default function DocsPage() {
     <div className="min-h-screen bg-background">
       <Header />
       <div className="container mx-auto px-4 py-8 max-w-7xl">
-        <div className="mb-8">
+        <div className="mb-8 pt-20">
           <h1 className="text-3xl font-bold" data-testid="text-title">Documentation</h1>
           <p className="text-muted-foreground mt-1" data-testid="text-subtitle">
             Complete guide to Maxxit's non-custodial DeFi trading platform
@@ -71,11 +71,10 @@ export default function DocsPage() {
                   <button
                     key={id}
                     onClick={() => scrollToSection(id)}
-                    className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors text-left ${
-                      activeSection === id
-                        ? 'bg-primary text-primary-foreground'
-                        : 'hover-elevate text-muted-foreground'
-                    }`}
+                    className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors text-left ${activeSection === id
+                      ? 'bg-primary text-primary-foreground'
+                      : 'hover-elevate text-muted-foreground'
+                      }`}
                     data-testid={`button-nav-${id}`}
                   >
                     <Icon className="h-4 w-4 flex-shrink-0" />
@@ -100,8 +99,8 @@ export default function DocsPage() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <p className="text-foreground">
-                    <strong>Maxxit</strong> is a <strong className="text-green-600">fully non-custodial</strong> DeFi trading platform 
-                    that enables users to deploy AI-powered trading agents that execute trades autonomously on <strong>your own Safe wallet</strong>. 
+                    <strong>Maxxit</strong> is a <strong className="text-green-600">fully non-custodial</strong> DeFi trading platform
+                    that enables users to deploy AI-powered trading agents that execute trades autonomously on <strong>your own Safe wallet</strong>.
                     Agents process multi-parameter market signals and execute trades 24/7 while you maintain complete control over your funds.
                   </p>
                   <div className="bg-green-50 dark:bg-green-950/20 p-4 rounded-lg border border-green-200 dark:border-green-800 mb-4">
@@ -110,7 +109,7 @@ export default function DocsPage() {
                       100% Non-Custodial
                     </h4>
                     <p className="text-sm">
-                      <strong>Your funds NEVER leave your Safe wallet.</strong> Maxxit cannot access, withdraw, or transfer your assets. 
+                      <strong>Your funds NEVER leave your Safe wallet.</strong> Maxxit cannot access, withdraw, or transfer your assets.
                       You maintain full custody at all times through Safe's battle-tested smart contract architecture.
                     </p>
                   </div>
@@ -159,21 +158,21 @@ export default function DocsPage() {
                     <li>
                       <strong>Connect Your Safe Wallet</strong>
                       <p className="ml-6 text-sm text-muted-foreground mt-1">
-                        Connect your Arbitrum Safe wallet (or create one at <a href="https://app.safe.global" target="_blank" className="text-blue-600 hover:underline">app.safe.global</a>). 
+                        Connect your Arbitrum Safe wallet (or create one at <a href="https://app.safe.global" target="_blank" className="text-emerald-400 hover:underline">app.safe.global</a>).
                         Fund it with USDC for trading. Gas fees are handled by Maxxit - no need to hold ETH.
                       </p>
                     </li>
                     <li>
                       <strong>Browse the Agent Marketplace</strong>
                       <p className="ml-6 text-sm text-muted-foreground mt-1">
-                        Explore agents created by the community. Each agent uses multi-parameter analysis with its own unique strategy configuration. 
+                        Explore agents created by the community. Each agent uses multi-parameter analysis with its own unique strategy configuration.
                         Review performance metrics, Impact Factor scores, and risk parameters before deploying.
                       </p>
                     </li>
                     <li>
                       <strong>Enable the Trading Module</strong>
                       <p className="ml-6 text-sm text-muted-foreground mt-1">
-                        When you deploy an agent, you'll be prompted to enable Maxxit's trading module on your Safe. This is a <strong>one-time setup</strong> that 
+                        When you deploy an agent, you'll be prompted to enable Maxxit's trading module on your Safe. This is a <strong>one-time setup</strong> that
                         grants limited permissions for trade execution only. The module CANNOT withdraw funds or perform any other actions.
                       </p>
                     </li>
@@ -221,11 +220,11 @@ export default function DocsPage() {
                   <div className="bg-green-50 dark:bg-green-950/20 p-4 rounded-lg border border-green-200 dark:border-green-800">
                     <h4 className="font-semibold mb-2">🔐 Zero Custody Architecture</h4>
                     <p className="text-sm">
-                      Unlike centralized exchanges (CEXs) where your funds are held in the exchange's wallets, Maxxit operates in a <strong>completely non-custodial manner</strong>. 
+                      Unlike centralized exchanges (CEXs) where your funds are held in the exchange's wallets, Maxxit operates in a <strong>completely non-custodial manner</strong>.
                       Your assets remain in <strong>your Safe wallet at all times</strong>.
                     </p>
                   </div>
-                  
+
                   <div className="space-y-3">
                     <h4 className="font-semibold">How It Works</h4>
                     <div className="space-y-4">
@@ -236,13 +235,13 @@ export default function DocsPage() {
                         <div>
                           <h5 className="font-semibold text-sm">Safe Module Installation</h5>
                           <p className="text-sm text-muted-foreground">
-                            When you deploy an agent, you enable Maxxit's trading module on your Safe. This module has <strong>strictly limited permissions</strong>: 
-                            it can ONLY execute trades via approved DEX routers (Uniswap V3). It <strong>cannot</strong> transfer tokens directly, cannot change Safe owners, 
+                            When you deploy an agent, you enable Maxxit's trading module on your Safe. This module has <strong>strictly limited permissions</strong>:
+                            it can ONLY execute trades via approved DEX routers (Uniswap V3). It <strong>cannot</strong> transfer tokens directly, cannot change Safe owners,
                             and cannot perform any administrative actions.
                           </p>
                         </div>
                       </div>
-                      
+
                       <div className="flex gap-3">
                         <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-semibold">
                           2
@@ -250,13 +249,13 @@ export default function DocsPage() {
                         <div>
                           <h5 className="font-semibold text-sm">On-Chain Execution</h5>
                           <p className="text-sm text-muted-foreground">
-                            Every trade is executed as an on-chain transaction from <strong>your Safe wallet</strong>. The module constructs swap transactions 
-                            (e.g., USDC → WETH) and executes them through the Safe's <code className="bg-muted px-1 rounded">executeFromModule</code> function. 
+                            Every trade is executed as an on-chain transaction from <strong>your Safe wallet</strong>. The module constructs swap transactions
+                            (e.g., USDC → WETH) and executes them through the Safe's <code className="bg-muted px-1 rounded">executeFromModule</code> function.
                             You can verify every transaction on Arbiscan.
                           </p>
                         </div>
                       </div>
-                      
+
                       <div className="flex gap-3">
                         <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-semibold">
                           3
@@ -264,12 +263,12 @@ export default function DocsPage() {
                         <div>
                           <h5 className="font-semibold text-sm">Revocable Permissions</h5>
                           <p className="text-sm text-muted-foreground">
-                            You can <strong>revoke the module at any time</strong> via the Safe Transaction Builder at <a href="https://app.safe.global" target="_blank" className="text-blue-600 hover:underline">app.safe.global</a>. 
+                            You can <strong>revoke the module at any time</strong> via the Safe Transaction Builder at <a href="https://app.safe.global" target="_blank" className="text-emerald-400 hover:underline">app.safe.global</a>.
                             Once disabled, Maxxit can no longer execute trades. Your funds remain in your Safe, completely under your control.
                           </p>
                         </div>
                       </div>
-                      
+
                       <div className="flex gap-3">
                         <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-semibold">
                           4
@@ -277,17 +276,17 @@ export default function DocsPage() {
                         <div>
                           <h5 className="font-semibold text-sm">No Withdrawal Capability</h5>
                           <p className="text-sm text-muted-foreground">
-                            The module <strong>physically cannot</strong> call token <code className="bg-muted px-1 rounded">transfer()</code> functions to send your funds to external addresses. 
-                            It can only interact with approved DEX routers for swaps. Profit sharing (20%) is handled on-chain during position closing, 
+                            The module <strong>physically cannot</strong> call token <code className="bg-muted px-1 rounded">transfer()</code> functions to send your funds to external addresses.
+                            It can only interact with approved DEX routers for swaps. Profit sharing (20%) is handled on-chain during position closing,
                             but the bulk of your funds always remain in your Safe.
                           </p>
                         </div>
                       </div>
                     </div>
                   </div>
-                  
+
                   <Separator />
-                  
+
                   <div className="bg-blue-50 dark:bg-blue-950/20 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
                     <h4 className="font-semibold mb-2">📖 Compare: CEX vs Maxxit</h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
@@ -313,16 +312,16 @@ export default function DocsPage() {
                       </div>
                     </div>
                   </div>
-                  
+
                   <div className="bg-yellow-50 dark:bg-yellow-950/20 p-4 rounded-lg border border-yellow-200 dark:border-yellow-800">
                     <h4 className="font-semibold mb-2 flex items-center gap-2">
                       <AlertTriangle className="h-4 w-4" />
                       Smart Contract Risk Disclosure
                     </h4>
                     <p className="text-sm">
-                      While Maxxit cannot access your funds, smart contracts (Safe, Uniswap, Maxxit module) carry inherent risks including bugs, exploits, 
-                      or unforeseen vulnerabilities. Maxxit's module is open-source and follows Safe's security best practices, but <strong>no smart contract 
-                      is 100% risk-free</strong>. Always use funds you can afford to lose.
+                      While Maxxit cannot access your funds, smart contracts (Safe, Uniswap, Maxxit module) carry inherent risks including bugs, exploits,
+                      or unforeseen vulnerabilities. Maxxit's module is open-source and follows Safe's security best practices, but <strong>no smart contract
+                        is 100% risk-free</strong>. Always use funds you can afford to lose.
                     </p>
                   </div>
                 </CardContent>
@@ -341,20 +340,20 @@ export default function DocsPage() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <p className="text-foreground">
-                    Anyone can create a trading agent on Maxxit. Agents combine <strong>multiple signal sources</strong> with advanced risk management 
-                    to execute trades automatically based on market conditions. As an agent creator, you earn <strong>10% of all profits</strong> generated 
+                    Anyone can create a trading agent on Maxxit. Agents combine <strong>multiple signal sources</strong> with advanced risk management
+                    to execute trades automatically based on market conditions. As an agent creator, you earn <strong>10% of all profits</strong> generated
                     by your agent across all deployments.
                   </p>
-                  
+
                   <div className="bg-blue-50 dark:bg-blue-950/20 p-4 rounded-lg border border-blue-200 dark:border-blue-800 mb-4">
                     <h4 className="font-semibold mb-2">🎯 The Maxxit Difference: Impact Factor Scoring</h4>
                     <p className="text-sm text-muted-foreground">
-                      Unlike other platforms that rely on unverified social signals, Maxxit agents use <strong>Impact Factor-verified sources</strong>. 
-                      Similar to how Kaito measures mindshare, we've developed a proprietary system to measure <strong>real trading efficacy</strong> 
+                      Unlike other platforms that rely on unverified social signals, Maxxit agents use <strong>Impact Factor-verified sources</strong>.
+                      Similar to how Kaito measures mindshare, we've developed a proprietary system to measure <strong>real trading efficacy</strong>
                       through forward-testing with results recorded on-chain for transparency. Only sources with proven positive impact are integrated into agent decision-making.
                     </p>
                   </div>
-                  
+
                   <div className="space-y-3">
                     <h4 className="font-semibold">Agent Configuration</h4>
                     <div className="space-y-3">
@@ -370,7 +369,7 @@ export default function DocsPage() {
                           <li><strong>Risk constraints:</strong> position sizing, stop-loss, take-profit</li>
                         </ul>
                       </div>
-                      
+
                       <div className="p-4 border rounded-md">
                         <h5 className="font-semibold mb-2">Trading Venue</h5>
                         <p className="text-sm text-muted-foreground mb-2">
@@ -391,21 +390,21 @@ export default function DocsPage() {
                           <Badge variant="outline">GRT</Badge>
                           <Badge variant="outline">MATIC</Badge>
                           <Badge variant="outline">SOL</Badge>
+                        </div>
                       </div>
-                      </div>
-                      
+
                       <div className="p-4 border rounded-md">
                         <h5 className="font-semibold mb-2">Profit Receiver</h5>
                         <p className="text-sm text-muted-foreground">
-                          Set your Arbitrum wallet address to receive <strong>10% of profits</strong> from all trades executed by your agent. 
+                          Set your Arbitrum wallet address to receive <strong>10% of profits</strong> from all trades executed by your agent.
                           This is automatically distributed on-chain when positions close in profit.
                         </p>
                       </div>
                     </div>
                   </div>
-                  
+
                   <Separator />
-                  
+
                   <div className="bg-purple-50 dark:bg-purple-950/20 p-4 rounded-lg border border-purple-200 dark:border-purple-800">
                     <h4 className="font-semibold mb-2">💡 Agent Creator Economics</h4>
                     <div className="space-y-2 text-sm">
@@ -423,7 +422,7 @@ export default function DocsPage() {
                       </div>
                       <Separator className="my-2" />
                       <p className="text-xs text-muted-foreground">
-                        Example: If your agent generates $1,000 in profits across all deployments, you earn $100, 
+                        Example: If your agent generates $1,000 in profits across all deployments, you earn $100,
                         the monitored X accounts earn $100, and traders keep $800.
                       </p>
                     </div>
@@ -444,11 +443,11 @@ export default function DocsPage() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <p className="text-foreground">
-                    Maxxit implements an <strong>on-chain profit sharing mechanism</strong> where 20% of all realized profits are automatically distributed 
-                    to agent creators and performance-verified signal sources. This incentivizes quality agent creation and rewards high-impact contributors 
+                    Maxxit implements an <strong>on-chain profit sharing mechanism</strong> where 20% of all realized profits are automatically distributed
+                    to agent creators and performance-verified signal sources. This incentivizes quality agent creation and rewards high-impact contributors
                     whose insights drive profitable trades.
                   </p>
-                  
+
                   <div className="space-y-3">
                     <h4 className="font-semibold">Distribution Breakdown</h4>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -475,9 +474,9 @@ export default function DocsPage() {
                       </div>
                     </div>
                   </div>
-                  
+
                   <Separator />
-                  
+
                   <div className="space-y-3">
                     <h4 className="font-semibold">How It Works On-Chain</h4>
                     <ol className="list-decimal list-inside space-y-2 text-sm">
@@ -503,9 +502,9 @@ export default function DocsPage() {
                       </li>
                     </ol>
                   </div>
-                  
+
                   <Separator />
-                  
+
                   <div className="bg-muted p-4 rounded-lg">
                     <h4 className="font-semibold mb-2">📊 Example Calculation</h4>
                     <div className="space-y-1 text-sm">
@@ -549,7 +548,7 @@ export default function DocsPage() {
                       </div>
                     </div>
                   </div>
-                  
+
                   <div className="bg-yellow-50 dark:bg-yellow-950/20 p-4 rounded-lg border border-yellow-200 dark:border-yellow-800">
                     <h4 className="font-semibold mb-2 flex items-center gap-2">
                       <AlertTriangle className="h-4 w-4" />
@@ -587,7 +586,7 @@ export default function DocsPage() {
                         <Badge variant="secondary">$20 USDC per month</Badge>
                       </div>
                       <p className="text-sm text-muted-foreground">
-                        Monthly subscription per active agent deployment. Covers continuous monitoring, signal processing, and automated execution infrastructure. 
+                        Monthly subscription per active agent deployment. Covers continuous monitoring, signal processing, and automated execution infrastructure.
                         Cancel anytime with no early termination fees.
                       </p>
                     </div>
@@ -645,13 +644,13 @@ export default function DocsPage() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <p className="text-foreground">
-                    Maxxit uses <strong>Safe</strong> (formerly Gnosis Safe) wallets, the most trusted smart contract wallet in DeFi with 
+                    Maxxit uses <strong>Safe</strong> (formerly Gnosis Safe) wallets, the most trusted smart contract wallet in DeFi with
                     <strong> over $100 billion</strong> secured. Safe enables automated trading while you maintain full custody.
                   </p>
                   <div className="space-y-3">
                     <h4 className="font-semibold">What is Safe?</h4>
                     <p className="text-sm text-muted-foreground">
-                      Safe is a programmable smart contract wallet that supports <strong>modules</strong> - authorized contracts that can execute 
+                      Safe is a programmable smart contract wallet that supports <strong>modules</strong> - authorized contracts that can execute
                       specific actions on behalf of the Safe. Maxxit's trading module is one such module, with strictly limited permissions to only execute DEX swaps.
                     </p>
                   </div>
@@ -671,7 +670,7 @@ export default function DocsPage() {
                         <strong>Trade Execution:</strong> When a signal triggers, the module constructs a swap transaction and executes it via <code className="bg-muted px-1 rounded">executeFromModule</code>
                       </li>
                       <li>
-                        <strong>Revoke Anytime:</strong> Disable the module via Safe UI at <a href="https://app.safe.global" target="_blank" className="text-blue-600 hover:underline">app.safe.global</a>
+                        <strong>Revoke Anytime:</strong> Disable the module via Safe UI at <a href="https://app.safe.global" target="_blank" className="text-emerald-400 hover:underline">app.safe.global</a>
                       </li>
                     </ol>
                   </div>
@@ -693,17 +692,17 @@ export default function DocsPage() {
                     <h4 className="font-semibold mb-2">🔗 Useful Links</h4>
                     <div className="space-y-1 text-sm">
                       <div>
-                        <a href="https://app.safe.global" target="_blank" className="text-blue-600 hover:underline">
+                        <a href="https://app.safe.global" target="_blank" className="text-emerald-400 hover:underline">
                           Create a Safe Wallet →
                         </a>
                       </div>
                       <div>
-                        <a href="https://docs.safe.global" target="_blank" className="text-blue-600 hover:underline">
+                        <a href="https://docs.safe.global" target="_blank" className="text-emerald-400 hover:underline">
                           Safe Documentation →
                         </a>
                       </div>
                       <div>
-                        <a href="https://arbiscan.io" target="_blank" className="text-blue-600 hover:underline">
+                        <a href="https://arbiscan.io" target="_blank" className="text-emerald-400 hover:underline">
                           Verify Transactions on Arbiscan →
                         </a>
                       </div>
@@ -727,18 +726,18 @@ export default function DocsPage() {
                   <div className="space-y-3">
                     <h4 className="font-semibold">What Makes Maxxit Stand Out</h4>
                     <p className="text-sm text-muted-foreground">
-                      Maxxit agents represent the <strong>next evolution in DeFi trading</strong> by combining AI-powered automation with a layer of 
-                      <strong> verified human reasoning</strong>. While other platforms rely solely on technical indicators or basic social sentiment, 
+                      Maxxit agents represent the <strong>next evolution in DeFi trading</strong> by combining AI-powered automation with a layer of
+                      <strong> verified human reasoning</strong>. While other platforms rely solely on technical indicators or basic social sentiment,
                       Maxxit introduces a revolutionary <strong>Impact Factor system</strong> for signal validation.
                     </p>
-                    
+
                     <div className="bg-purple-50 dark:bg-purple-950/20 p-4 rounded-lg border border-purple-200 dark:border-purple-800">
                       <h5 className="font-semibold mb-2 flex items-center gap-2">
                         <Users className="h-4 w-4" />
                         Impact Factor: Like Kaito's Mindshare, But for Trading Efficacy
                       </h5>
                       <p className="text-sm text-muted-foreground mb-2">
-                        Just as Kaito pioneered <strong>mindshare analysis</strong> to measure crypto project attention, Maxxit has developed 
+                        Just as Kaito pioneered <strong>mindshare analysis</strong> to measure crypto project attention, Maxxit has developed
                         <strong> Impact Factor scoring</strong> to measure the real-time trading efficacy of signal sources.
                       </p>
                       <ul className="space-y-1 text-sm text-muted-foreground ml-4">
@@ -748,7 +747,7 @@ export default function DocsPage() {
                         <li>• <strong>Multi-source validation</strong> - agents weight signals from multiple verified sources</li>
                       </ul>
                     </div>
-                    
+
                     <div className="bg-blue-50 dark:bg-blue-950/20 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
                       <h5 className="font-semibold mb-2">Multi-Parameter Decision Engine</h5>
                       <p className="text-sm text-muted-foreground mb-2">
@@ -777,24 +776,24 @@ export default function DocsPage() {
                         </li>
                       </ul>
                     </div>
-                    
+
                     <div className="bg-green-50 dark:bg-green-950/20 p-4 rounded-lg border border-green-200 dark:border-green-800">
                       <h5 className="font-semibold mb-2">⚡ Gasless Trading Experience</h5>
                       <p className="text-sm text-muted-foreground">
-                        Unlike traditional DeFi trading where you need to manage ETH for gas fees, Maxxit provides a <strong>gasless experience</strong>. 
-                        The Maxxit system sponsors all gas costs, so you only need to hold USDC for trading. 
+                        Unlike traditional DeFi trading where you need to manage ETH for gas fees, Maxxit provides a <strong>gasless experience</strong>.
+                        The Maxxit system sponsors all gas costs, so you only need to hold USDC for trading.
                         No complex gas management, no transaction failures due to insufficient ETH, no need to bridge ETH to Arbitrum.
                       </p>
                     </div>
-                    
+
                     <p className="text-xs text-muted-foreground">
-                      All trade execution happens directly from <strong>your non-custodial Safe wallet</strong>, ensuring you maintain full control 
+                      All trade execution happens directly from <strong>your non-custodial Safe wallet</strong>, ensuring you maintain full control
                       over your assets at all times while benefiting from the most sophisticated multi-parameter trading system in DeFi.
                     </p>
                   </div>
-                  
+
                   <Separator />
-                  
+
                   <div className="space-y-3">
                     <h4 className="font-semibold">Manual Trading via Telegram</h4>
                     <p className="text-sm text-muted-foreground">
@@ -809,10 +808,10 @@ export default function DocsPage() {
                     <p className="text-xs text-muted-foreground">
                       Manual trades execute from your Safe wallet with the same $0.20 per trade fee, 20% profit sharing, and automated risk management.
                     </p>
-                        </div>
-                  
+                  </div>
+
                   <Separator />
-                  
+
                   <div className="space-y-3">
                     <h4 className="font-semibold">Supported Tokens (Uniswap V3 Arbitrum)</h4>
                     <div className="flex flex-wrap gap-2">
@@ -830,18 +829,18 @@ export default function DocsPage() {
                       <Badge>GRT</Badge>
                       <Badge>MATIC</Badge>
                       <Badge>SOL</Badge>
-                        </div>
+                    </div>
                     <p className="text-xs text-muted-foreground">
                       All tokens have verified liquidity on Uniswap V3. Swaps execute with 0.5% slippage tolerance.
                     </p>
-                      </div>
-                  
+                  </div>
+
                   <Separator />
-                  
+
                   <div className="space-y-3">
                     <h4 className="font-semibold">Intelligent Risk Management</h4>
                     <p className="text-sm text-muted-foreground">
-                      All positions are protected by advanced risk management systems that automatically monitor and exit positions to protect capital 
+                      All positions are protected by advanced risk management systems that automatically monitor and exit positions to protect capital
                       and lock in profits. The system uses dynamic trailing stops, take-profit targets, and market volatility analysis to optimize exits.
                     </p>
                     <div className="bg-green-50 dark:bg-green-950/20 p-4 rounded-lg border border-green-200 dark:border-green-800">
@@ -870,17 +869,17 @@ export default function DocsPage() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <p className="text-foreground">
-                    Maxxit now supports <strong>Hyperliquid</strong>, a high-performance perpetual DEX, using an innovative 
+                    Maxxit now supports <strong>Hyperliquid</strong>, a high-performance perpetual DEX, using an innovative
                     <strong> agent delegation model</strong>. Trade with leverage while maintaining 100% custody of your funds.
                   </p>
-                  
+
                   <div className="bg-blue-50 dark:bg-blue-950/20 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
                     <h4 className="font-semibold mb-2 flex items-center gap-2">
                       <Lock className="h-4 w-4" />
                       Agent Delegation Model
                     </h4>
                     <p className="text-sm text-muted-foreground mb-3">
-                      Unlike traditional copy trading where you transfer funds to a platform, Hyperliquid's delegation 
+                      Unlike traditional copy trading where you transfer funds to a platform, Hyperliquid's delegation
                       allows agents to <strong>trade on your behalf</strong> while funds remain in <strong>your wallet</strong>.
                     </p>
                     <div className="space-y-2 text-sm">
@@ -902,7 +901,7 @@ export default function DocsPage() {
                       </div>
                     </div>
                   </div>
-                  
+
                   <div className="space-y-3">
                     <h4 className="font-semibold">How It Works</h4>
                     <div className="space-y-4">
@@ -913,12 +912,12 @@ export default function DocsPage() {
                         <div>
                           <h5 className="font-semibold text-sm">Connect Hyperliquid Wallet</h5>
                           <p className="text-sm text-muted-foreground">
-                            Connect your Hyperliquid wallet (via MetaMask or other Web3 wallet) and deposit USDC. 
+                            Connect your Hyperliquid wallet (via MetaMask or other Web3 wallet) and deposit USDC.
                             Your funds remain in your wallet at all times.
                           </p>
                         </div>
                       </div>
-                      
+
                       <div className="flex gap-3">
                         <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-semibold">
                           2
@@ -926,12 +925,12 @@ export default function DocsPage() {
                         <div>
                           <h5 className="font-semibold text-sm">Deploy Agent</h5>
                           <p className="text-sm text-muted-foreground">
-                            Select a Hyperliquid-compatible agent from the marketplace. Maxxit creates a dedicated agent wallet 
+                            Select a Hyperliquid-compatible agent from the marketplace. Maxxit creates a dedicated agent wallet
                             (stored encrypted) that will execute trades on your behalf.
                           </p>
                         </div>
                       </div>
-                      
+
                       <div className="flex gap-3">
                         <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-semibold">
                           3
@@ -939,12 +938,12 @@ export default function DocsPage() {
                         <div>
                           <h5 className="font-semibold text-sm">Approve Agent (One-Time)</h5>
                           <p className="text-sm text-muted-foreground">
-                            Sign a transaction on Hyperliquid approving the agent to trade on your behalf. This grants the agent 
+                            Sign a transaction on Hyperliquid approving the agent to trade on your behalf. This grants the agent
                             permission to open/close positions but <strong>NOT to withdraw funds</strong>.
                           </p>
                         </div>
                       </div>
-                      
+
                       <div className="flex gap-3">
                         <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-semibold">
                           4
@@ -952,55 +951,55 @@ export default function DocsPage() {
                         <div>
                           <h5 className="font-semibold text-sm">Automated Trading Begins</h5>
                           <p className="text-sm text-muted-foreground">
-                            The agent monitors market signals and executes perpetual trades (BTC, ETH, SOL, etc.) with leverage 
+                            The agent monitors market signals and executes perpetual trades (BTC, ETH, SOL, etc.) with leverage
                             directly from your wallet. You can revoke agent access anytime on Hyperliquid.
                           </p>
                         </div>
                       </div>
                     </div>
                   </div>
-                  
+
                   <Separator />
-                  
+
                   <div className="space-y-3">
                     <h4 className="font-semibold">Advanced Features</h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       <div className="p-4 border rounded-md">
                         <h5 className="font-semibold mb-2">📊 Auto Position Discovery</h5>
                         <p className="text-sm text-muted-foreground">
-                          System automatically detects positions opened outside Maxxit and creates tracking records. 
+                          System automatically detects positions opened outside Maxxit and creates tracking records.
                           Even manual trades on Hyperliquid get monitored for trailing stops.
                         </p>
                       </div>
-                      
+
                       <div className="p-4 border rounded-md">
                         <h5 className="font-semibold mb-2">🎯 Trailing Stops (1%)</h5>
                         <p className="text-sm text-muted-foreground">
-                          All positions monitored with configurable trailing stops. Default 1% trailing stop activates 
+                          All positions monitored with configurable trailing stops. Default 1% trailing stop activates
                           after +3% profit to lock in gains while letting winners run.
                         </p>
                       </div>
-                      
+
                       <div className="p-4 border rounded-md">
                         <h5 className="font-semibold mb-2">🔒 Race Prevention</h5>
                         <p className="text-sm text-muted-foreground">
-                          Database locks and idempotent operations prevent duplicate close attempts. Monitor instance 
+                          Database locks and idempotent operations prevent duplicate close attempts. Monitor instance
                           locking ensures only one process monitors positions at a time.
                         </p>
                       </div>
-                      
+
                       <div className="p-4 border rounded-md">
                         <h5 className="font-semibold mb-2">🔄 Self-Healing Sync</h5>
                         <p className="text-sm text-muted-foreground">
-                          System automatically reconciles DB state with Hyperliquid if positions closed externally. 
+                          System automatically reconciles DB state with Hyperliquid if positions closed externally.
                           No manual intervention needed to keep records accurate.
                         </p>
                       </div>
                     </div>
                   </div>
-                  
+
                   <Separator />
-                  
+
                   <div className="bg-green-50 dark:bg-green-950/20 p-4 rounded-lg border border-green-200 dark:border-green-800">
                     <h4 className="font-semibold mb-2">⚡ Performance Stats</h4>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
@@ -1022,11 +1021,11 @@ export default function DocsPage() {
                       </div>
                     </div>
                   </div>
-                  
+
                   <div className="bg-purple-50 dark:bg-purple-950/20 p-4 rounded-lg border border-purple-200 dark:border-purple-800">
                     <h4 className="font-semibold mb-2">💰 Hyperliquid Profit Sharing</h4>
                     <p className="text-sm text-muted-foreground mb-3">
-                      Same transparent fee model applies to Hyperliquid trades. 10% profit share collected automatically 
+                      Same transparent fee model applies to Hyperliquid trades. 10% profit share collected automatically
                       after closing profitable positions using Hyperliquid's internal USDC transfer system.
                     </p>
                     <div className="space-y-2 text-sm">
@@ -1043,7 +1042,7 @@ export default function DocsPage() {
                       </div>
                     </div>
                   </div>
-                  
+
                   <div className="bg-yellow-50 dark:bg-yellow-950/20 p-4 rounded-lg border border-yellow-200 dark:border-yellow-800">
                     <h4 className="font-semibold mb-2 flex items-center gap-2">
                       <AlertTriangle className="h-4 w-4" />
@@ -1057,23 +1056,23 @@ export default function DocsPage() {
                       <li>• <strong>Agent Delegation:</strong> Ensure you trust the agent before approving on Hyperliquid</li>
                     </ul>
                   </div>
-                  
+
                   <div className="bg-muted p-4 rounded-lg">
                     <h4 className="font-semibold mb-2">📚 Learn More</h4>
                     <div className="space-y-2 text-sm">
                       <div>
-                        <a href="https://hyperliquid.xyz" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                        <a href="https://hyperliquid.xyz" target="_blank" rel="noopener noreferrer" className="text-emerald-400 hover:underline">
                           Hyperliquid Official Site →
                         </a>
                       </div>
                       <div>
-                        <a href="https://app.hyperliquid.xyz" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                        <a href="https://app.hyperliquid.xyz" target="_blank" rel="noopener noreferrer" className="text-emerald-400 hover:underline">
                           Trade on Hyperliquid →
                         </a>
                       </div>
                       <div className="text-xs text-muted-foreground mt-2">
-                          For technical documentation on our Hyperliquid integration, see our{' '}
-                        <a href="https://github.com/your-repo/HYPERLIQUID_INTEGRATION.md" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                        For technical documentation on our Hyperliquid integration, see our{' '}
+                        <a href="https://github.com/your-repo/HYPERLIQUID_INTEGRATION.md" target="_blank" rel="noopener noreferrer" className="text-emerald-400 hover:underline">
                           GitHub documentation
                         </a>
                       </div>
@@ -1097,12 +1096,12 @@ export default function DocsPage() {
                   <div className="bg-red-50 dark:bg-red-950/20 p-4 rounded-lg border border-red-200 dark:border-red-800">
                     <p className="font-semibold mb-2">⚠️ HIGH RISK WARNING</p>
                     <p className="text-sm text-muted-foreground">
-                      <strong>Cryptocurrency trading involves substantial risk of loss.</strong> Automated trading systems can experience significant losses, 
-                      especially in volatile markets. <strong>Only invest capital you can afford to lose completely.</strong> Past performance of agents 
+                      <strong>Cryptocurrency trading involves substantial risk of loss.</strong> Automated trading systems can experience significant losses,
+                      especially in volatile markets. <strong>Only invest capital you can afford to lose completely.</strong> Past performance of agents
                       does not guarantee future results. You may lose your entire investment.
                     </p>
                   </div>
-                  
+
                   <div className="space-y-2 text-sm">
                     <h4 className="font-semibold">Trading Risks</h4>
                     <ul className="list-disc list-inside space-y-1 text-muted-foreground ml-2">
@@ -1113,7 +1112,7 @@ export default function DocsPage() {
                       <li><strong>Trailing Stop Gaps:</strong> In fast-moving markets, trailing stops may exit later than intended</li>
                     </ul>
                   </div>
-                  
+
                   <div className="space-y-2 text-sm">
                     <h4 className="font-semibold">Smart Contract Risks</h4>
                     <ul className="list-disc list-inside space-y-1 text-muted-foreground ml-2">
@@ -1123,7 +1122,7 @@ export default function DocsPage() {
                       <li><strong>Oracle Manipulation:</strong> Price feed manipulation could lead to bad trade executions</li>
                     </ul>
                   </div>
-                  
+
                   <div className="space-y-2 text-sm">
                     <h4 className="font-semibold">Operational Risks</h4>
                     <ul className="list-disc list-inside space-y-1 text-muted-foreground ml-2">
@@ -1133,26 +1132,26 @@ export default function DocsPage() {
                       <li><strong>Executor Wallet:</strong> If executor runs out of ETH for gas, trades cannot execute</li>
                     </ul>
                   </div>
-                  
+
                   <Separator />
-                  
+
                   <div className="bg-yellow-50 dark:bg-yellow-950/20 p-4 rounded-lg border border-yellow-200 dark:border-yellow-800">
                     <h4 className="font-semibold mb-2 flex items-center gap-2">
                       <AlertTriangle className="h-4 w-4" />
                       Centralized Exchange Risks
                     </h4>
                     <p className="text-sm mb-2">
-                      Historically, centralized exchanges have experienced security breaches, operational failures, and insolvency events that 
+                      Historically, centralized exchanges have experienced security breaches, operational failures, and insolvency events that
                       resulted in significant user fund losses. When you deposit funds to a centralized exchange, you lose direct control.
                     </p>
                     <p className="text-sm mt-2 font-semibold text-green-600">
-                      ✅ Maxxit's Non-Custodial Advantage: If Maxxit's servers were compromised or shut down, <strong>your funds remain 100% safe 
-                      in your Safe wallet</strong>. Simply revoke the module and you retain full control. No one can freeze, seize, or access your assets.
+                      ✅ Maxxit's Non-Custodial Advantage: If Maxxit's servers were compromised or shut down, <strong>your funds remain 100% safe
+                        in your Safe wallet</strong>. Simply revoke the module and you retain full control. No one can freeze, seize, or access your assets.
                     </p>
                   </div>
-                  
+
                   <Separator />
-                  
+
                   <div className="space-y-2 text-sm">
                     <h4 className="font-semibold">Best Practices</h4>
                     <ul className="list-disc list-inside space-y-1 text-muted-foreground ml-2">
@@ -1166,41 +1165,41 @@ export default function DocsPage() {
                       <li>Revoke module access if you want to pause trading</li>
                     </ul>
                   </div>
-                  
+
                   <Separator />
-                  
+
                   <div className="bg-gray-100 dark:bg-gray-900 p-4 rounded-lg text-xs text-muted-foreground">
                     <h4 className="font-semibold mb-2 text-foreground">LEGAL DISCLAIMER</h4>
                     <p className="mb-2">
-                      <strong>NOT FINANCIAL ADVICE:</strong> Maxxit is a software platform that provides tools for automated trading. 
-                      We do NOT provide financial advice, investment recommendations, or guarantees of profitability. All content, agents, 
+                      <strong>NOT FINANCIAL ADVICE:</strong> Maxxit is a software platform that provides tools for automated trading.
+                      We do NOT provide financial advice, investment recommendations, or guarantees of profitability. All content, agents,
                       and strategies are for informational purposes only.
                     </p>
                     <p className="mb-2">
-                      <strong>USER RESPONSIBILITY:</strong> You are solely responsible for your own trading decisions, risk management, 
-                      and any losses incurred. By using Maxxit, you acknowledge that you understand the risks of cryptocurrency trading 
+                      <strong>USER RESPONSIBILITY:</strong> You are solely responsible for your own trading decisions, risk management,
+                      and any losses incurred. By using Maxxit, you acknowledge that you understand the risks of cryptocurrency trading
                       and automated trading systems.
                     </p>
                     <p className="mb-2">
-                      <strong>NO CUSTODY:</strong> Maxxit does not custody, control, or have access to your funds at any time. Your assets 
+                      <strong>NO CUSTODY:</strong> Maxxit does not custody, control, or have access to your funds at any time. Your assets
                       remain in your Safe wallet under your exclusive control. We are not a custodian, broker, exchange, or financial institution.
                     </p>
                     <p className="mb-2">
-                      <strong>NO WARRANTIES:</strong> The platform is provided "AS IS" without warranties of any kind. We do not guarantee 
+                      <strong>NO WARRANTIES:</strong> The platform is provided "AS IS" without warranties of any kind. We do not guarantee
                       uptime, execution quality, or freedom from bugs. Smart contracts may contain vulnerabilities.
                     </p>
                     <p className="mb-2">
-                      <strong>LIMITATION OF LIABILITY:</strong> Maxxit, its creators, and contributors shall not be liable for any losses, 
-                      damages, or claims arising from your use of the platform, including but not limited to: trading losses, smart contract bugs, 
+                      <strong>LIMITATION OF LIABILITY:</strong> Maxxit, its creators, and contributors shall not be liable for any losses,
+                      damages, or claims arising from your use of the platform, including but not limited to: trading losses, smart contract bugs,
                       protocol failures, network issues, or any other technical or operational failures.
                     </p>
                     <p className="mb-2">
-                      <strong>REGULATORY COMPLIANCE:</strong> Cryptocurrency regulations vary by jurisdiction. It is YOUR responsibility to 
+                      <strong>REGULATORY COMPLIANCE:</strong> Cryptocurrency regulations vary by jurisdiction. It is YOUR responsibility to
                       ensure compliance with local laws. Maxxit is not available in restricted jurisdictions.
                     </p>
                     <p>
-                      <strong>ACCEPTANCE OF RISK:</strong> By using Maxxit, you explicitly acknowledge and accept ALL risks associated with 
-                      cryptocurrency trading, DeFi protocols, smart contracts, and automated trading systems. You confirm that you are trading 
+                      <strong>ACCEPTANCE OF RISK:</strong> By using Maxxit, you explicitly acknowledge and accept ALL risks associated with
+                      cryptocurrency trading, DeFi protocols, smart contracts, and automated trading systems. You confirm that you are trading
                       with funds you can afford to lose completely.
                     </p>
                   </div>
