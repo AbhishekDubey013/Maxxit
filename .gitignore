@@ -58,3 +58,7 @@ typechain-types/
 *.db-journal
 
 SIGNAL_GENERATOR_ENV_VALUES.txt
+
+non-crypto-assets.json
+reference-of-table.json
+ostium-assets.json
