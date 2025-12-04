@@ -128,16 +128,18 @@ export default function Home() {
           
           <div className="flex flex-wrap justify-center gap-4 mb-16">
             <button
-              onClick={() => {
+              onClick={(e) => {
+                e.preventDefault();
                 const element = document.getElementById('agents');
                 if (element) {
-                  const headerOffset = 80;
-                  const elementPosition = element.getBoundingClientRect().top;
-                  const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
+                  const headerOffset = 100;
+                  const elementTop = element.offsetTop;
                   window.scrollTo({
-                    top: offsetPosition,
+                    top: elementTop - headerOffset,
                     behavior: 'smooth'
                   });
+                } else {
+                  console.error('Agents section not found');
                 }
               }}
               className="group px-8 py-4 bg-accent text-[var(--bg-deep)] font-bold text-lg hover:bg-[var(--accent-dim)] transition-all"
@@ -146,16 +148,18 @@ export default function Home() {
               <span className="inline-block ml-2 group-hover:translate-x-1 transition-transform">→</span>
             </button>
               <button
-              onClick={() => {
+              onClick={(e) => {
+                e.preventDefault();
                 const element = document.getElementById('architecture');
                 if (element) {
-                  const headerOffset = 80;
-                  const elementPosition = element.getBoundingClientRect().top;
-                  const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
+                  const headerOffset = 100;
+                  const elementTop = element.offsetTop;
                   window.scrollTo({
-                    top: offsetPosition,
+                    top: elementTop - headerOffset,
                     behavior: 'smooth'
                   });
+                } else {
+                  console.error('Architecture section not found');
                 }
               }}
               className="px-8 py-4 border border-[var(--border)] font-bold text-lg hover:border-accent hover:text-accent transition-all"
