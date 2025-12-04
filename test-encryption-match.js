@@ -16,3 +16,10 @@ console.log('Node.js defaults: N=16384 (2^14), r=8, p=1, maxmem=32MB');
 console.log('Python Scrypt needs to match these exactly.');
 
 
+
+
+
+
+
+
+
