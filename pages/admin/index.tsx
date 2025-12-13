@@ -170,45 +170,79 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentTime, setCurrentTime] = useState('');
+  const [lastUpdated, setLastUpdated] = useState('');
+  const [mounted, setMounted] = useState(false);
   const [selectedTab, setSelectedTab] = useState<'overview' | 'agents' | 'wallets' | 'activity'>('overview');
   const [sortBy, setSortBy] = useState<'subscribers' | 'pnl' | 'positions' | 'name'>('subscribers');
   const [walletData, setWalletData] = useState<WalletData | null>(null);
   const [walletLoading, setWalletLoading] = useState(false);
 
+
+  // Set mounted flag on client only
+  useEffect(() => {
+    setMounted(true);
+    setLastUpdated(new Date().toLocaleString());
+  }, []);
+
   useEffect(() => {
     const updateTime = () => {
-      setCurrentTime(new Date().toLocaleTimeString('en-US', {
+      const timeStr = new Date().toLocaleTimeString('en-US', {
         hour12: false,
         hour: '2-digit',
         minute: '2-digit',
         second: '2-digit',
-      }));
+      });
+      setCurrentTime(timeStr);
     };
     updateTime();
     const interval = setInterval(updateTime, 1000);
     return () => clearInterval(interval);
   }, []);
 
+  // Load data once on mount only
   useEffect(() => {
     async function fetchStats() {
+      setLoading(true);
       try {
         const res = await fetch('/api/admin/dashboard-stats');
         if (!res.ok) throw new Error('Failed to fetch stats');
         const data = await res.json();
+        if (!data.overview) {
+          throw new Error('Invalid response: missing overview data');
+        }
         setStats(data);
         setError(null);
+        setLastUpdated(new Date().toLocaleString());
       } catch (err: any) {
+        console.error('[Admin Dashboard] Fetch error:', err);
         setError(err.message);
       } finally {
         setLoading(false);
       }
     }
     fetchStats();
-
-    // Refresh every 30 seconds
-    const refreshInterval = setInterval(fetchStats, 30000);
-    return () => clearInterval(refreshInterval);
   }, []);
+
+  // Fetch stats function - can be called manually from refresh button
+  const handleRefresh = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/admin/dashboard-stats');
+      if (!res.ok) throw new Error('Failed to fetch stats');
+      const data = await res.json();
+      if (!data.overview) {
+        throw new Error('Invalid response: missing overview data');
+      }
+      setStats(data);
+      setError(null);
+      setLastUpdated(new Date().toLocaleString());
+    } catch (err: any) {
+      console.error('[Admin Dashboard] Refresh error:', err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Fetch wallet data when wallets tab is selected
   useEffect(() => {
@@ -228,20 +262,21 @@ export default function AdminDashboard() {
     }
   }, [selectedTab, walletData, walletLoading]);
 
-  const sortedAgents = stats?.agents.slice().sort((a, b) => {
+  const sortedAgents = stats?.agents ? [...stats.agents].sort((a, b) => {
     switch (sortBy) {
       case 'subscribers':
-        return b.subscriberCount - a.subscriberCount;
+        return (b.subscriberCount || 0) - (a.subscriberCount || 0);
       case 'pnl':
-        return b.totalPnl - a.totalPnl;
+        return (b.totalPnl || 0) - (a.totalPnl || 0);
       case 'positions':
-        return b.totalPositions - a.totalPositions;
+        return (b.totalPositions || 0) - (a.totalPositions || 0);
       case 'name':
-        return a.name.localeCompare(b.name);
+        return (a.name || '').localeCompare(b.name || '');
       default:
         return 0;
     }
-  });
+  }) : [];
+
 
   return (
     <>
@@ -266,9 +301,9 @@ export default function AdminDashboard() {
               </div>
             </div>
             <div className="flex items-center gap-6">
-              <span className="hidden sm:flex items-center gap-2 text-sm text-[var(--text-muted)]">
+              <span className="hidden sm:flex items-center gap-2 text-sm text-[var(--text-muted)]" suppressHydrationWarning>
                 <span className="w-2 h-2 bg-accent rounded-full animate-pulse" />
-                {currentTime}
+                {mounted ? currentTime : ''}
               </span>
               <div className="flex items-center gap-2">
                 <Link href="/admin/database">
@@ -298,11 +333,13 @@ export default function AdminDashboard() {
               </div>
               <div className="hidden md:block text-right">
                 <p className="text-sm text-[var(--text-muted)]">Last updated</p>
-                <p className="font-mono text-accent">{new Date().toLocaleString()}</p>
+                <p className="font-mono text-accent" suppressHydrationWarning>
+                  {mounted ? lastUpdated : ''}
+                </p>
               </div>
             </div>
 
-            {loading ? (
+            {loading && (
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
                 {[...Array(8)].map((_, i) => (
                   <div key={i} className="border border-[var(--border)] p-6 animate-pulse">
@@ -311,17 +348,46 @@ export default function AdminDashboard() {
                   </div>
                 ))}
               </div>
-            ) : error ? (
+            )}
+            
+            {error && (
               <div className="border border-[var(--danger)] p-8 text-center">
                 <p className="text-[var(--danger)] font-mono">ERROR: {error}</p>
                 <button
-                  onClick={() => window.location.reload()}
+                  onClick={handleRefresh}
                   className="mt-4 px-4 py-2 bg-[var(--danger)] text-white"
                 >
                   RETRY
                 </button>
               </div>
-            ) : stats ? (
+            )}
+            
+            {!loading && !error && !stats && (
+              <div className="border border-[var(--border)] p-8 text-center">
+                <p className="text-[var(--text-muted)]">No data loaded. Click refresh to load.</p>
+                <button
+                  onClick={handleRefresh}
+                  className="mt-4 px-4 py-2 bg-accent text-[var(--bg-deep)]"
+                >
+                  Load Data
+                </button>
+              </div>
+            )}
+            
+            {!loading && !error && stats && !stats.overview && (
+              <div className="border border-[var(--danger)] p-8 text-center">
+                <p className="text-[var(--danger)] font-mono">Invalid data structure</p>
+                <p className="text-xs text-[var(--text-muted)] mt-2">Stats object exists but missing overview</p>
+                <button
+                  onClick={handleRefresh}
+                  className="mt-4 px-4 py-2 bg-accent text-[var(--bg-deep)]"
+                >
+                  Refresh
+                </button>
+              </div>
+            )}
+            
+            {!loading && !error && stats && stats.overview && (
               <>
                 {/* Overview Stats Grid */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
@@ -398,51 +464,22 @@ export default function AdminDashboard() {
                 </div>
 
                 {selectedTab === 'overview' && (
-                  <div className="grid lg:grid-cols-3 gap-6">
-                    {/* Venue Breakdown */}
-                    <div className="border border-[var(--border)] bg-[var(--bg-surface)] p-6">
-                      <p className="data-label mb-4">VENUE BREAKDOWN</p>
-                      <div className="space-y-4">
-                        {stats.venueBreakdown.filter(v => v.agentCount > 0 || v.positionCount > 0).map((venue) => (
-                          <div key={venue.venue} className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 border border-accent/50 flex items-center justify-center text-xs font-bold">
-                                {venue.venue.slice(0, 2)}
-                              </div>
-                              <div>
-                                <p className="font-bold">{venue.venue}</p>
-                                <p className="text-xs text-[var(--text-muted)]">
-                                  {venue.agentCount} agents
-                                </p>
-                              </div>
-                            </div>
-                            <div className="text-right">
-                              <p className="font-display text-xl text-accent">{venue.deploymentCount}</p>
-                              <p className="text-xs text-[var(--text-muted)]">deploys</p>
-                            </div>
-                          </div>
-                        ))}
-                        {stats.venueBreakdown.every(v => v.agentCount === 0 && v.positionCount === 0) && (
-                          <p className="text-[var(--text-muted)] text-center py-4">No venue data</p>
-                        )}
-                      </div>
-                    </div>
-
+                  <div className="grid gap-6">
                     {/* Daily Activity Chart */}
-                    <div className="lg:col-span-2 border border-[var(--border)] bg-[var(--bg-surface)] p-6">
+                    <div className="border border-[var(--border)] bg-[var(--bg-surface)] p-6">
                       <div className="flex items-center justify-between mb-4">
                         <p className="data-label">SIGNALS (LAST 30 DAYS)</p>
                         <p className="text-xs text-[var(--text-muted)]">
-                          {stats.dailyStats.reduce((sum, d) => sum + d.signals, 0)} total
+                          {stats.dailyStats ? stats.dailyStats.reduce((sum, d) => sum + (d.signals || 0), 0) : 0} total
                         </p>
                       </div>
                       <MiniChart
-                        data={stats.dailyStats.map((d) => d.signals)}
+                        data={stats.dailyStats ? stats.dailyStats.map((d) => d.signals || 0) : []}
                         height={100}
                       />
                       <div className="flex justify-between mt-2 text-xs text-[var(--text-muted)]">
-                        <span>{stats.dailyStats[0]?.date}</span>
-                        <span>{stats.dailyStats[stats.dailyStats.length - 1]?.date}</span>
+                        <span>{stats.dailyStats && stats.dailyStats[0] ? stats.dailyStats[0].date : '—'}</span>
+                        <span>{stats.dailyStats && stats.dailyStats.length > 0 ? stats.dailyStats[stats.dailyStats.length - 1].date : '—'}</span>
                       </div>
                     </div>
                   </div>
@@ -582,22 +619,24 @@ export default function AdminDashboard() {
                     ) : walletData ? (
                       <>
                         {/* Wallet Totals */}
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                          <div className="border border-accent bg-accent/10 p-4">
-                            <p className="data-label mb-2">TOTAL WALLETS</p>
-                            <p className="font-display text-3xl text-accent">{walletData.totals.walletCount}</p>
-                          </div>
-                          <div className="border border-[var(--border)] bg-[var(--bg-surface)] p-4">
-                            <p className="data-label mb-2">TOTAL ETH</p>
-                            <p className="font-display text-3xl">{walletData.totals.totalEth.toFixed(4)}</p>
-                          </div>
-                          {Object.entries(walletData.totals.totalByToken).map(([symbol, amount]) => (
-                            <div key={symbol} className="border border-[var(--border)] bg-[var(--bg-surface)] p-4">
-                              <p className="data-label mb-2">TOTAL {symbol}</p>
-                              <p className="font-display text-3xl">{amount.toFixed(2)}</p>
+                        {walletData.totals && (
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                            <div className="border border-accent bg-accent/10 p-4">
+                              <p className="data-label mb-2">TOTAL WALLETS</p>
+                              <p className="font-display text-3xl text-accent">{walletData.totals.walletCount || 0}</p>
                             </div>
-                          ))}
-                        </div>
+                            <div className="border border-[var(--border)] bg-[var(--bg-surface)] p-4">
+                              <p className="data-label mb-2">TOTAL ETH</p>
+                              <p className="font-display text-3xl">{walletData.totals.totalEth ? walletData.totals.totalEth.toFixed(4) : '0.0000'}</p>
+                            </div>
+                            {walletData.totals.totalByToken && Object.entries(walletData.totals.totalByToken).map(([symbol, amount]) => (
+                              <div key={symbol} className="border border-[var(--border)] bg-[var(--bg-surface)] p-4">
+                                <p className="data-label mb-2">TOTAL {symbol}</p>
+                                <p className="font-display text-3xl">{typeof amount === 'number' ? amount.toFixed(2) : '0.00'}</p>
+                              </div>
+                            ))}
+                          </div>
+                        )}
 
                         {/* Wallet Table */}
                         <div className="border border-[var(--border)] overflow-hidden">
@@ -723,7 +762,7 @@ export default function AdminDashboard() {
                       <p className="data-label">RECENT ACTIVITY LOG</p>
                     </div>
                     <div className="divide-y divide-[var(--border)] max-h-[600px] overflow-y-auto">
-                      {stats.recentActivity.length > 0 ? (
+                      {stats.recentActivity && stats.recentActivity.length > 0 ? (
                         stats.recentActivity.map((activity, idx) => (
                           <div
                             key={idx}
@@ -736,8 +775,8 @@ export default function AdminDashboard() {
                                 <p className="text-xs text-[var(--text-muted)]">{activity.description}</p>
                               </div>
                             </div>
-                            <span className="text-xs text-[var(--text-muted)] font-mono">
-                              {new Date(activity.timestamp).toLocaleString()}
+                            <span className="text-xs text-[var(--text-muted)] font-mono" suppressHydrationWarning>
+                              {mounted ? new Date(activity.timestamp).toLocaleString() : activity.timestamp}
                             </span>
                           </div>
                         ))
@@ -770,15 +809,16 @@ export default function AdminDashboard() {
                       </button>
                     </Link>
                     <button
-                      onClick={() => window.location.reload()}
-                      className="px-6 py-3 bg-accent text-[var(--bg-deep)] font-bold hover:bg-[var(--accent-dim)] transition-colors"
+                      onClick={handleRefresh}
+                      disabled={loading}
+                      className="px-6 py-3 bg-accent text-[var(--bg-deep)] font-bold hover:bg-[var(--accent-dim)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      🔄 Refresh Data
+                      {loading ? '⏳ Loading...' : '🔄 Refresh Data'}
                     </button>
                   </div>
                 </div>
               </>
-            ) : null}
+            )}
           </div>
         </main>
 

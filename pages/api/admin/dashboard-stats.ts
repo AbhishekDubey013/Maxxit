@@ -86,6 +86,13 @@ export default async function handler(
   }
 
   try {
+    // #region debug log - API start
+    fetch('http://127.0.0.1:7242/ingest/cd616be5-dd4d-4d59-bd73-3c41aeb54556',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api/admin/dashboard-stats.ts:60',message:'API handler start',data:{hasDbUrl:!!process.env.DATABASE_URL},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+    // #endregion
+    // #region debug log - before DB queries
+    fetch('http://127.0.0.1:7242/ingest/cd616be5-dd4d-4d59-bd73-3c41aeb54556',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api/admin/dashboard-stats.ts:106',message:'Before DB queries',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+    // #endregion
+
     // Fetch all overview counts in parallel
     const [
       totalAgents,
@@ -104,48 +111,58 @@ export default async function handler(
       totalCtAccounts,
       totalResearchInstitutes,
     ] = await Promise.all([
-      prisma.agents.count(),
-      prisma.agents.count({ where: { status: 'PUBLIC' } }),
-      prisma.agents.count({ where: { status: 'PRIVATE' } }),
-      prisma.agents.count({ where: { status: 'DRAFT' } }),
-      prisma.agent_deployments.count(),
-      prisma.agent_deployments.count({ where: { status: 'ACTIVE' } }),
-      prisma.agent_deployments.count({ where: { status: 'PAUSED' } }),
-      prisma.positions.count(),
-      prisma.positions.count({ where: { status: 'OPEN' } }),
-      prisma.positions.count({ where: { closed_at: { not: null } } }),
-      prisma.signals.count(),
-      prisma.billing_events.count(),
-      prisma.telegram_users.count(),
-      prisma.ct_accounts.count(),
-      prisma.research_institutes.count(),
+      prisma.agents.count().catch(() => 0),
+      prisma.agents.count({ where: { status: 'PUBLIC' } }).catch(() => 0),
+      prisma.agents.count({ where: { status: 'PRIVATE' } }).catch(() => 0),
+      prisma.agents.count({ where: { status: 'DRAFT' } }).catch(() => 0),
+      prisma.agent_deployments.count().catch(() => 0),
+      prisma.agent_deployments.count({ where: { status: 'ACTIVE' } }).catch(() => 0),
+      prisma.agent_deployments.count({ where: { status: 'PAUSED' } }).catch(() => 0),
+      prisma.positions.count().catch(() => 0),
+      prisma.positions.count({ where: { status: 'OPEN' } }).catch(() => 0),
+      prisma.positions.count({ where: { closed_at: { not: null } } }).catch(() => 0),
+      prisma.signals.count().catch(() => 0),
+      prisma.billing_events.count().catch(() => 0),
+      prisma.telegram_users.count().catch(() => 0),
+      prisma.ct_accounts.count().catch(() => 0),
+      prisma.research_institutes.count().catch(() => 0),
     ]);
 
     // Calculate total PnL
-    const pnlSum = await prisma.positions.aggregate({
-      _sum: {
-        pnl: true,
-      },
-      where: {
-        pnl: { not: null },
-      },
-    });
-    const totalPnl = pnlSum._sum.pnl ? Number(pnlSum._sum.pnl) : 0;
+    let totalPnl = 0;
+    try {
+      const pnlSum = await prisma.positions.aggregate({
+        _sum: {
+          pnl: true,
+        },
+        where: {
+          pnl: { not: null },
+        },
+      });
+      totalPnl = pnlSum._sum.pnl ? Number(pnlSum._sum.pnl) : 0;
+    } catch (pnlError: any) {
+      console.warn('[Dashboard Stats] Failed to calculate PnL:', pnlError.message);
+    }
 
     // Fetch agents with their stats
-    const agents = await prisma.agents.findMany({
-      include: {
-        agent_deployments: {
-          include: {
-            positions: true,
+    let agents: any[] = [];
+    try {
+      agents = await prisma.agents.findMany({
+        include: {
+          agent_deployments: {
+            include: {
+              positions: true,
+            },
           },
+          signals: true,
         },
-        signals: true,
-      },
-      orderBy: {
-        apr_30d: 'desc',
-      },
-    });
+        orderBy: {
+          apr_30d: 'desc',
+        },
+      });
+    } catch (agentsError: any) {
+      console.warn('[Dashboard Stats] Failed to fetch agents:', agentsError.message);
+    }
 
     // Process agents with stats
     const agentsWithStats: AgentWithStats[] = await Promise.all(
@@ -187,85 +204,101 @@ export default async function handler(
       })
     );
 
-    // Fetch recent activity (audit logs)
-    const recentAuditLogs = await prisma.audit_logs.findMany({
-      orderBy: { occurred_at: 'desc' },
-      take: 20,
-    });
+    // Fetch recent activity (audit logs) - optional, don't fail if it errors
+    let recentActivity: any[] = [];
+    try {
+      const recentAuditLogs = await prisma.audit_logs.findMany({
+        orderBy: { occurred_at: 'desc' },
+        take: 20,
+      });
 
-    const recentActivity = recentAuditLogs.map((log) => ({
-      type: log.event_name,
-      description: `${log.event_name} on ${log.subject_type || 'system'}`,
-      timestamp: log.occurred_at.toISOString(),
-      metadata: log.payload,
-    }));
-
-    // Venue breakdown
-    const venueBreakdown = await Promise.all(
-      ['HYPERLIQUID', 'OSTIUM', 'GMX', 'SPOT', 'MULTI'].map(async (venue) => {
-        const [agentCount, deploymentCount, positionCount] = await Promise.all([
-          prisma.agents.count({ where: { venue: venue as any } }),
-          prisma.agent_deployments.count({
-            where: { agents: { venue: venue as any } },
-          }),
-          prisma.positions.count({ where: { venue: venue as any } }),
-        ]);
-        return { venue, agentCount, deploymentCount, positionCount };
-      })
-    );
-
-    // Daily stats for the last 30 days
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-    const dailySignals = await prisma.signals.groupBy({
-      by: ['created_at'],
-      where: {
-        created_at: { gte: thirtyDaysAgo },
-      },
-      _count: true,
-    });
-
-    const dailyPositions = await prisma.positions.groupBy({
-      by: ['opened_at'],
-      where: {
-        opened_at: { gte: thirtyDaysAgo },
-      },
-      _count: true,
-    });
-
-    // Aggregate daily stats
-    const dailyStatsMap = new Map<string, { signals: number; positions: number; pnl: number }>();
-
-    for (let i = 0; i < 30; i++) {
-      const date = new Date();
-      date.setDate(date.getDate() - i);
-      const dateStr = date.toISOString().split('T')[0];
-      dailyStatsMap.set(dateStr, { signals: 0, positions: 0, pnl: 0 });
+      recentActivity = recentAuditLogs.map((log) => ({
+        type: log.event_name,
+        description: `${log.event_name} on ${log.subject_type || 'system'}`,
+        timestamp: log.occurred_at.toISOString(),
+        metadata: log.payload,
+      }));
+    } catch (auditError: any) {
+      console.warn('[Dashboard Stats] Failed to fetch audit logs:', auditError.message);
+      // Continue without audit logs - not critical for dashboard
     }
 
-    dailySignals.forEach((s) => {
-      const dateStr = s.created_at.toISOString().split('T')[0];
-      const existing = dailyStatsMap.get(dateStr);
-      if (existing) {
-        existing.signals += s._count;
-      }
-    });
+    // Venue breakdown
+    let venueBreakdown: any[] = [];
+    try {
+      venueBreakdown = await Promise.all(
+        ['HYPERLIQUID', 'OSTIUM', 'GMX', 'SPOT', 'MULTI'].map(async (venue) => {
+          const [agentCount, deploymentCount, positionCount] = await Promise.all([
+            prisma.agents.count({ where: { venue: venue as any } }).catch(() => 0),
+            prisma.agent_deployments.count({
+              where: { agents: { venue: venue as any } },
+            }).catch(() => 0),
+            prisma.positions.count({ where: { venue: venue as any } }).catch(() => 0),
+          ]);
+          return { venue, agentCount, deploymentCount, positionCount };
+        })
+      );
+    } catch (venueError: any) {
+      console.warn('[Dashboard Stats] Failed to fetch venue breakdown:', venueError.message);
+    }
 
-    dailyPositions.forEach((p) => {
-      const dateStr = p.opened_at.toISOString().split('T')[0];
-      const existing = dailyStatsMap.get(dateStr);
-      if (existing) {
-        existing.positions += p._count;
-      }
-    });
+    // Daily stats for the last 30 days
+    let dailyStats: any[] = [];
+    try {
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-    const dailyStats = Array.from(dailyStatsMap.entries())
-      .map(([date, stats]) => ({
-        date,
-        ...stats,
-      }))
-      .sort((a, b) => a.date.localeCompare(b.date));
+      const dailySignals = await prisma.signals.groupBy({
+        by: ['created_at'],
+        where: {
+          created_at: { gte: thirtyDaysAgo },
+        },
+        _count: true,
+      }).catch(() => []);
+
+      const dailyPositions = await prisma.positions.groupBy({
+        by: ['opened_at'],
+        where: {
+          opened_at: { gte: thirtyDaysAgo },
+        },
+        _count: true,
+      }).catch(() => []);
+
+      // Aggregate daily stats
+      const dailyStatsMap = new Map<string, { signals: number; positions: number; pnl: number }>();
+
+      for (let i = 0; i < 30; i++) {
+        const date = new Date();
+        date.setDate(date.getDate() - i);
+        const dateStr = date.toISOString().split('T')[0];
+        dailyStatsMap.set(dateStr, { signals: 0, positions: 0, pnl: 0 });
+      }
+
+      dailySignals.forEach((s) => {
+        const dateStr = s.created_at.toISOString().split('T')[0];
+        const existing = dailyStatsMap.get(dateStr);
+        if (existing) {
+          existing.signals += s._count;
+        }
+      });
+
+      dailyPositions.forEach((p) => {
+        const dateStr = p.opened_at.toISOString().split('T')[0];
+        const existing = dailyStatsMap.get(dateStr);
+        if (existing) {
+          existing.positions += p._count;
+        }
+      });
+
+      dailyStats = Array.from(dailyStatsMap.entries())
+        .map(([date, stats]) => ({
+          date,
+          ...stats,
+        }))
+        .sort((a, b) => a.date.localeCompare(b.date));
+    } catch (dailyError: any) {
+      console.warn('[Dashboard Stats] Failed to fetch daily stats:', dailyError.message);
+    }
 
     const stats: DashboardStats = {
       overview: {

@@ -79,6 +79,11 @@ model agent_deployments {
   module_enabled                  Boolean             @default(false)
   module_address                  String?
   enabled_venues                  String[]            @default(["HYPERLIQUID"])
+  risk_tolerance                  Int                 @default(50)
+  trade_frequency                 Int                 @default(50)
+  social_sentiment_weight         Int                 @default(50)
+  price_momentum_focus            Int                 @default(50)
+  market_rank_priority            Int                 @default(50)
   agents                          agents              @relation(fields: [agent_id], references: [id], onDelete: Cascade)
   billing_events                  billing_events[]
   pnl_snapshots                   pnl_snapshots[]
@@ -274,6 +279,7 @@ model positions {
   exit_reason           String?
   status                String                  @default("OPEN")
   ostium_trade_index    Int?                   // Actual trade index from Ostium (fixes SDK bug)
+  ostium_trade_id       String?                // Order ID / Trade ID from Ostium SDK for precise matching
   billing_events        billing_events[]
   impact_factor_history impact_factor_history[]
   agent_deployments     agent_deployments       @relation(fields: [deployment_id], references: [id], onDelete: Cascade)
@@ -307,16 +313,18 @@ model research_signals {
   institute_id         String              @db.Uuid
   signal_text          String
   source_url           String?
-  extracted_token      String?
-  extracted_side       String?
+  extracted_tokens     String[]            @default([])
+  signal_type          String?
   extracted_leverage   Int?
-  is_valid_signal      Boolean?
-  processed_for_trades Boolean             @default(false)
+  is_signal_candidate  Boolean?
+  confidence_score     Float?
+  processed_for_signals Boolean             @default(false)
   created_at           DateTime            @default(now()) @db.Timestamptz(6)
   research_institutes  research_institutes @relation(fields: [institute_id], references: [id], onDelete: Cascade)
 
   @@index([institute_id, created_at])
-  @@index([processed_for_trades])
+  @@index([is_signal_candidate])
+  @@index([processed_for_signals])
 }
 
 /// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
@@ -342,6 +350,10 @@ model signals {
   lunarcrush_breakdown         Json?
   lunarcrush_reasoning         String?
   lunarcrush_score             Float?
+  llm_decision                 String?
+  llm_should_trade             Boolean?
+  llm_fund_allocation          Float?
+  llm_leverage                Float?
   routing_history              Json?
   agent_routing_history        agent_routing_history[]
   impact_factor_history        impact_factor_history[]
@@ -403,6 +415,14 @@ model telegram_posts {
   signal_type             String?
   processed_for_signals   Boolean               @default(false)
   created_at              DateTime              @default(now()) @db.Timestamptz(6)
+  
+  // EigenAI Signature Verification Fields
+  llm_signature           String?               // Cryptographic signature from EigenAI
+  llm_raw_output          String?               // Full raw output from LLM (for verification)
+  llm_model_used          String?               // Model ID used (e.g., "gpt-oss-120b-f16")
+  llm_chain_id            Int?                  // Chain ID for signature verification
+  llm_reasoning           String?               // LLM reasoning for classification
+  
   telegram_sources        telegram_sources?     @relation(fields: [source_id], references: [id], onDelete: Cascade)
   telegram_alpha_users    telegram_alpha_users? @relation(fields: [alpha_user_id], references: [id], onDelete: Cascade)
 
@@ -496,6 +516,18 @@ model venue_markets {
   @@index([last_synced])
   @@index([venue, is_active])
   @@index([venue, token_symbol])
+}
+
+model ostium_available_pairs {
+  id                  Int       @id
+  symbol              String
+  max_leverage        Float?
+  maker_max_leverage  Float?
+  group               String?
+  created_at          DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at          DateTime  @updatedAt @db.Timestamptz(6)
+
+  @@index([group])
 }
 
 model venue_routing_config {
